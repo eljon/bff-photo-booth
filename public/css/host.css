@@ -59,3 +59,7 @@ body.host { padding: 0 0 40px; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
 .gallery a { display: block; }
 .gallery img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; background: #fff; }
+
+.host-pills { display: flex; gap: 8px; align-items: center; }
+.url code, .result-card code { background: #ffffff14; padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }
+#rotateKey { margin-top: 12px; }

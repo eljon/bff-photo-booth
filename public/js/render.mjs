@@ -175,8 +175,9 @@ export async function exportPrint(state) {
 
   let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('This browser could not render the print.');
-  if (blob.size > 12 * 1024 * 1024) {
-    // Huge PNGs stall on hotel Wi-Fi; a 0.94 JPEG is indistinguishable at 300 DPI.
+  if (blob.size > 3 * 1024 * 1024) {
+    // A big PNG crawls over cellular; a 0.94 JPEG is indistinguishable at
+    // 300 DPI on photo paper and uploads in a second or two.
     const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.94));
     if (jpeg) blob = jpeg;
   }

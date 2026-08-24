@@ -7,6 +7,9 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "start": "node server/index.js",
+    "tunnel": "node server/index.js --tunnel",
+    "relay": "MODE=relay node server/index.js",
+    "agent": "node server/agent.js",
     "dev": "DRY_RUN=1 node server/index.js",
     "test": "node --test test/*.test.mjs",
     "printers": "lpstat -p -d"

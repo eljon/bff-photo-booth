@@ -1,13 +1,20 @@
 'use strict';
 
 /**
- * BFF Photo Booth — host server.
+ * BFF Photo Booth — server.
  *
- * Runs on the MacBook that owns the printer. Guests join the same Wi-Fi,
- * open http://<mac-lan-ip>:8080 on their phone, pick four photos, and the
- * composed 300 DPI print is POSTed back here. This process is the only
- * thing that talks to the printer: it writes the PNG to ./prints and hands
- * it to the local CUPS queue with `lp`.
+ * Runs in one of two shapes:
+ *
+ *   booth  (default) — runs on the MacBook that owns the printer. It serves
+ *                      the guest app and prints locally with `lp`. Reachable
+ *                      over the LAN, or from anywhere via `--tunnel`.
+ *
+ *   relay  (MODE=relay) — runs on any public host. It serves the guest app
+ *                      and parks finished prints; the MacBook runs
+ *                      `npm run agent`, which makes outbound calls only:
+ *                      long-poll for a job, fetch it, print it, report back.
+ *                      The Mac needs no inbound ports and no shared network
+ *                      with the guests.
  */
 
 const http = require('node:http');
@@ -19,21 +26,39 @@ const crypto = require('node:crypto');
 
 const cups = require('./cups');
 const config = require('./config');
+const tunnel = require('./tunnel');
 
+const MODE = process.env.MODE === 'relay' ? 'relay' : 'booth';
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
 const DRY_RUN = process.env.DRY_RUN === '1';
+const BOOTH_TOKEN = process.env.BOOTH_TOKEN || null;
+const WANT_TUNNEL = process.env.TUNNEL === '1' || process.argv.includes('--tunnel');
+const PUBLIC_URL = process.env.PUBLIC_URL || null;
+
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const PRINTS_DIR = process.env.PRINTS_DIR || path.join(__dirname, '..', 'prints');
-const MAX_BODY = 32 * 1024 * 1024; // 32 MB — a 300 DPI 4x6 PNG lands well under this
+const MAX_BODY = 32 * 1024 * 1024; // 32 MB — a 300 DPI 4x6 page lands well under this
 const RATE_LIMIT = { windowMs: 10 * 60 * 1000, max: 30 };
+const CLAIM_TIMEOUT_MS = 2 * 60 * 1000; // an agent that goes quiet loses its job
+const AGENT_ONLINE_MS = 90 * 1000;
+
+if (MODE === 'relay' && !BOOTH_TOKEN) {
+  console.error('MODE=relay needs BOOTH_TOKEN set — the booth agent and the host screen sign in with it.');
+  console.error('Generate one with:  node -e "console.log(require(\'crypto\').randomBytes(24).toString(\'hex\'))"');
+  process.exit(1);
+}
 
 fs.mkdirSync(PRINTS_DIR, { recursive: true });
 
-/** jobId -> { id, file, copies, layout, status, createdAt, cupsJobId, error } */
+/** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
 const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
-const hits = new Map(); // ip -> timestamps
+const hits = new Map(); // ip -> print timestamps
+const agentWaiters = new Set(); // long-poll resolvers waiting for work
+
+/** What the Mac-side agent last told us about itself. */
+const agent = { lastSeen: 0, printers: [], name: null, dryRun: false };
 
 // ---------------------------------------------------------------- helpers
 
@@ -61,7 +86,8 @@ function sendJson(res, status, payload) {
 }
 
 function clientIp(req) {
-  return (req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
+  const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return (forwarded || req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
 }
 
 function rateLimited(req) {
@@ -114,6 +140,14 @@ function imageKind(buf) {
   return null;
 }
 
+/** Constant-time compare that tolerates length differences. */
+function secretsMatch(a, b) {
+  if (!a || !b) return false;
+  const left = crypto.createHash('sha256').update(String(a)).digest();
+  const right = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(left, right);
+}
+
 function lanAddresses() {
   const out = [];
   for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
@@ -131,10 +165,50 @@ function activePort() {
   return address && typeof address === 'object' ? address.port : PORT;
 }
 
-function primaryUrl() {
-  const lan = lanAddresses()[0];
-  return `http://${lan ? lan.address : 'localhost'}:${activePort()}`;
+/** The address guests should use, best first. */
+function joinUrls() {
+  const urls = [];
+  const publicUrl = PUBLIC_URL || tunnel.url();
+  if (publicUrl) urls.push(publicUrl);
+  for (const lan of lanAddresses()) urls.push(`http://${lan.address}:${activePort()}`);
+  if (!urls.length) urls.push(`http://localhost:${activePort()}`);
+  return urls;
 }
+
+/** True once the booth is reachable from outside the local network. */
+function isExposed() {
+  return MODE === 'relay' || Boolean(PUBLIC_URL || tunnel.url());
+}
+
+function guestKeyRequired() {
+  const setting = config.load().guestKeyRequired;
+  return setting === 'auto' ? isExposed() : Boolean(setting);
+}
+
+/** Guests print with a key that rides along in the QR link. */
+function guestAuthorised(req, url) {
+  if (!guestKeyRequired()) return true;
+  const supplied = req.headers['x-booth-key'] || url.searchParams.get('k');
+  return secretsMatch(supplied, config.load().accessKey);
+}
+
+/** Host controls (and the agent) need the booth token once we are public. */
+function hostAuthorised(req) {
+  if (!isExposed()) return true;
+  if (!BOOTH_TOKEN) return false;
+  const header = req.headers.authorization || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
+  return secretsMatch(req.headers['x-booth-token'] || bearer, BOOTH_TOKEN);
+}
+
+function agentAuthorised(req) {
+  if (!BOOTH_TOKEN) return false;
+  const header = req.headers.authorization || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
+  return secretsMatch(req.headers['x-booth-token'] || bearer, BOOTH_TOKEN);
+}
+
+const agentOnline = () => Date.now() - agent.lastSeen < AGENT_ONLINE_MS;
 
 // ---------------------------------------------------------------- printing
 
@@ -154,8 +228,26 @@ async function resolvePrinter(requested) {
   return { name: match.name, error: null };
 }
 
+/** Wake any agent that is parked on a long poll. */
+function notifyAgents() {
+  for (const resolve of agentWaiters) resolve();
+  agentWaiters.clear();
+}
+
+/**
+ * Move a job towards the printer. In booth mode that means calling `lp` right
+ * here; in relay mode it means making the job claimable by the Mac's agent.
+ */
 async function sendToQueue(job) {
   const cfg = config.load();
+
+  if (MODE === 'relay') {
+    job.status = 'pending';
+    job.error = null;
+    notifyAgents();
+    return job;
+  }
+
   job.status = 'printing';
 
   if (DRY_RUN) {
@@ -194,6 +286,10 @@ async function sendToQueue(job) {
   return job;
 }
 
+function imageUrl(job) {
+  return `/prints/${path.basename(job.file)}?t=${job.token}`;
+}
+
 function publicJob(job) {
   return {
     id: job.id,
@@ -205,13 +301,116 @@ function publicJob(job) {
     error: job.error || null,
     createdAt: job.createdAt,
     guest: job.guest || null,
-    image: `/prints/${path.basename(job.file)}`,
+    image: imageUrl(job),
   };
 }
 
-// ---------------------------------------------------------------- routes
+/** Oldest job an agent may take, requeueing anything a dead agent claimed. */
+function nextClaimableJob() {
+  const now = Date.now();
+  const ordered = [...jobs.values()].sort((a, b) => a.createdAt - b.createdAt);
+  for (const job of ordered) {
+    if (job.status === 'claimed' && now - (job.claimedAt || 0) > CLAIM_TIMEOUT_MS) {
+      job.status = 'pending';
+      job.error = null;
+    }
+    if (job.status === 'pending') return job;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- agent API
+
+async function handleAgentApi(req, res, url) {
+  if (MODE !== 'relay') return sendJson(res, 404, { ok: false, error: 'This booth prints locally; it has no agent API.' });
+  if (!agentAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Bad booth token.' });
+
+  const cfg = config.load();
+
+  // The Mac says hello and tells us which printers it can actually reach.
+  if (url.pathname === '/api/agent/hello' && req.method === 'POST') {
+    const body = await readJson(req);
+    agent.lastSeen = Date.now();
+    agent.name = String(body.name || 'booth agent').slice(0, 60);
+    agent.dryRun = Boolean(body.dryRun);
+    agent.printers = Array.isArray(body.printers)
+      ? body.printers.slice(0, 40).map((p) => ({
+          name: String(p.name || '').slice(0, 128),
+          state: String(p.state || '').slice(0, 60),
+          ready: Boolean(p.ready),
+        })).filter((p) => p.name)
+      : [];
+    return sendJson(res, 200, { ok: true, config: cfg });
+  }
+
+  // Long poll: hand over the next job, or hold the connection until one lands.
+  if (url.pathname === '/api/agent/jobs' && req.method === 'GET') {
+    agent.lastSeen = Date.now();
+    const waitMs = Math.min(50_000, Math.max(0, Number(url.searchParams.get('wait')) || 0) * 1000);
+
+    const claim = () => {
+      const job = nextClaimableJob();
+      if (!job) return null;
+      job.status = 'claimed';
+      job.claimedAt = Date.now();
+      return {
+        id: job.id,
+        copies: job.copies,
+        printer: job.printer || cfg.printer,
+        media: job.media || cfg.media,
+        fitToPage: cfg.fitToPage,
+        layout: job.layout,
+        image: imageUrl(job),
+      };
+    };
+
+    const ready = claim();
+    if (ready) return sendJson(res, 200, { ok: true, job: ready });
+    if (!waitMs) return sendJson(res, 200, { ok: true, job: null });
+
+    await new Promise((resolve) => {
+      const finish = () => {
+        clearTimeout(timer);
+        agentWaiters.delete(finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, waitMs);
+      agentWaiters.add(finish);
+      res.on('close', finish);
+    });
+    if (res.writableEnded || res.destroyed) return undefined;
+    agent.lastSeen = Date.now();
+    return sendJson(res, 200, { ok: true, job: claim() });
+  }
+
+  // The Mac reports what CUPS said.
+  if (url.pathname === '/api/agent/result' && req.method === 'POST') {
+    agent.lastSeen = Date.now();
+    const body = await readJson(req);
+    const job = jobs.get(body.id);
+    if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
+
+    if (body.ok) {
+      job.status = 'queued';
+      job.cupsJobId = body.cupsJobId ? String(body.cupsJobId).slice(0, 120) : null;
+      job.printer = body.printer ? String(body.printer).slice(0, 128) : job.printer;
+      job.printedAt = Date.now();
+      job.error = null;
+    } else {
+      job.status = 'failed';
+      job.error = String(body.error || 'The booth printer refused the job.').slice(0, 300);
+    }
+    return sendJson(res, 200, { ok: true, job: publicJob(job) });
+  }
+
+  return sendJson(res, 404, { ok: false, error: 'No such endpoint.' });
+}
+
+// ---------------------------------------------------------------- guest API
 
 async function handleApi(req, res, url) {
+  if (url.pathname.startsWith('/api/agent/')) return handleAgentApi(req, res, url);
+
   const cfg = config.load();
 
   if (url.pathname === '/api/session' && req.method === 'GET') {
@@ -222,16 +421,29 @@ async function handleApi(req, res, url) {
       defaultCopies: cfg.copies,
       printingEnabled: cfg.printingEnabled,
       requireApproval: cfg.requireApproval,
+      keyRequired: guestKeyRequired(),
+      remote: MODE === 'relay',
       dryRun: DRY_RUN,
     });
   }
 
   if (url.pathname === '/api/printers' && req.method === 'GET') {
+    if (MODE === 'relay') {
+      return sendJson(res, 200, {
+        dryRun: agent.dryRun,
+        remote: true,
+        agentOnline: agentOnline(),
+        cupsAvailable: agentOnline(),
+        printers: agent.printers,
+        default: cfg.printer || (agent.printers[0] ? agent.printers[0].name : null),
+      });
+    }
     if (DRY_RUN) {
       return sendJson(res, 200, {
         dryRun: true,
+        agentOnline: true,
         cupsAvailable: false,
-        printers: [{ name: 'Dry-Run-Printer', state: 'idle', ready: true, detail: 'DRY_RUN=1 — nothing is sent to a real queue.' }],
+        printers: [{ name: 'Dry-Run-Printer', state: 'idle', ready: true }],
         default: 'Dry-Run-Printer',
       });
     }
@@ -239,20 +451,31 @@ async function handleApi(req, res, url) {
       cups.listPrinters(),
       cups.available(),
     ]);
-    return sendJson(res, 200, { dryRun: false, cupsAvailable, printers, default: cfg.printer || fallback, error });
+    return sendJson(res, 200, { dryRun: false, agentOnline: true, cupsAvailable, printers, default: cfg.printer || fallback, error });
   }
 
   if (url.pathname === '/api/queue' && req.method === 'GET') {
-    const cupsJobs = DRY_RUN ? [] : await cups.listJobs();
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const cupsJobs = MODE === 'relay' || DRY_RUN ? [] : await cups.listJobs();
     const recent = [...jobs.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 40).map(publicJob);
-    return sendJson(res, 200, { cupsJobs, jobs: recent });
+    return sendJson(res, 200, { cupsJobs, jobs: recent, agent: { online: agentOnline(), name: agent.name, lastSeen: agent.lastSeen } });
   }
 
   if (url.pathname === '/api/config' && req.method === 'GET') {
-    return sendJson(res, 200, { config: cfg, dryRun: DRY_RUN, urls: lanAddresses().map((l) => `http://${l.address}:${activePort()}`) });
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    return sendJson(res, 200, {
+      config: cfg,
+      mode: MODE,
+      dryRun: DRY_RUN,
+      exposed: isExposed(),
+      keyRequired: guestKeyRequired(),
+      agent: { online: agentOnline(), name: agent.name, printers: agent.printers },
+      urls: joinUrls(),
+    });
   }
 
   if (url.pathname === '/api/config' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const patch = await readJson(req);
     return sendJson(res, 200, { config: config.save(patch) });
   }
@@ -260,6 +483,12 @@ async function handleApi(req, res, url) {
   if (url.pathname === '/api/print' && req.method === 'POST') {
     if (!cfg.printingEnabled) {
       return sendJson(res, 503, { ok: false, error: 'Printing is switched off for this booth — save the photo to your phone instead.' });
+    }
+    if (!guestAuthorised(req, url)) {
+      return sendJson(res, 401, { ok: false, error: 'Scan the booth QR code to print.' });
+    }
+    if (MODE === 'relay' && !agentOnline()) {
+      return sendJson(res, 503, { ok: false, error: 'The booth printer is offline right now. Save the photo and try again in a minute.' });
     }
     if (rateLimited(req)) {
       return sendJson(res, 429, { ok: false, error: 'That is a lot of prints. Give the printer a minute.' });
@@ -283,6 +512,7 @@ async function handleApi(req, res, url) {
 
     const job = {
       id,
+      token: crypto.randomBytes(12).toString('hex'),
       file,
       layout,
       guest,
@@ -291,6 +521,7 @@ async function handleApi(req, res, url) {
       media: null,
       status: cfg.requireApproval ? 'awaiting-approval' : 'pending',
       createdAt: Date.now(),
+      claimedAt: 0,
       cupsJobId: null,
       error: null,
     };
@@ -304,6 +535,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === '/api/approve' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const { id } = await readJson(req);
     const job = jobs.get(id);
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
@@ -312,6 +544,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === '/api/reject' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const { id } = await readJson(req);
     const job = jobs.get(id);
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
@@ -320,9 +553,13 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === '/api/cancel' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const { cupsJobId } = await readJson(req);
     if (!cupsJobId || !/^[\w.-]+$/.test(String(cupsJobId))) {
       return sendJson(res, 400, { ok: false, error: 'Bad job id.' });
+    }
+    if (MODE === 'relay') {
+      return sendJson(res, 409, { ok: false, error: 'Cancel this one on the booth Mac — the queue lives there.' });
     }
     if (DRY_RUN) return sendJson(res, 200, { ok: true, dryRun: true });
     const result = await cups.cancel(cupsJobId);
@@ -338,17 +575,36 @@ async function handleApi(req, res, url) {
   return sendJson(res, 404, { ok: false, error: 'No such endpoint.' });
 }
 
+// ---------------------------------------------------------------- static
+
+/** A print is visible to its own guest (via the job token) and to the host. */
+function mayReadPrint(req, url, filename) {
+  if (!isExposed()) return true;
+  if (hostAuthorised(req)) return true;
+  const token = url.searchParams.get('t');
+  if (!token) return false;
+  for (const job of jobs.values()) {
+    if (path.basename(job.file) === filename) return secretsMatch(token, job.token);
+  }
+  return false;
+}
+
 async function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === '/') rel = '/index.html';
   if (rel === '/host') rel = '/host.html';
 
-  const root = rel.startsWith('/prints/') ? PRINTS_DIR : PUBLIC_DIR;
-  const relative = rel.startsWith('/prints/') ? rel.slice('/prints/'.length) : rel.slice(1);
+  const fromPrints = rel.startsWith('/prints/');
+  const root = fromPrints ? PRINTS_DIR : PUBLIC_DIR;
+  const relative = fromPrints ? rel.slice('/prints/'.length) : rel.slice(1);
   const file = path.resolve(root, relative);
 
   if (!file.startsWith(path.resolve(root))) {
     res.writeHead(403).end('Forbidden');
+    return;
+  }
+  if (fromPrints && !mayReadPrint(req, url, path.basename(file))) {
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Not found');
     return;
   }
 
@@ -358,7 +614,7 @@ async function serveStatic(req, res, url) {
     res.writeHead(200, {
       'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
       'content-length': stat.size,
-      'cache-control': root === PRINTS_DIR ? 'public, max-age=300' : 'no-cache',
+      'cache-control': fromPrints ? 'private, max-age=300' : 'no-cache',
     });
     fs.createReadStream(file).pipe(res);
   } catch {
@@ -379,17 +635,34 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
+function banner() {
   const cfg = config.load();
-  const urls = lanAddresses();
+  const [primary, ...rest] = joinUrls();
+  const key = guestKeyRequired() ? `?k=${cfg.accessKey}` : '';
   console.log('');
-  console.log(`  ${cfg.boothName}`);
-  console.log(`  ${'-'.repeat(cfg.boothName.length)}`);
-  console.log(`  Guests scan or type:  ${primaryUrl()}`);
-  for (const lan of urls.slice(1)) console.log(`  also reachable at:    http://${lan.address}:${activePort()}  (${lan.iface})`);
-  console.log(`  Host screen:          ${primaryUrl()}/host`);
-  if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved to ./prints but never sent to a printer.');
+  console.log(`  ${cfg.boothName}${MODE === 'relay' ? ' · relay' : ''}`);
+  console.log(`  ${'-'.repeat(cfg.boothName.length + (MODE === 'relay' ? 8 : 0))}`);
+  console.log(`  Guests scan or type:  ${primary}${key}`);
+  for (const url of rest) console.log(`  also reachable at:    ${url}${key}`);
+  console.log(`  Host screen:          ${primary}/host`);
+  if (MODE === 'relay') console.log('  Waiting for the booth Mac to connect (npm run agent).');
+  if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved but never sent to a printer.');
+  if (guestKeyRequired()) console.log('  The booth is public: guests need the QR link, the host screen needs BOOTH_TOKEN.');
   console.log('');
+}
+
+server.listen(PORT, HOST, async () => {
+  if (WANT_TUNNEL) {
+    console.log('\n  Opening a public tunnel…');
+    const result = await tunnel.open(activePort());
+    if (!result.url) console.log(`  Tunnel unavailable: ${result.error}`);
+  }
+  banner();
+});
+
+process.on('SIGINT', () => {
+  tunnel.close();
+  process.exit(0);
 });
 
 module.exports = { server };

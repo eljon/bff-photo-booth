@@ -20,9 +20,40 @@ const session = {
   maxCopies: 3,
   printingEnabled: true,
   requireApproval: false,
+  keyRequired: false,
+  remote: false,
   dryRun: false,
   online: false,
 };
+
+const KEY_STORAGE = 'booth.key';
+
+/**
+ * A public booth carries its access key in the QR link (?k=…). Stash it and
+ * tidy the address bar, so the guest never types anything and a shared
+ * screenshot of the URL bar does not hand out printing rights.
+ */
+function claimAccessKey() {
+  const url = new URL(location.href);
+  const fromLink = url.searchParams.get('k');
+  if (fromLink) {
+    try {
+      localStorage.setItem(KEY_STORAGE, fromLink);
+    } catch {
+      /* private mode — the key still works for this page load */
+    }
+    url.searchParams.delete('k');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    return fromLink;
+  }
+  try {
+    return localStorage.getItem(KEY_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+let accessKey = claimAccessKey();
 
 let editorIndex = null;
 let pendingSlot = null;
@@ -362,6 +393,96 @@ function bindCropGestures() {
 
 // ---------------------------------------------------------------- printing
 
+/** POST the page with a progress bar — uploads matter on a cellular booth. */
+function uploadPrint(path, blob, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', path);
+    request.timeout = 120_000;
+    request.setRequestHeader('content-type', blob.type || 'image/png');
+    if (accessKey) request.setRequestHeader('x-booth-key', accessKey);
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    });
+    request.addEventListener('load', () => {
+      try {
+        resolve({ status: request.status, data: JSON.parse(request.responseText) });
+      } catch {
+        reject(new Error('The booth sent back something unreadable.'));
+      }
+    });
+    request.addEventListener('error', () => reject(new Error('network')));
+    request.addEventListener('timeout', () => reject(new Error('network')));
+    request.send(blob);
+  });
+}
+
+const WAITING = ['awaiting-approval', 'pending', 'claimed', 'printing'];
+
+/** Turn a job record into what the guest sees. */
+function showJob(job) {
+  if (job.status === 'awaiting-approval') {
+    return showResult({
+      emoji: '👀',
+      title: 'Waiting for the host',
+      body: 'Your strip is in the queue — the booth host taps print. Stay close to the tray.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (WAITING.includes(job.status)) {
+    return showResult({
+      emoji: '📡',
+      title: 'Sending it to the booth',
+      body: 'The printer is picking up your strip now.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (job.status === 'failed') {
+    return showResult({
+      emoji: '🙃',
+      title: 'The printer said no',
+      body: `${job.error || 'Printing failed.'} You can still save the photo to your phone.`,
+      image: job.image,
+    });
+  }
+  if (job.status === 'rejected') {
+    return showResult({
+      emoji: '🤷',
+      title: 'The host skipped this one',
+      body: 'Ask them why. You can still save it to your phone.',
+      image: job.image,
+    });
+  }
+  return showResult({
+    emoji: '🎉',
+    title: session.dryRun ? 'Saved (dry run)' : 'Printing now!',
+    body: session.dryRun
+      ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
+      : `${job.copies} ${job.copies === 1 ? 'copy' : 'copies'} on the way${job.cupsJobId ? ` · job ${job.cupsJobId}` : ''}. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
+    image: job.image,
+  });
+}
+
+/** Follow a job until the printer has actually taken it. */
+async function trackJob(job) {
+  const deadline = Date.now() + 120_000;
+  let current = job;
+  while (WAITING.includes(current.status) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch(`/api/job?id=${encodeURIComponent(current.id)}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      current = data.job;
+    } catch {
+      return;
+    }
+    showJob(current);
+  }
+}
+
 function showResult({ emoji, title, body, image, busy }) {
   $('resultEmoji').textContent = emoji;
   $('resultTitle').textContent = title;
@@ -382,7 +503,7 @@ async function doPrint() {
     toast('Four photos first.');
     return;
   }
-  showResult({ emoji: '🖨️', title: 'Sending to the printer…', body: 'Rendering your print at 300 DPI.', busy: true });
+  showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 300 DPI.', busy: true });
 
   let result;
   try {
@@ -400,14 +521,31 @@ async function doPrint() {
   });
 
   try {
-    const response = await fetch(`/api/print?${params}`, {
-      method: 'POST',
-      headers: { 'content-type': result.blob.type || 'image/png' },
-      body: result.blob,
+    const { status, data } = await uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
+      showResult({
+        emoji: '📤',
+        title: 'Sending to the booth…',
+        body: `${Math.round(fraction * 100)}% uploaded`,
+        busy: true,
+      });
     });
-    const data = await response.json();
 
-    if (!response.ok || !data.ok) {
+    if (status === 401) {
+      accessKey = '';
+      try {
+        localStorage.removeItem(KEY_STORAGE);
+      } catch {
+        /* nothing to clear */
+      }
+      showResult({
+        emoji: '🔑',
+        title: 'Scan the booth QR code',
+        body: 'This booth only prints for guests who came in through its QR code. Scan it and try again — your photos stay put.',
+      });
+      return;
+    }
+
+    if (status < 200 || status >= 300 || !data.ok) {
       showResult({
         emoji: '🙃',
         title: 'The printer said no',
@@ -416,29 +554,13 @@ async function doPrint() {
       return;
     }
 
-    const job = data.job;
-    if (job.status === 'awaiting-approval') {
-      showResult({
-        emoji: '👀',
-        title: 'Waiting for the host',
-        body: 'Your strip is in the queue — the booth host taps print. Stay close to the tray.',
-        image: job.image,
-      });
-    } else {
-      showResult({
-        emoji: '🎉',
-        title: session.dryRun ? 'Saved (dry run)' : 'Printing now!',
-        body: session.dryRun
-          ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
-          : `${state.copies} ${state.copies === 1 ? 'copy' : 'copies'} on the way${job.cupsJobId ? ` · job ${job.cupsJobId}` : ''}. Grab it from the tray.`,
-        image: job.image,
-      });
-    }
-  } catch {
+    showJob(data.job);
+    trackJob(data.job);
+  } catch (err) {
     showResult({
       emoji: '📶',
-      title: 'Lost the booth Wi-Fi',
-      body: 'Reconnect to the booth network and try again — or save the photo to your phone.',
+      title: err.message === 'network' ? 'Lost the connection' : 'Something went wrong',
+      body: 'Check your signal and try again — or save the photo to your phone.',
     });
   }
 }
@@ -488,6 +610,10 @@ async function loadSession() {
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
   $('copiesValue').textContent = String(state.copies);
 
+  if (session.keyRequired && !accessKey) {
+    $('printHint').textContent = 'Scan the booth QR code to unlock printing — you can still build and save a strip.';
+  }
+
   if (!session.printingEnabled || !session.online) {
     $('printPanel').classList.add('hidden');
     $('printBtn').classList.add('hidden');
@@ -508,6 +634,12 @@ async function refreshPrinter() {
     if (data.dryRun) {
       pill.textContent = 'dry run';
       pill.className = 'pill quiet';
+      return;
+    }
+    if (data.remote && !data.agentOnline) {
+      pill.textContent = 'booth offline';
+      pill.className = 'pill bad';
+      $('printHint').textContent = 'The booth Mac is not connected right now. Save your strip and try again in a minute.';
       return;
     }
     const chosen = data.printers.find((p) => p.name === data.default) || data.printers[0];

@@ -96,14 +96,76 @@ export async function startServer(env = {}) {
     await new Promise((resolve) => setTimeout(resolve, 60));
   }
 
+  const configPath = path.join(sandbox, 'config.json');
   return {
     base,
     sandbox,
+    configPath,
     printsDir: path.join(sandbox, 'prints'),
+    stderr: () => errors.join(''),
+    /** The access key the booth generated for itself on first run. */
+    accessKey() {
+      try {
+        return JSON.parse(fs.readFileSync(configPath, 'utf8')).accessKey;
+      } catch {
+        return '';
+      }
+    },
     async close() {
       child.kill('SIGKILL');
       await new Promise((resolve) => child.once('exit', resolve));
       fs.rmSync(sandbox, { recursive: true, force: true });
     },
   };
+}
+
+/** Run the real booth agent against a relay, as the MacBook would. */
+export async function startAgent(relayUrl, token, env = {}) {
+  const { spawn } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const path = await import('node:path');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+
+  const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'booth-agent-'));
+
+  const child = spawn(process.execPath, [path.join(root, 'server', 'agent.js')], {
+    env: {
+      ...process.env,
+      RELAY_URL: relayUrl,
+      BOOTH_TOKEN: token,
+      DRY_RUN: '1',
+      PRINTS_DIR: path.join(sandbox, 'prints'),
+      AGENT_NAME: 'test booth mac',
+      ...env,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = [];
+  child.stdout.on('data', (data) => output.push(data.toString()));
+  child.stderr.on('data', (data) => output.push(data.toString()));
+
+  return {
+    sandbox,
+    printsDir: path.join(sandbox, 'prints'),
+    log: () => output.join(''),
+    exited: () => child.exitCode,
+    async close() {
+      child.kill('SIGKILL');
+      await new Promise((resolve) => child.once('exit', resolve));
+      fs.rmSync(sandbox, { recursive: true, force: true });
+    },
+  };
+}
+
+/** Poll until `check` returns truthy, or give up. */
+export async function until(check, { timeoutMs = 10_000, everyMs = 100 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const result = await check();
+    if (result) return result;
+    if (Date.now() > deadline) throw new Error('timed out waiting for a condition');
+    await new Promise((resolve) => setTimeout(resolve, everyMs));
+  }
 }

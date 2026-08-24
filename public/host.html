@@ -11,8 +11,26 @@
 <body class="host">
 <header class="host-top">
   <h1 id="hostName">Photo Booth · Host</h1>
-  <span class="pill" id="modePill">—</span>
+  <div class="host-pills">
+    <span class="pill hidden" id="agentPill">—</span>
+    <span class="pill" id="modePill">—</span>
+  </div>
 </header>
+
+<div class="overlay hidden" id="signin" role="dialog" aria-modal="true">
+  <div class="result-card">
+    <div class="result-emoji">🔒</div>
+    <h2>Host sign in</h2>
+    <p>This booth is reachable from outside your network, so the controls need
+       the booth token — the <code>BOOTH_TOKEN</code> you started it with.</p>
+    <input id="tokenInput" class="text-input" type="password" autocomplete="current-password"
+           placeholder="BOOTH_TOKEN" style="margin-top:16px">
+    <p class="hint" id="signinError"></p>
+    <div class="result-actions">
+      <button class="btn btn-primary" id="tokenSave" type="button">Unlock</button>
+    </div>
+  </div>
+</div>
 
 <main class="host-grid">
   <section class="panel join">
@@ -20,11 +38,12 @@
     <canvas id="qr" aria-label="QR code for the booth URL"></canvas>
     <p class="url" id="joinUrl">—</p>
     <select id="urlPick" class="text-input hidden" aria-label="Booth address"></select>
-    <p class="hint">Everyone must be on the same Wi-Fi as this Mac. No internet needed.</p>
+    <p class="hint" id="joinHint">Guests scan this. Nothing to install.</p>
+    <button class="btn btn-ghost wide" id="rotateKey" type="button">New guest link</button>
   </section>
 
   <section class="panel">
-    <h2>Printer</h2>
+    <h2>Printer <span class="pill quiet" id="agentState">—</span></h2>
     <label class="field"><span>Destination</span>
       <select id="printerPick" class="text-input"></select>
     </label>
