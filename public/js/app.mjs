@@ -315,6 +315,7 @@ function cellFor(index) {
 function openEditor(index) {
   editorIndex = index;
   $('editorIndex').textContent = String(index + 1);
+  updateHeroButton();
   $('editor').classList.remove('hidden');
   sizeCropCanvas();
   $('zoom').value = String(state.photos[index].transform.zoom);
@@ -793,9 +794,29 @@ function bind() {
   });
   $('moveLeft').addEventListener('click', () => swapEditor(-1));
   $('moveRight').addEventListener('click', () => swapEditor(1));
+  $('makeHero').addEventListener('click', makeHero);
 
   bindCropGestures();
   window.addEventListener('resize', scheduleRender);
+}
+
+/** Move the photo being edited to the front, so it becomes the big hero. */
+function makeHero() {
+  if (editorIndex === null || editorIndex === 0) return;
+  const [moved] = state.photos.splice(editorIndex, 1);
+  state.photos.unshift(moved);
+  editorIndex = 0;
+  $('editorIndex').textContent = '1';
+  updateHeroButton();
+  sizeCropCanvas();
+  drawCrop();
+  scheduleRender();
+}
+
+/** The front photo is already the hero — hide the button there. */
+function updateHeroButton() {
+  const btn = document.getElementById('makeHero');
+  if (btn) btn.classList.toggle('hidden', editorIndex === 0);
 }
 
 function swapEditor(direction) {
@@ -805,6 +826,7 @@ function swapEditor(direction) {
   [photos[editorIndex], photos[target]] = [photos[target], photos[editorIndex]];
   editorIndex = target;
   $('editorIndex').textContent = String(target + 1);
+  updateHeroButton();
   if (!photos[target]) {
     closeEditor();
     return;

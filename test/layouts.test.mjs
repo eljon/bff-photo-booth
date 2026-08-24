@@ -91,49 +91,56 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('the auto grid gives every photo a cell shaped to it — so nothing is cropped', () => {
+test('every cell contain-fits, so no photo is ever cropped', () => {
   const mixes = [
-    [[1000, 1600], [1000, 1600], [1000, 1600], [1000, 1600]],       // 4 portrait
-    [[1600, 1000], [1600, 1000], [1600, 1000], [1600, 1000]],       // 4 landscape
-    [[1000, 1600], [1600, 1000], [1600, 1000], [1600, 1000]],       // 1P + 3L
-    [[1600, 1000], [1000, 1600], [1200, 1200], [1600, 1000]],       // a bit of everything
+    [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
+    [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
+    [[1000, 1500], [1600, 1000], [1000, 1500], [1200, 1200]],   // mixed supporting
   ];
   for (const mix of mixes) {
     const photos = mix.map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
-    const { cells } = autoLayout(LAYOUTS.grid, photos);
+    const { cells } = resolveGrid(LAYOUTS.grid, photos);
     assert.equal(cells.length, 4);
-    cells.forEach((cell, i) => {
-      const photoAspect = photos[i].bitmap.width / photos[i].bitmap.height;
-      const cellAspect = cell.w / cell.h;
-      // Cell matches the photo, so a contain-fit fills it with no crop and no bars.
-      assert.ok(Math.abs(photoAspect - cellAspect) / photoAspect < 0.02,
-        `photo ${i} (${photoAspect.toFixed(2)}) got a cell of ${cellAspect.toFixed(2)} — it would crop`);
-      assert.equal(cell.fit, 'contain', 'auto-grid cells must contain-fit');
-    });
+    assert.ok(cells.every((c) => c.fit === 'contain'), 'contain-fit is what guarantees nothing crops');
   }
 });
 
-test('the auto grid keeps a fair spread — the smallest photo is not a stamp', () => {
-  const photos = [[1600, 1000], [1000, 1600], [1600, 1000], [1000, 1600]]
-    .map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
-  const { cells } = autoLayout(LAYOUTS.grid, photos);
-  const areas = cells.map((c) => c.w * c.h);
-  const ratio = Math.min(...areas) / Math.max(...areas);
-  assert.ok(ratio > 0.35, `smallest cell is ${(ratio * 100).toFixed(0)}% of the largest — too lopsided`);
+test('the hero is the first photo and dwarfs the other three', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)];
+  const { cells } = resolveGrid(LAYOUTS.grid, photos);
+
+  assert.equal(cells[0].photo, 0, 'photo 0 is the hero');
+  const heroArea = cells[0].w * cells[0].h;
+  for (let i = 1; i < 4; i++) {
+    const thumbArea = cells[i].w * cells[i].h;
+    assert.ok(heroArea > thumbArea * 4, `hero is only ${(heroArea / thumbArea).toFixed(1)}x a thumb — not a hero`);
+  }
 });
 
-test('the sheet rotates to landscape when that fills more paper', () => {
+test('a different hero can be chosen by passing its index', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1200, 1200), mk(1200, 1200), mk(1000, 1500), mk(1200, 1200)];
+  const { cells } = resolveGrid(LAYOUTS.grid, photos, 2);
+  assert.equal(cells[0].photo, 2, 'the chosen index leads as the hero');
+});
+
+test('the print picks the sheet orientation whose media matches it', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
 
-  const landscapes = resolveGrid(LAYOUTS.grid, [mk(1600, 1000), mk(1600, 1000), mk(1600, 1000), mk(1600, 1000)]);
-  assert.ok(landscapes.page.w > landscapes.page.h, 'four landscapes should print on a landscape sheet');
-  assert.equal(landscapes.media, 'Custom.6x4in');
+  // A wide-panorama hero fills a landscape sheet better and should rotate to it.
+  const pano = resolveGrid(LAYOUTS.grid, [mk(3000, 1000), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)]);
+  assert.ok(pano.page.w > pano.page.h, 'a panorama hero should print landscape');
+  assert.equal(pano.media, 'Custom.6x4in');
 
-  const portraits = resolveGrid(LAYOUTS.grid, [mk(1000, 1600), mk(1000, 1600), mk(1000, 1600), mk(1000, 1600)]);
-  assert.ok(portraits.page.h > portraits.page.w, 'four portraits should stay on a portrait sheet');
-  assert.equal(portraits.media, 'Custom.4x6in');
+  // A tall portrait hero stays on a portrait sheet.
+  const tall = resolveGrid(LAYOUTS.grid, [mk(1000, 1600), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)]);
+  assert.ok(tall.page.h > tall.page.w, 'a portrait hero should print portrait');
+  assert.equal(tall.media, 'Custom.4x6in');
 
-  // the rotate is only taken when it genuinely helps
-  const coverage = (r) => r.cells.reduce((s, c) => s + c.w * c.h, 0) / (r.page.w * r.page.h);
-  assert.ok(coverage(landscapes) > 0.5, 'landscape sheet should be well filled by landscape photos');
+  // Media always matches the chosen sheet, never contradicts it.
+  for (const r of [pano, tall]) {
+    const wantLandscape = r.page.w > r.page.h;
+    assert.equal(r.media, wantLandscape ? 'Custom.6x4in' : 'Custom.4x6in');
+  }
 });

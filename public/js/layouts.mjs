@@ -50,7 +50,7 @@ function gridLayout() {
   return {
     id: 'grid',
     name: 'Auto grid',
-    blurb: 'Fits portrait and landscape photos without cropping',
+    blurb: 'One big hero photo with three beneath — nothing cropped',
     paper: '4×6 portrait',
     media: 'Custom.4x6in',
     page,
@@ -168,15 +168,55 @@ const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper:
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
 /**
+ * The classic event-booth look: one big hero photo with a row of three smaller
+ * ones beneath it. The hero (photo 0 — the first one picked) spans the full
+ * width and its own natural height, so it fills its cell with no crop; the three
+ * supporting photos are contain-fit into equal tiles, letterboxed on the paper
+ * if their shape differs. Nothing is ever cut off.
+ */
+export function heroLayout(spec, photos, heroIndex = 0) {
+  const { page, pad, gap, footer } = spec;
+  const W = page.w - pad * 2;
+  const availH = page.h - pad * 2 - footer;
+
+  const heroAspect = photoAspect(photos[heroIndex]);
+  const thumbIdx = photos.map((_, i) => i).filter((i) => i !== heroIndex);
+
+  const tileW = (W - gap * (thumbIdx.length - 1)) / thumbIdx.length;
+  const tileH = tileW; // square tiles read as a tidy strip whatever the photos are
+  const heroH = W / heroAspect; // full width, natural height → no crop
+
+  const blockH = heroH + gap + tileH;
+  const scale = Math.min(1, availH / blockH);
+
+  const drawnW = W * scale;
+  const offsetX = pad + (W - drawnW) / 2;
+  let y = pad + (availH - blockH * scale) / 2;
+
+  const cells = [];
+  cells.push({ x: offsetX, y, w: drawnW, h: heroH * scale, photo: heroIndex, fit: 'contain' });
+  y += heroH * scale + gap * scale;
+
+  let x = offsetX;
+  for (const i of thumbIdx) {
+    cells.push({ x, y, w: tileW * scale, h: tileH * scale, photo: i, fit: 'contain' });
+    x += (tileW + gap) * scale;
+  }
+
+  const usedArea = cells.reduce((sum, c) => sum + c.w * c.h, 0);
+  return { cells, captions: [{ x: pad, y: pad + availH, w: W, h: footer }], page, coverage: usedArea / (page.w * page.h) };
+}
+
+/**
  * Fit the photos onto whichever sheet orientation wastes the least paper. A row
  * of landscapes barely fills a portrait 4×6 but nearly fills a landscape 6×4, so
  * the booth rotates the print to match the photos instead of leaving big
  * margins. Portrait wins ties, since a photo strip is portrait by habit.
  */
-export function resolveGrid(base, photos) {
+export function resolveGrid(base, photos, heroIndex = 0) {
   const spec = (o) => ({ page: { w: o.w, h: o.h }, pad: base.pad, gap: base.gap, footer: base.footer });
-  const portrait = autoLayout(spec(PORTRAIT_4X6), photos);
-  const landscape = autoLayout(spec(LANDSCAPE_6X4), photos);
+  const portrait = heroLayout(spec(PORTRAIT_4X6), photos, heroIndex);
+  const landscape = heroLayout(spec(LANDSCAPE_6X4), photos, heroIndex);
 
   const pick = landscape.coverage > portrait.coverage * 1.02 ? landscape : portrait;
   const paper = pick === landscape ? LANDSCAPE_6X4 : PORTRAIT_4X6;

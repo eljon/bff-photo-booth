@@ -172,7 +172,7 @@ handles any of them — the guest app is simply locked to `grid`. Change
 
 | Layout | Sheet | What comes out |
 | --- | --- | --- |
-| Auto grid *(in use)* | 4 × 6 or 6 × 4 | Each photo in a cell shaped to fit it, and the whole sheet rotates to whichever orientation fills more paper — never cropped |
+| Hero *(in use)* | 4 × 6 or 6 × 4 | One big hero photo (the first picked) over a row of three smaller ones — event-booth style, nothing cropped, sheet rotates to suit the hero |
 | Classic strip | 4 × 6 portrait | Two identical 2 × 6 strips with a cut line |
 | Wide filmstrip | 6 × 4 landscape | Four tall frames in a row |
 

@@ -32,10 +32,10 @@
   </section>
 
   <section class="pick">
-    <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done.</p>
+    <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done. The first one becomes the big photo.</p>
 
     <div class="slots hidden" id="slots"></div>
-    <p class="hint hidden" id="editHint">Tap any photo to crop, rotate, reorder or swap it. <strong>Save</strong> puts the print in your Photos app.</p>
+    <p class="hint hidden" id="editHint">The first photo is the big one — tap any photo to crop it, or make it the hero.</p>
     <p class="hint problem hidden" id="printProblem"></p>
   </section>
 
@@ -64,6 +64,9 @@
       <button class="btn btn-ghost" id="resetBtn" type="button">Reset</button>
       <button class="btn btn-ghost" id="replaceBtn" type="button">Replace</button>
       <button class="btn btn-ghost danger" id="removeBtn" type="button">Remove</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="makeHero" type="button">★ Make this the big one</button>
     </div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="moveLeft" type="button">← Move back</button>

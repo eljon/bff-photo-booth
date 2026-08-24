@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.15.0 — 2026-08-24
+
+**A hero layout, like a real event photo booth.**
+
+- The print is now one big hero photo with a row of three smaller ones beneath —
+  the classic wedding/party booth look. The first photo picked is the hero by
+  default; it spans the full width and dwarfs the other three (well over 4× their
+  area).
+- Any photo can be promoted: open it and tap **★ Make this the big one**, or use
+  Move back/forward. The hint on the page says the first photo is the big one.
+- Still no cropping — the hero fills its cell exactly (its cell takes the hero's
+  shape) and the three supporting photos contain-fit into equal tiles. The sheet
+  still rotates to landscape when a wide hero fills it better.
+
 ## 1.14.0 — 2026-08-24
 
 **The sheet rotates to fill the paper.**
