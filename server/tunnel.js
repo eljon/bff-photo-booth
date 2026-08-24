@@ -22,6 +22,7 @@
  */
 
 const { spawn, execFile } = require('node:child_process');
+const fs = require('node:fs');
 
 let child = null;
 let publicUrl = null;
@@ -42,9 +43,33 @@ const PATTERNS = [
   /https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.ts\.net/i,
 ];
 
+/** Where a GUI installer drops a CLI that never lands on PATH. */
+const EXTRA_PATHS = {
+  tailscale: [
+    '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+    '/usr/local/bin/tailscale',
+    '/opt/homebrew/bin/tailscale',
+  ],
+  cloudflared: ['/usr/local/bin/cloudflared', '/opt/homebrew/bin/cloudflared'],
+  ngrok: ['/usr/local/bin/ngrok', '/opt/homebrew/bin/ngrok'],
+};
+
 function which(binary) {
   return new Promise((resolve) => {
-    execFile('which', [binary], (err, stdout) => resolve(err ? null : stdout.trim()));
+    execFile('which', [binary], (err, stdout) => {
+      if (!err && stdout.trim()) return resolve(stdout.trim());
+      // Installing Tailscale from the website or App Store leaves the CLI
+      // inside the bundle, so `which` finds nothing at all.
+      for (const candidate of EXTRA_PATHS[binary] || []) {
+        try {
+          fs.accessSync(candidate, fs.constants.X_OK);
+          return resolve(candidate);
+        } catch {
+          /* keep looking */
+        }
+      }
+      return resolve(null);
+    });
   });
 }
 
@@ -116,7 +141,9 @@ async function pick(port, prefer, env = process.env) {
   // ── persistent: tailscale funnel, address tied to this machine forever
   if (wanted === 'tailscale') {
     const tailscale = await which('tailscale');
-    if (!tailscale) return { error: 'tailscale is not installed. See tailscale.com/download.' };
+    if (!tailscale) {
+      return { error: 'Tailscale was not found. Install it from tailscale.com/download and sign in, then try again.' };
+    }
     return {
       command: tailscale,
       args: ['funnel', String(port)],

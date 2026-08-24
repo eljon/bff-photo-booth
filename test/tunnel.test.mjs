@@ -90,3 +90,16 @@ test('reads a tailscale funnel address out of its output', () => {
 test('an unconfigured booth reports no persistent address', () => {
   assert.equal(tunnel.isPersistent(), false);
 });
+
+test('finds a CLI that a GUI installer left inside its app bundle', async () => {
+  // Installing Tailscale on a Mac puts the binary in /Applications and nothing
+  // on PATH, so a plain `which` lookup finds nothing and the option looks broken.
+  const result = await tunnel.pick(8080, 'tailscale', { PATH: '/nonexistent' });
+  if (result.command) {
+    assert.match(result.command, /tailscale/i);
+  } else {
+    assert.match(result.error, /Install it from tailscale\.com/,
+      'when it really is missing, say how to get it');
+    assert.doesNotMatch(result.error, /not installed\.$/, 'a bare "not installed" is not an instruction');
+  }
+});

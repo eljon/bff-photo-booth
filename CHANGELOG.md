@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.9.3 — 2026-08-24
+
+- Finds the Tailscale CLI where a Mac actually puts it. Installing Tailscale
+  from the website or the App Store leaves the binary inside
+  `/Applications/Tailscale.app`, with nothing on `PATH`, so `--tunnel=tailscale`
+  would have reported it missing on a Mac where it was plainly installed.
+  Homebrew paths are checked for the other tunnels too.
+
 ## 1.9.2 — 2026-08-24
 
 **Fixed: `--tunnel=tailscale` never actually selected Tailscale.**
