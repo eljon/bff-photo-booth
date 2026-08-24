@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, LAYOUT_ORDER, FRAMES, autoLayout, resolveGrid } from '../public/js/layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid } from '../public/js/layouts.mjs';
 
 // Four stand-in photos of mixed orientation, so the dynamic grid is exercised
 // on the case that matters — not just placeholders.
@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('nothing is cropped, and the paper is filled as much as the shapes allow', () => {
+test('nothing is cropped, and the grid is flush to all four paper edges', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -103,18 +103,49 @@ test('nothing is cropped, and the paper is filled as much as the shapes allow', 
     assert.equal(cells.length, 4);
 
     for (const c of cells) {
+      // contain-fit is what guarantees no crop — the photo shrinks to fit its
+      // cell, it is never scaled up and clipped.
       assert.equal(c.fit, 'contain', 'contain-fit is what guarantees no crop');
-      // cell matches its photo, so contain fills it exactly — no crop, no bars
-      const p = photos[c.photo].bitmap;
-      const photoAspect = p.width / p.height;
-      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.03, 'cell is shaped to its photo');
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
     }
 
-    // fill is well above what fixed portrait cells managed (~50%), the point of
-    // rotating the sheet and shaping cells to the photos.
+    // The combined grid touches every edge of the paper — no outer margin.
+    const left = Math.min(...cells.map((c) => c.x));
+    const top = Math.min(...cells.map((c) => c.y));
+    const right = Math.max(...cells.map((c) => c.x + c.w));
+    const bottom = Math.max(...cells.map((c) => c.y + c.h));
+    assert.ok(left <= 1, `grid has a ${left.toFixed(0)}px gap on the left — should be flush`);
+    assert.ok(top <= 1, `grid has a ${top.toFixed(0)}px gap on the top — should be flush`);
+    assert.ok(right >= page.w - 1, `grid stops ${(page.w - right).toFixed(0)}px short of the right edge`);
+    assert.ok(bottom >= page.h - 1, `grid stops ${(page.h - bottom).toFixed(0)}px short of the bottom edge`);
+
+    // The cells tile the whole sheet save for the thin uniform gutters between
+    // them, so the frame is nearly fully used.
     const coverage = cells.reduce((s, c) => s + c.w * c.h, 0) / (page.w * page.h);
-    assert.ok(coverage > 0.7, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should be higher`);
+    assert.ok(coverage > 0.9, `only ${(coverage * 100).toFixed(0)}% of the paper covered by cells — should be higher`);
+  }
+});
+
+test('the gutters between the four photos are uniform', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)];
+  const { cells } = resolveGrid(LAYOUTS.grid, photos);
+  const hero = cells[0];
+  const thumbs = cells.slice(1);
+
+  // Whether the hero sits on top or on the left, the three thumbs share one
+  // axis. Every neighbouring gap along that axis is the same width.
+  const stacked = thumbs.every((t) => Math.abs(t.x - thumbs[0].x) < 1); // a vertical column
+  const gaps = [];
+  if (stacked) {
+    for (let i = 1; i < thumbs.length; i++) gaps.push(thumbs[i].y - (thumbs[i - 1].y + thumbs[i - 1].h));
+    gaps.push(thumbs[0].x - (hero.x + hero.w)); // hero-to-column gap
+  } else {
+    for (let i = 1; i < thumbs.length; i++) gaps.push(thumbs[i].x - (thumbs[i - 1].x + thumbs[i - 1].w));
+    gaps.push(thumbs[0].y - (hero.y + hero.h)); // hero-to-row gap
+  }
+  for (const g of gaps) {
+    assert.ok(Math.abs(g - gaps[0]) < 1, `gutter ${g.toFixed(0)}px differs from ${gaps[0].toFixed(0)}px — should be uniform`);
   }
 });
 

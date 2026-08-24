@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.17.0 — 2026-08-24
+
+**Uniform gutters, and the grid runs edge to edge.**
+
+- The four photos now form one block that is flush to all four edges of the
+  paper — no outer border — with an even gutter between every photo. The hero
+  (photo 0) spans a full edge; the other three line up along the opposite side.
+- Nothing is cropped: each photo fits inside its space, so a shape that doesn't
+  match its cell gets a little matting rather than being cut. The booth tries
+  hero-on-top vs hero-on-left across both sheet orientations and prints the one
+  with the least matting.
+- Still a hero, still no caption.
+
 ## 1.16.1 — 2026-08-24
 
 **Fill as much as possible — without ever cropping.**

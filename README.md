@@ -172,7 +172,7 @@ handles any of them — the guest app is simply locked to `grid`. Change
 
 | Layout | Sheet | What comes out |
 | --- | --- | --- |
-| Hero *(in use)* | 4 × 6 or 6 × 4 | One big hero photo (the first picked) with three beside it; each cell shaped to its photo so nothing is cropped, packed and rotated to fill as much paper as the shapes allow |
+| Hero *(in use)* | 4 × 6 or 6 × 4 | One big hero photo (the first picked) with three beside it, as one block that runs flush to all four paper edges with an even gutter between photos; nothing is cropped, and the hero placement plus sheet orientation are chosen to leave the least matting |
 | Classic strip | 4 × 6 portrait | Two identical 2 × 6 strips with a cut line |
 | Wide filmstrip | 6 × 4 landscape | Four tall frames in a row |
 
