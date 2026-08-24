@@ -16,9 +16,9 @@ const DEFAULTS = {
   requireApproval: false,   // host taps "Print" on /host before anything reaches the queue
   printingEnabled: true,    // false => download-only mode (no printer at the party)
   message: 'Pick 4 photos. Take it home.',
-  // 'auto' asks for the QR key only once the booth is reachable from outside
-  // the local network; true/false override that.
-  guestKeyRequired: 'auto',
+  // Off by default: guests scan and print, nothing in the way. Turn it on and
+  // only phones that came in through the QR link can print.
+  guestKeyRequired: false,
   accessKey: '',            // generated on first run, carried in the QR link
 };
 
@@ -85,7 +85,7 @@ function save(patch) {
     let value = patch[key];
 
     if (key === 'guestKeyRequired') {
-      next[key] = value === 'auto' ? 'auto' : Boolean(value);
+      next[key] = value === true || value === 'true';
       continue;
     }
     if (key === 'accessKey') continue; // rotated deliberately, never set by hand

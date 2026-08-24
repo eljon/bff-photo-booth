@@ -133,10 +133,10 @@ ever passed to `lp`.
 Once the booth is reachable from outside your own Wi-Fi it locks itself down.
 On a plain LAN booth none of this is enforced, so nothing gets in the way.
 
-- **Guests** print with an access key that rides along in the QR link
-  (`/?k=…`). The app stores it and wipes it from the address bar, so a guest
-  still types nothing. Rotate it from the host screen (*New guest link*) if a
-  screenshot escapes into the wild.
+- **Guests** just print. The QR is a plain link and anyone holding it can use
+  the booth. If that stops being what you want, turn on `guestKeyRequired` and
+  the QR starts carrying a key that only phones which scanned it will have —
+  rotate it from the host screen with *New guest link*.
 - **You** get the host screen — config, approvals, cancels, the queue and the
   gallery. It is open by default: a tunnel link changes every launch and is
   unguessable, so a party booth does not need a second password. Set

@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.10.0 — 2026-08-24
+
+**No guest key. The link is just the link.**
+
+- Guests print with nothing in the way: the QR carries a plain URL, no `?k=`
+  tacked on, and anyone with the address can print. Existing booths pick this up
+  automatically — a config still saying `auto` now counts as off.
+- The restriction is still there if a night goes sideways: switch
+  `guestKeyRequired` on and only phones that came in through the QR can print.
+- Per-print privacy is unchanged: a print is still served under its own token,
+  so a guest sees their own photo and nobody else's.
+
 ## 1.9.3 — 2026-08-24
 
 - Finds the Tailscale CLI where a Mac actually puts it. Installing Tailscale

@@ -212,9 +212,12 @@ function isExposed() {
   return MODE === 'relay' || Boolean(PUBLIC_URL || tunnel.url());
 }
 
+/**
+ * Off unless the host deliberately turns it on. An older config may still say
+ * 'auto', which is no longer a thing — only an explicit true counts.
+ */
 function guestKeyRequired() {
-  const setting = config.load().guestKeyRequired;
-  return setting === 'auto' ? isExposed() : Boolean(setting);
+  return config.load().guestKeyRequired === true;
 }
 
 /** Guests print with a key that rides along in the QR link. */

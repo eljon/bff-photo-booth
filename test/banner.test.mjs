@@ -21,7 +21,8 @@ test('a public booth labels which address reaches guests and which does not', as
   t.after(() => booth.close());
   const banner = await bannerOf(booth);
 
-  assert.match(banner, /Guests scan or type:\s+https:\/\/amber-forest-9241\.trycloudflare\.com\/\?k=\S+\s+<- works on any network/);
+  assert.match(banner, /Guests scan or type:\s+https:\/\/amber-forest-9241\.trycloudflare\.com\s+<- works on any network/);
+  assert.doesNotMatch(banner, /\?k=/, 'guests do not need a key unless the host turns that on');
   assert.match(banner, /On this Wi-Fi only:\s+http:\/\//, 'the LAN address is still shown, but demoted');
   assert.match(banner, /Host screen:\s+http:\/\/localhost:\d+\/host/,
     'the host screen is for this Mac, so it should point at localhost, not through the tunnel');

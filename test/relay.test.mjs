@@ -26,19 +26,34 @@ test('a relay refuses to start without a booth token', async () => {
   );
 });
 
-test('guests need the key from the QR link once the booth is public', async (t) => {
+test('a public booth prints for anyone with the link — no key in the way', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());
 
   const session = await (await fetch(`${booth.base}/api/session`)).json();
-  assert.equal(session.keyRequired, true, 'a public booth should ask for the key');
+  assert.equal(session.keyRequired, false, 'guests should not need a key by default');
   assert.equal(session.remote, true);
 
+  // 503 is "no booth Mac connected yet", not "who are you" — the point is that
+  // it got past the door.
   const anonymous = await printAsGuest(booth, { key: '' });
-  assert.equal(anonymous.status, 401);
+  assert.equal(anonymous.status, 503);
+  assert.notEqual(anonymous.status, 401);
+});
 
-  const wrong = await printAsGuest(booth, { key: 'not-the-key' });
-  assert.equal(wrong.status, 401);
+test('the key restriction still works when a host turns it on', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  await fetch(`${booth.base}/api/config`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...host },
+    body: JSON.stringify({ guestKeyRequired: true }),
+  });
+
+  assert.equal((await printAsGuest(booth, { key: '' })).status, 401);
+  assert.equal((await printAsGuest(booth, { key: 'not-the-key' })).status, 401);
+  assert.equal((await printAsGuest(booth)).status, 503, 'the real key gets through');
 });
 
 test('host controls are closed to strangers once the booth is public', async (t) => {
@@ -194,9 +209,10 @@ test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working
   assert.equal(settings.config.boothName, 'Pinned Booth');
   assert.deepEqual(settings.pinned.sort(), ['accessKey', 'boothName']);
 
-  // the pinned key really is the one that prints
+  // the pinned key is still what the QR would carry if the host turns the
+  // restriction on — it just is not demanded by default
   const { status } = await printAsGuest(booth, { key: 'party-2026' });
-  assert.equal(status, 503, 'no agent yet, but the key was accepted');
+  assert.equal(status, 503, 'no agent yet, but nothing rejected the request');
 
   // and the host cannot rotate or rename around the environment
   await fetch(`${booth.base}/api/config`, {
@@ -219,7 +235,7 @@ test('a tunnelled booth leaves the host screen open — no password to lose', as
 
   const data = await response.json();
   assert.equal(data.exposed, true);
-  assert.equal(data.keyRequired, true, 'guests still need the QR key to print');
+  assert.equal(data.keyRequired, false, 'guests print without a key by default');
   assert.equal(data.urls[0], 'https://booth.example.com', 'the QR points at the public address');
 
   // the settings screen is usable, not just readable
