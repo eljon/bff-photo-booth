@@ -15,6 +15,25 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.9.0 — 2026-08-24
+
+**A guest link that survives restarts and sleep.**
+
+- The booth can now run on a **fixed address**: an ngrok static domain
+  (`NGROK_DOMAIN=…`), a named Cloudflare tunnel (`CF_TUNNEL` +
+  `TUNNEL_HOSTNAME`), or a Tailscale funnel (`--tunnel=tailscale`). The address
+  is known before the tunnel even starts, so it is the same every night and a QR
+  code printed last week still works.
+- **The tunnel restarts itself when it drops.** macOS cuts network connections
+  on sleep; on wake the booth brings the tunnel back on its own, with a backoff
+  that resets after any healthy run so waking is quick. With a fixed address the
+  link is unchanged; with the default quick tunnel the terminal says plainly
+  that guests need the new one.
+- A named Cloudflare tunnel without `TUNNEL_HOSTNAME` is refused rather than
+  started — the booth will not print a QR code for an address it had to guess.
+- `docs/PERSISTENT-LINK.md` lays out the options and is honest about the one
+  thing only relay mode does: keep serving guests while the Mac is asleep.
+
 ## 1.8.1 — 2026-08-24
 
 **Fixed: 1.7.1 made startup slow and stopped opening the browser at all.**

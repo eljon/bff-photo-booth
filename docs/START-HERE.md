@@ -254,8 +254,10 @@ cd ~/Downloads/bff-photo-booth
 caffeinate -dims npm run tunnel
 ```
 
-The guest link is **new every time you start it**, so print the QR code fresh,
-or read `docs/DEPLOY.md` for a permanent link.
+The guest link is **new every time you start it**, so print the QR code fresh.
+For a link that stays the same — so you can print it on a sign, and so closing
+the lid does not cost you a new one — read `docs/PERSISTENT-LINK.md`. The
+shortest path there is a free ngrok static domain, about five minutes of setup.
 
 ---
 

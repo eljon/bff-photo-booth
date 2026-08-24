@@ -49,6 +49,12 @@ all and use the `ssh` already on your Mac with `npm start -- --tunnel=ssh`
 (which relays through localhost.run — opt-in on purpose, since a third party
 carries your guests' photos).
 
+**That address changes every launch.** For one that survives restarts and sleep —
+an ngrok static domain, a Tailscale funnel, a named Cloudflare tunnel — see
+**[docs/PERSISTENT-LINK.md](docs/PERSISTENT-LINK.md)**. Whichever you use, the
+booth restarts its own tunnel when it drops, so waking the Mac brings the booth
+back on its own.
+
 **LAN mode** (plain `npm start`) is still there for when everyone is on the same
 Wi-Fi as the Mac.
 
@@ -201,7 +207,9 @@ Host-screen settings live in `photobooth.config.json` (git ignored).
 | `BOOTH_TOKEN` | — | Host + agent password. Required in relay mode |
 | `RELAY_URL` | — | Agent only: where the relay lives |
 | `PUBLIC_URL` | — | Force the address shown in the QR (behind your own proxy) |
-| `TUNNEL` | — | `1` is the same as `--tunnel` |
+| `TUNNEL` | — | `1` is the same as `--tunnel`, `ssh` picks localhost.run |
+| `NGROK_DOMAIN` | — | ngrok static domain: a guest link that never changes |
+| `CF_TUNNEL` / `TUNNEL_HOSTNAME` | — | Named Cloudflare tunnel and its hostname |
 | `DRY_RUN` | — | `1` saves prints but never calls `lp` |
 | `PRINTS_DIR` | `./prints` | Where composed prints are written |
 | `PHOTOBOOTH_CONFIG` | `./photobooth.config.json` | Settings file location |

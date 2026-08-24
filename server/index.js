@@ -726,16 +726,33 @@ function banner() {
   if (isExposed() && !BOOTH_TOKEN) {
     console.log('  Host screen is open to anyone with that link. Set BOOTH_TOKEN to require a password.');
   }
+  if (publicUrl && WANT_TUNNEL && !tunnel.isPersistent()) {
+    console.log('  This link is temporary. For one that survives restarts and sleep, see docs/PERSISTENT-LINK.md');
+  }
   console.log('');
 }
 
 server.listen(PORT, HOST, async () => {
   if (WANT_TUNNEL) {
     console.log('\n  Opening a public tunnel…');
-    const result = await tunnel.open(activePort(), { prefer: TUNNEL_PREFER });
+    const result = await tunnel.open(activePort(), {
+      prefer: TUNNEL_PREFER,
+      onEvent: (event) => {
+        if (event.event === 'restarting') {
+          console.log(event.fixed
+            ? `  Tunnel dropped — reconnecting in ${event.inSeconds}s. The guest link does not change.`
+            : `  Tunnel dropped — reconnecting in ${event.inSeconds}s. A quick tunnel gets a NEW guest link;\n  open the host screen again for the new QR code.`);
+        }
+        if (event.event === 'url' && event.previous) {
+          console.log(`  New guest link: ${event.url}${guestKeyRequired() ? `/?k=${config.load().accessKey}` : ''}`);
+        }
+      },
+    });
     if (!result.url) {
       tunnelFailed = true;
       console.log(`  Tunnel unavailable: ${result.error}`);
+    } else {
+      console.log(`  ${result.label}${tunnel.isPersistent() ? '' : ' — this address changes every launch'}`);
     }
   }
 

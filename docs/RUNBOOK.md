@@ -13,7 +13,8 @@ Everything you need on the night, in the order you need it.
 | Guests are anywhere; you want a link that never changes | **Relay** | `npm run relay` + `npm run agent` |
 
 If you are printing the QR code onto a sign, table card, or invitation, you need
-**relay** — the tunnel link changes every time you restart.
+an address that stays put — see **[PERSISTENT-LINK.md](PERSISTENT-LINK.md)**.
+The default tunnel link changes every time you restart.
 
 ---
 

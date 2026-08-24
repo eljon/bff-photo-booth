@@ -53,3 +53,40 @@ test('gives up on a hostname that never resolves, instead of hanging', async () 
   assert.equal(result.live, false);
   assert.ok(Date.now() - started < 9000, 'the wait must respect its own timeout');
 });
+
+test('picks a persistent address when one is configured', async () => {
+  const ngrok = await tunnel.pick(8080, 'auto', { NGROK_DOMAIN: 'bff-booth.ngrok-free.app', PATH: process.env.PATH });
+  if (ngrok.error) {
+    assert.match(ngrok.error, /ngrok is not installed/, 'without ngrok it should say so, not fall back silently');
+  } else {
+    assert.equal(ngrok.fixed, 'https://bff-booth.ngrok-free.app', 'the address is known before the process starts');
+    assert.ok(ngrok.args.includes('--url'), 'the domain must be passed to ngrok');
+  }
+
+  const named = await tunnel.pick(8080, 'auto', {
+    CF_TUNNEL: 'booth',
+    TUNNEL_HOSTNAME: 'booth.example.com',
+    PATH: process.env.PATH,
+  });
+  if (!named.error) {
+    assert.equal(named.fixed, 'https://booth.example.com');
+    assert.deepEqual(named.args.slice(0, 2), ['tunnel', 'run'], 'a named tunnel is run, not created');
+  }
+});
+
+test('a named Cloudflare tunnel without its hostname is refused, not guessed', async () => {
+  const result = await tunnel.pick(8080, 'auto', { CF_TUNNEL: 'booth', PATH: process.env.PATH });
+  assert.ok(result.error, 'should not start a tunnel whose address we cannot tell guests');
+  assert.match(result.error, /TUNNEL_HOSTNAME|cloudflared is not installed/);
+});
+
+test('reads a tailscale funnel address out of its output', () => {
+  assert.equal(
+    tunnel.findUrl('Available on the internet:\n\nhttps://mac-mini.tail1234.ts.net/\n|-- proxy http://127.0.0.1:8080'),
+    'https://mac-mini.tail1234.ts.net',
+  );
+});
+
+test('an unconfigured booth reports no persistent address', () => {
+  assert.equal(tunnel.isPersistent(), false);
+});
