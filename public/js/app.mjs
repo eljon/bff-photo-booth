@@ -1,4 +1,4 @@
-import { LAYOUTS, LAYOUT_ORDER, FRAMES } from './layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, designVariants } from './layouts.mjs';
 import { FILTERS, FILTER_ORDER } from './filters.mjs';
 import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout } from './render.mjs';
 
@@ -14,6 +14,7 @@ const state = {
   caption: '',
   subtitle: '',
   copies: 1,
+  designKey: null, // which coverflow design is chosen; null = the booth's auto-best
   photos: [null, null, null, null],
 };
 
@@ -150,13 +151,19 @@ function previewScale(layout) {
 }
 
 function renderAll() {
-  const layout = resolveLayout(state);
+  const full = filledCount() === 4;
   state.subtitle = `${session.boothName} · ${todayStamp()}`;
-  composePage($('preview'), state, previewScale(layout));
-  $('paperNote').textContent = layout.paper;
   updatePickButton();
-  $('printBtn').disabled = filledCount() < 4 || !session.printingEnabled;
-  $('saveBtn').disabled = filledCount() < 4;
+  if (full) {
+    // The coverflow of designs is the preview now — it draws the selected print.
+    rebuildCoverflow();
+  } else {
+    const layout = resolveLayout(state);
+    composePage($('preview'), state, previewScale(layout));
+    $('paperNote').textContent = layout.paper;
+  }
+  $('printBtn').disabled = !full || !session.printingEnabled;
+  $('saveBtn').disabled = !full;
   renderSlots();
   warmPrint();
 }
@@ -186,6 +193,7 @@ function warmPrint() {
 /** The picker is the main event: one tap should get all four photos. */
 function updatePickButton() {
   const missing = 4 - filledCount();
+  const full = missing === 0;
   const button = $('addAll');
   const label = $('pickLabel');
   const hint = $('pickHint');
@@ -197,17 +205,157 @@ function updatePickButton() {
     label.textContent = `Add ${missing} more`;
     hint.textContent = 'Pick them all at once — they drop into the empty slots in order.';
   } else {
-    label.textContent = 'Swap all 4';
-    hint.textContent = 'Happy with these? Save them, or print.';
+    hint.textContent = 'Swipe the designs to pick a look. Then save or print.';
   }
 
   button.classList.toggle('btn-primary', missing > 0);
   button.classList.toggle('btn-ghost', missing === 0);
-  $('pickOverlay').classList.toggle('compact', missing === 0);
+
+  // Before the print is full: the single preview and the pick button. Once it is
+  // full: the coverflow of designs takes over the stage.
+  $('singleWrap').classList.toggle('hidden', full);
+  $('coverflow').classList.toggle('hidden', !full);
+  $('cfLabel').classList.toggle('hidden', !full);
+  $('swapAll').classList.toggle('hidden', !full);
+
   // Nothing to tap yet — no empty grid, no crop hint, just the one button.
   const empty = missing === 4;
   $('slots').classList.toggle('hidden', empty);
   $('editHint').classList.toggle('hidden', empty);
+}
+
+// ---------------------------------------------------------------- coverflow
+
+let cfDesigns = [];
+let cfIndex = 0;
+let cfJustDragged = false;
+
+/** Horizontal distance between neighbouring cards, in CSS px. */
+function cfSpacing() {
+  const cf = $('coverflow');
+  return Math.min(150, (cf.clientWidth || 320) * 0.34);
+}
+
+/**
+ * Lay the cards out in a coverflow fan around the selection. `extraUnits` shifts
+ * the whole fan mid-swipe (in card widths) so the drag feels live before it snaps.
+ */
+function positionCards(extraUnits = 0) {
+  const cards = [...$('cfTrack').children];
+  const spacing = cfSpacing();
+  const center = cfIndex + extraUnits;
+  cards.forEach((card, i) => {
+    const offset = i - center;
+    const abs = Math.abs(offset);
+    // First neighbour sits a full step out; the rest compress into a stacked deck.
+    const mag = Math.min(abs, 1) * spacing + Math.max(0, abs - 1) * spacing * 0.34;
+    const x = Math.sign(offset) * mag;
+    const ry = Math.max(-55, Math.min(55, -offset * 44));
+    const scale = Math.max(0.6, 1 - abs * 0.16);
+    const depth = -abs * 70;
+    card.style.transform =
+      `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
+    card.style.opacity = abs > 2.5 ? '0' : String(Math.max(0.28, 1 - abs * 0.28));
+    card.style.zIndex = String(100 - Math.round(abs * 10));
+    card.style.pointerEvents = abs > 2.5 ? 'none' : 'auto';
+    card.classList.toggle('is-current', i === cfIndex && Math.abs(extraUnits) < 0.02);
+  });
+}
+
+/** Commit a selection: update the label, the paper note, and the warmed print. */
+function selectDesign(index) {
+  if (!cfDesigns.length) return;
+  cfIndex = Math.max(0, Math.min(cfDesigns.length - 1, index));
+  const d = cfDesigns[cfIndex];
+  state.designKey = d.key;
+  $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
+  $('cfCount').textContent = `${cfIndex + 1} / ${cfDesigns.length}`;
+  $('paperNote').textContent = d.paper;
+  $('cfPrev').disabled = cfIndex === 0;
+  $('cfNext').disabled = cfIndex === cfDesigns.length - 1;
+  positionCards();
+  lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
+  printGeneration += 1;
+  warmPrint();
+}
+
+/** Rebuild the cards from the current photos, keeping the guest's chosen design. */
+function rebuildCoverflow() {
+  const base = LAYOUTS[state.layoutId];
+  cfDesigns = designVariants(base, state.photos);
+  let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
+  if (idx < 0) idx = 0;
+  cfIndex = idx;
+
+  const track = $('cfTrack');
+  track.innerHTML = '';
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  // Fit every card inside one box, so a landscape sheet stays as tall as a
+  // portrait one is wide and neither overflows the narrow stage.
+  const maxH = Math.min(window.innerHeight * 0.4, 360);
+  const maxW = Math.min(window.innerWidth * 0.62, 300);
+
+  cfDesigns.forEach((design, i) => {
+    const card = document.createElement('div');
+    card.className = 'cf-card';
+    const canvas = document.createElement('canvas');
+    const scale = Math.min((maxH * dpr) / design.page.h, (maxW * dpr) / design.page.w);
+    composePage(canvas, state, scale, design);
+    canvas.style.width = `${Math.round((design.page.w * scale) / dpr)}px`;
+    canvas.style.height = `${Math.round((design.page.h * scale) / dpr)}px`;
+    card.appendChild(canvas);
+    card.addEventListener('click', () => {
+      if (cfJustDragged) return;
+      selectDesign(i);
+    });
+    track.appendChild(card);
+  });
+
+  selectDesign(cfIndex);
+}
+
+function bindCoverflow() {
+  const cf = $('coverflow');
+  let dragging = false;
+  let startX = 0;
+  let pid = null;
+
+  cf.addEventListener('pointerdown', (event) => {
+    if (!cfDesigns.length) return;
+    if (event.target.closest('.cf-nav')) return; // the arrows own their own taps
+    dragging = true;
+    cfJustDragged = false;
+    startX = event.clientX;
+    pid = event.pointerId;
+  });
+
+  cf.addEventListener('pointermove', (event) => {
+    if (!dragging || event.pointerId !== pid) return;
+    const dx = event.clientX - startX;
+    // Only claim the gesture once it is clearly a swipe — so taps on the arrows
+    // and on a side card still register as clicks.
+    if (Math.abs(dx) > 4 && !cfJustDragged) {
+      cfJustDragged = true;
+      try { cf.setPointerCapture(pid); } catch { /* fine */ }
+    }
+    if (cfJustDragged) positionCards(-dx / cfSpacing());
+  });
+
+  const end = (event) => {
+    if (!dragging || event.pointerId !== pid) return;
+    dragging = false;
+    if (cfJustDragged) {
+      const dx = event.clientX - startX;
+      selectDesign(Math.round(cfIndex - dx / cfSpacing()));
+    }
+    // Let the click that follows a real drag be swallowed, not treated as a tap.
+    setTimeout(() => { cfJustDragged = false; }, 0);
+  };
+  cf.addEventListener('pointerup', end);
+  cf.addEventListener('pointercancel', end);
+
+  $('cfPrev').addEventListener('click', () => selectDesign(cfIndex - 1));
+  $('cfNext').addEventListener('click', () => selectDesign(cfIndex + 1));
 }
 
 function renderSlots() {
@@ -737,12 +885,15 @@ async function refreshPrinter() {
 
 // ---------------------------------------------------------------- wiring
 
+function openPicker(replaceAll) {
+  replaceAllNext = replaceAll;
+  $('filePicker').value = '';
+  $('filePicker').click();
+}
+
 function bind() {
-  $('addAll').addEventListener('click', () => {
-    replaceAllNext = filledCount() === 4; // "Swap all 4" starts a fresh set
-    $('filePicker').value = '';
-    $('filePicker').click();
-  });
+  $('addAll').addEventListener('click', () => openPicker(filledCount() === 4));
+  $('swapAll').addEventListener('click', () => openPicker(true)); // starts a fresh set of 4
   $('filePicker').addEventListener('change', (event) => acceptFiles(event.target.files));
   $('fileOne').addEventListener('change', (event) => {
     const slot = pendingSlot;
@@ -797,6 +948,7 @@ function bind() {
   $('makeHero').addEventListener('click', makeHero);
 
   bindCropGestures();
+  bindCoverflow();
   window.addEventListener('resize', scheduleRender);
 }
 

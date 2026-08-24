@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid } from '../public/js/layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid, designVariants } from '../public/js/layouts.mjs';
 
 // Four stand-in photos of mixed orientation, so the dynamic grid is exercised
 // on the case that matters — not just placeholders.
@@ -173,6 +173,55 @@ test('a different hero can be chosen by passing its index', () => {
   const photos = [mk(1200, 1200), mk(1200, 1200), mk(1000, 1500), mk(1200, 1200)];
   const { cells } = resolveGrid(LAYOUTS.grid, photos, 2);
   assert.equal(cells[0].photo, 2, 'the chosen index leads as the hero');
+});
+
+test('the coverflow offers each photo as the hero plus an even grid, all distinct', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
+  const variants = designVariants(LAYOUTS.grid, photos);
+
+  // Every photo can be the hero (both placements) and there is a no-hero option.
+  for (let h = 0; h < 4; h++) {
+    assert.ok(variants.some((v) => v.kind === 'hero' && v.heroIndex === h), `photo ${h} is offered as a hero`);
+  }
+  assert.ok(variants.some((v) => v.kind === 'even'), 'an even grid is offered');
+  assert.ok(variants.length >= 5, 'there are several designs to swipe through');
+
+  // No two cards are the same design, and each has a stable key and a label.
+  const keys = new Set(variants.map((v) => v.key));
+  assert.equal(keys.size, variants.length, 'every design has a unique key');
+  for (const v of variants) {
+    assert.ok(v.key && v.title, 'a card has a key and a title');
+    assert.deepEqual([...new Set(v.cells.map((c) => c.photo))].sort(), [0, 1, 2, 3], `${v.key} uses all four photos`);
+  }
+});
+
+test('every coverflow design is flush to the paper and crops nothing', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
+  for (const v of designVariants(LAYOUTS.grid, photos)) {
+    for (const c of v.cells) {
+      assert.equal(c.fit, 'contain', `${v.key} crops nothing`);
+      assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
+    }
+    const left = Math.min(...v.cells.map((c) => c.x));
+    const top = Math.min(...v.cells.map((c) => c.y));
+    const right = Math.max(...v.cells.map((c) => c.x + c.w));
+    const bottom = Math.max(...v.cells.map((c) => c.y + c.h));
+    assert.ok(left <= 1 && top <= 1, `${v.key} is flush to the top-left`);
+    assert.ok(right >= v.page.w - 1 && bottom >= v.page.h - 1, `${v.key} is flush to the bottom-right`);
+  }
+});
+
+test('the first coverflow design is what the booth would pick on its own', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
+  const auto = resolveGrid(LAYOUTS.grid, photos);
+  const first = designVariants(LAYOUTS.grid, photos)[0];
+  assert.equal(first.heroIndex, 0, 'the lead card heroes photo 1');
+  assert.equal(first.page.w, auto.page.w, 'the lead card matches the auto sheet');
+  assert.equal(first.page.h, auto.page.h);
+  assert.deepEqual(first.cells.map((c) => c.photo), auto.cells.map((c) => c.photo), 'same cell order as auto');
 });
 
 test('the print picks the sheet orientation whose media matches it', () => {

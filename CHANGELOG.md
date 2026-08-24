@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.18.0 — 2026-08-24
+
+**Swipe to choose your design — a coverflow of layouts.**
+
+- Once all four photos are in, the preview becomes a swipeable coverflow of
+  designs. Each photo can be the big hero (shown in the placement that fits it
+  best — on top or on the side), and there is an even 2×2 with no hero at all.
+- Swipe left/right, tap a side card, or use the ‹ › arrows. The chosen design is
+  what saves and prints; the label shows which one you're on (e.g. "Big #2 · on
+  top · 2 / 5") and the paper size for that design.
+- Every design still fills the sheet edge to edge and crops nothing. Cards are
+  only ever shown in their best arrangement, so none come out half-empty.
+- "Swap all 4 photos" moved to its own button under the designs.
+
 ## 1.17.0 — 2026-08-24
 
 **Uniform gutters, and the grid runs edge to edge.**

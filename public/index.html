@@ -20,7 +20,7 @@
   </header>
 
   <section class="stage" aria-label="Print preview">
-    <div class="paper-shadow">
+    <div class="paper-shadow" id="singleWrap">
       <canvas id="preview" aria-label="Live preview of your print"></canvas>
       <div class="pick-overlay" id="pickOverlay">
         <button class="btn btn-primary btn-pick" id="addAll" type="button">
@@ -28,14 +28,24 @@
         </button>
       </div>
     </div>
+
+    <div class="coverflow hidden" id="coverflow" aria-label="Choose a design — swipe left or right">
+      <button class="cf-nav cf-prev" id="cfPrev" type="button" aria-label="Previous design">‹</button>
+      <div class="cf-track" id="cfTrack"></div>
+      <button class="cf-nav cf-next" id="cfNext" type="button" aria-label="Next design">›</button>
+    </div>
+
+    <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
     <p class="paper-note"><span id="paperNote">4×6 print</span></p>
   </section>
 
   <section class="pick">
     <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done. The first one becomes the big photo.</p>
 
+    <button class="btn btn-ghost wide hidden" id="swapAll" type="button">Swap all 4 photos</button>
+
     <div class="slots hidden" id="slots"></div>
-    <p class="hint hidden" id="editHint">The first photo is the big one — tap any photo to crop it, or make it the hero.</p>
+    <p class="hint hidden" id="editHint">Swipe the designs above to choose one. Tap any photo below to crop or reorder it.</p>
     <p class="hint problem hidden" id="printProblem"></p>
   </section>
 

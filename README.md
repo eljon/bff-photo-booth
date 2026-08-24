@@ -156,23 +156,28 @@ shell), and each phone is limited to 30 prints per 10 minutes.
    they want it.
 2. **Pick 4 photos** — the button sits on the preview itself. One tap opens the
    camera roll and takes all four in a single selection.
-3. Tap any photo to **crop** (drag to move, pinch or slide to zoom), **rotate**,
-   **replace**, **remove** or reorder.
-4. **Print** → an upload bar, then live status until the printer takes it.
+3. **Swipe to choose a design.** Once all four are in, the preview becomes a
+   coverflow: each photo can be the big hero (placed on top or on the side,
+   whichever fits it), plus an even 2 × 2 with no hero. Swipe, tap a side card,
+   or use the arrows — the chosen design is what saves and prints.
+4. Tap any photo below to **crop** (drag to move, pinch or slide to zoom),
+   **rotate**, **replace**, **remove** or reorder.
+5. **Print** → an upload bar, then live status until the printer takes it.
    **Save** opens the share sheet, where *Save Image* puts it in the Photos app.
 
-There is nothing else on the screen: no layout picker, no filters, no caption
-box. Every print is the four-up grid on 4 × 6.
+No filters, no caption box — just the design coverflow, Save and Print. Every
+design fills the 4 × 6 (or 6 × 4) sheet edge to edge and crops nothing.
 
 ### Layouts
 
-The renderer still knows three (`public/js/layouts.mjs`), and the print pipeline
-handles any of them — the guest app is simply locked to `grid`. Change
-`state.layoutId` in `public/js/app.mjs` to print a different one.
+The guest app is locked to `grid`, whose dynamic engine builds the coverflow of
+designs from the real photos (`designVariants` in `public/js/layouts.mjs`). The
+renderer also still knows two fixed layouts, and the print pipeline handles any
+of them — change `state.layoutId` in `public/js/app.mjs` to print a different one.
 
 | Layout | Sheet | What comes out |
 | --- | --- | --- |
-| Hero *(in use)* | 4 × 6 or 6 × 4 | One big hero photo (the first picked) with three beside it, as one block that runs flush to all four paper edges with an even gutter between photos; nothing is cropped, and the hero placement plus sheet orientation are chosen to leave the least matting |
+| Auto grid *(in use)* | 4 × 6 or 6 × 4 | A coverflow of designs: any photo as the big hero (on top or on the side) or an even 2 × 2. Each is one block flush to all four paper edges with an even gutter between photos; nothing is cropped, and every card is shown in the placement and sheet orientation that leave the least matting |
 | Classic strip | 4 × 6 portrait | Two identical 2 × 6 strips with a cut line |
 | Wide filmstrip | 6 × 4 landscape | Four tall frames in a row |
 

@@ -125,26 +125,100 @@ function heroGrid(page, aspects, heroIndex, arrange) {
 }
 
 /**
+ * The best sheet orientation for one hero placement — the arrangement is fixed,
+ * only the paper is chosen, so both 'top' and 'left' can be offered side by side.
+ */
+function heroDesign(aspects, heroIndex, arrange) {
+  let best = null;
+  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
+    const page = { w: paper.w, h: paper.h };
+    const laid = heroGrid(page, aspects, heroIndex, arrange);
+    if (!best || laid.score > best.score) {
+      best = { cells: laid.cells, score: laid.score, page, media: paper.media, paper: paper.paper };
+    }
+  }
+  return best;
+}
+
+/**
+ * Four equal cells in a 2×2, flush to every edge with uniform gutters and no
+ * hero. Whichever sheet mats the photos least wins. Nothing is cropped.
+ */
+function evenGrid(aspects) {
+  let best = null;
+  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
+    const W = paper.w;
+    const H = paper.h;
+    const cw = (W - GAP) / 2;
+    const ch = (H - GAP) / 2;
+    const cells = [
+      { x: 0, y: 0, w: cw, h: ch, photo: 0, fit: 'contain' },
+      { x: cw + GAP, y: 0, w: cw, h: ch, photo: 1, fit: 'contain' },
+      { x: 0, y: ch + GAP, w: cw, h: ch, photo: 2, fit: 'contain' },
+      { x: cw + GAP, y: ch + GAP, w: cw, h: ch, photo: 3, fit: 'contain' },
+    ];
+    const score = aspects.reduce((s, a) => s + kept(a, cw / ch), 0) / aspects.length;
+    if (!best || score > best.score) {
+      best = { cells, score, page: { w: W, h: H }, media: paper.media, paper: paper.paper };
+    }
+  }
+  return best;
+}
+
+/**
  * Pick the hero placement and sheet orientation with the least matting, while
  * always filling the paper edge to edge. Photo 0 is the hero unless told otherwise.
  */
 export function resolveGrid(base, photos, heroIndex = 0) {
   const aspects = photos.map(photoAspect);
   let best = null;
-  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
-    const page = { w: paper.w, h: paper.h };
-    for (const arrange of ['top', 'left']) {
-      const laid = heroGrid(page, aspects, heroIndex, arrange);
-      if (!best || laid.score > best.score) {
-        best = { cells: laid.cells, score: laid.score, page, media: paper.media, paper: paper.paper };
-      }
-    }
+  for (const arrange of ['top', 'left']) {
+    const d = heroDesign(aspects, heroIndex, arrange);
+    if (!best || d.score > best.score) best = d;
   }
   return { cells: best.cells, captions: [], page: best.page, media: best.media, paper: best.paper };
 }
 
+/**
+ * The designs worth offering the guest as cards in the picker: each photo as the
+ * hero — placed the way that fits it best (top vs side, portrait vs landscape) —
+ * plus an even 2×2 with no hero. The auto-best design leads, so the default card
+ * prints exactly as the booth would on its own. Every design fills the sheet edge
+ * to edge and crops nothing; a card is only offered in its best arrangement, so
+ * none of them come out looking half-empty.
+ */
+export function designVariants(base, photos) {
+  const aspects = photos.map(photoAspect);
 
+  // For each hero, keep only its best placement — the arrangement plus sheet
+  // orientation that leaves the least matting. Photo 0 leads, so the default
+  // card heroes the first photo picked, exactly as resolveGrid does.
+  const heroes = photos.map((_, hero) => {
+    let best = null;
+    for (const arrange of ['top', 'left']) {
+      const d = heroDesign(aspects, hero, arrange);
+      if (!best || d.score > best.score) best = { ...d, heroIndex: hero, arrange };
+    }
+    return best;
+  });
 
+  const out = heroes.map((d) => ({
+    key: `hero:${d.heroIndex}`,
+    kind: 'hero',
+    heroIndex: d.heroIndex,
+    arrange: d.arrange,
+    title: `Big #${d.heroIndex + 1}`,
+    sub: d.arrange === 'top' ? 'on top' : 'on the side',
+    captions: [],
+    cells: d.cells,
+    page: d.page,
+    media: d.media,
+    paper: d.paper,
+  }));
+
+  out.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [], ...evenGrid(aspects) });
+  return out;
+}
 
 function filmstripLayout() {
   // Four tall frames across a 6x4 landscape sheet.

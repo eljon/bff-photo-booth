@@ -1,4 +1,4 @@
-import { LAYOUTS, FRAMES, resolveGrid } from './layouts.mjs';
+import { LAYOUTS, FRAMES, resolveGrid, designVariants } from './layouts.mjs';
 import { FILTERS, supportsCtxFilter, applyPixelFilter } from './filters.mjs';
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -142,14 +142,21 @@ function drawCutLine(ctx, layout, frame) {
  * `scale` of 1 renders the real 300 DPI print; the preview uses a fraction.
  */
 /** The layout to print for this state — resolving a dynamic grid to real cells,
- *  the chosen sheet orientation, and its paper size. */
+ *  the chosen sheet orientation, and its paper size. When the guest has picked a
+ *  design from the coverflow (state.designKey), that one is used; otherwise the
+ *  booth's own auto-best grid. */
 export function resolveLayout(state) {
   const base = LAYOUTS[state.layoutId];
-  return base.dynamic ? { ...base, ...resolveGrid(base, state.photos) } : base;
+  if (!base.dynamic) return base;
+  if (state.designKey) {
+    const chosen = designVariants(base, state.photos).find((d) => d.key === state.designKey);
+    if (chosen) return { ...base, ...chosen };
+  }
+  return { ...base, ...resolveGrid(base, state.photos) };
 }
 
-export function composePage(canvas, state, scale = 1) {
-  const layout = resolveLayout(state);
+export function composePage(canvas, state, scale = 1, layoutOverride = null) {
+  const layout = layoutOverride || resolveLayout(state);
   const frame = FRAMES[state.frameId] || FRAMES.white;
   const w = Math.round(layout.page.w * scale);
   const h = Math.round(layout.page.h * scale);
