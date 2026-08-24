@@ -22,14 +22,16 @@
   <section class="stage" aria-label="Print preview">
     <div class="paper-shadow">
       <canvas id="preview" aria-label="Live preview of your print"></canvas>
+      <div class="pick-overlay" id="pickOverlay">
+        <button class="btn btn-primary btn-pick" id="addAll" type="button">
+          <span id="pickLabel">Pick your 4 photos</span>
+        </button>
+      </div>
     </div>
     <p class="paper-note"><span id="paperNote">4×6 print</span></p>
   </section>
 
   <section class="pick">
-    <button class="btn btn-primary btn-pick" id="addAll" type="button">
-      <span id="pickLabel">Pick your 4 photos</span>
-    </button>
     <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done.</p>
 
     <div class="slots hidden" id="slots"></div>

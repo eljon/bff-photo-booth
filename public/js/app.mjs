@@ -61,6 +61,8 @@ let editorIndex = null;
 let pendingSlot = null;
 let replaceAllNext = false;
 let lastPrintBlob = null;
+let printGeneration = 0; // bumped whenever the page changes, so stale renders are dropped
+let warmTimer = null;
 
 // ---------------------------------------------------------------- utilities
 
@@ -132,6 +134,7 @@ let frameRequested = false;
 
 function scheduleRender() {
   lastPrintBlob = null; // anything that redraws invalidates the exported page
+  printGeneration += 1;
   if (frameRequested) return;
   frameRequested = true;
   requestAnimationFrame(() => {
@@ -155,6 +158,29 @@ function renderAll() {
   $('printBtn').disabled = filledCount() < 4 || !session.printingEnabled;
   $('saveBtn').disabled = filledCount() < 4;
   renderSlots();
+  warmPrint();
+}
+
+/**
+ * Render the page ahead of time once all four photos are in. iOS only lets
+ * navigator.share run inside the tap that asked for it, and rendering a 300 DPI
+ * page takes long enough to lose that permission — so have it ready first.
+ * Debounced, because a resize can fire renders in a burst.
+ */
+function warmPrint() {
+  clearTimeout(warmTimer);
+  if (filledCount() < 4 || lastPrintBlob) return;
+
+  warmTimer = setTimeout(() => {
+    const generation = printGeneration;
+    exportPrint(state)
+      .then((result) => {
+        if (generation === printGeneration) lastPrintBlob = result.blob;
+      })
+      .catch(() => {
+        /* a real Save or Print will surface the failure */
+      });
+  }, 500);
 }
 
 /** The picker is the main event: one tap should get all four photos. */
@@ -165,18 +191,19 @@ function updatePickButton() {
   const hint = $('pickHint');
 
   if (missing === 4) {
-    label.textContent = 'Pick your 4 photos';
+    label.textContent = 'Pick 4 photos';
     hint.textContent = 'One tap opens your camera roll — select all four there, then hit Done.';
   } else if (missing > 0) {
-    label.textContent = `Add ${missing} more photo${missing === 1 ? '' : 's'}`;
+    label.textContent = `Add ${missing} more`;
     hint.textContent = 'Pick them all at once — they drop into the empty slots in order.';
   } else {
-    label.textContent = 'Swap all 4 photos';
-    hint.textContent = 'Happy with these? Style them below and print.';
+    label.textContent = 'Swap all 4';
+    hint.textContent = 'Happy with these? Save them, or print.';
   }
 
   button.classList.toggle('btn-primary', missing > 0);
   button.classList.toggle('btn-ghost', missing === 0);
+  $('pickOverlay').classList.toggle('compact', missing === 0);
   // Nothing to tap yet — no empty grid, no crop hint, just the one button.
   const empty = missing === 4;
   $('slots').classList.toggle('hidden', empty);
@@ -263,7 +290,7 @@ async function acceptFiles(files, startIndex = null) {
   }
 
   // Do not talk over the "only four fit" notice — that one is news.
-  if (filledCount() === 4 && !tooMany) toast('Looking good. Style it below, then print.', 2200);
+  if (filledCount() === 4 && !tooMany) toast('Looking good — print it, or save it to your phone.', 2400);
 }
 
 let overflowCursor = 0;
@@ -545,21 +572,67 @@ async function doPrint() {
   }
 }
 
+function printFile(blob) {
+  const extension = blob.type === 'image/png' ? 'png' : 'jpg';
+  return new File([blob], `photobooth-${Date.now()}.${extension}`, { type: blob.type || 'image/png' });
+}
+
+/** Last resort on desktop, or anywhere the share sheet is not offered. */
+function downloadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = printFile(blob).name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 20_000);
+}
+
+/**
+ * Hand the print to the phone's share sheet, where "Save Image" puts it in the
+ * Photos app. A download link would only drop it in Files, which is not where
+ * anyone looks for a photo.
+ */
 async function savePhoto() {
-  try {
-    const { blob } = lastPrintBlob ? { blob: lastPrintBlob } : await exportPrint(state);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `photobooth-${Date.now()}.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 20_000);
-    toast('Saved to your downloads.');
-  } catch (err) {
-    toast(err.message || 'Could not save that.');
+  if (filledCount() < 4) {
+    toast('Four photos first.');
+    return;
   }
+
+  let blob = lastPrintBlob;
+  if (!blob) {
+    toast('Getting your print ready…', 1200);
+    try {
+      blob = (await exportPrint(state)).blob;
+      lastPrintBlob = blob;
+    } catch (err) {
+      toast(err.message || 'Could not build the print.');
+      return;
+    }
+  }
+
+  const file = printFile(blob);
+  const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+
+  if (canShare) {
+    try {
+      await navigator.share({ files: [file] });
+      toast('Choose “Save Image” to put it in your photos.', 3200);
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // guest closed the sheet
+      // NotAllowedError means the tap expired while rendering; the blob is warm
+      // now, so a second tap will go straight to the sheet.
+      if (err && err.name === 'NotAllowedError') {
+        toast('Tap Save once more to send it to your photos.', 3200);
+        return;
+      }
+    }
+  }
+
+  downloadBlob(blob);
+  toast('Saved to your downloads.');
 }
 
 function resetBooth() {

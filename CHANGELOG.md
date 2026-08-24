@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.8.0 — 2026-08-24
+
+**Save goes to the Photos app, and the button sits on the print.**
+
+- **Save** now hands the print to the phone's share sheet, where *Save Image*
+  puts it straight in Photos. It used to download a file into Files, which is
+  not where anyone looks for a photo. Desktop browsers, and anything without the
+  share sheet, still get a download.
+- The print is rendered in the background as soon as all four photos are in, so
+  the share sheet opens on the tap that asked for it — iOS refuses a share that
+  arrives after its gesture has expired.
+- The one photo button now sits **on** the preview, over a translucent scrim,
+  instead of below it. Once the print is full the scrim clears and the button
+  shrinks to a quiet *Swap all 4* pill so it stops covering the photos.
+
 ## 1.7.1 — 2026-08-24
 
 **Fixed: the browser opened before the tunnel link existed.**

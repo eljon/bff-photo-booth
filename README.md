@@ -148,12 +148,12 @@ shell), and each phone is limited to 30 prints per 10 minutes.
 
 1. Scan the QR code. The page is mobile-first and installs to the home screen if
    they want it.
-2. **Pick your 4 photos** — one tap opens the camera roll and takes all four in
-   a single selection.
+2. **Pick 4 photos** — the button sits on the preview itself. One tap opens the
+   camera roll and takes all four in a single selection.
 3. Tap any photo to **crop** (drag to move, pinch or slide to zoom), **rotate**,
    **replace**, **remove** or reorder.
 4. **Print** → an upload bar, then live status until the printer takes it.
-   **Save** keeps a copy on the phone.
+   **Save** opens the share sheet, where *Save Image* puts it in the Photos app.
 
 There is nothing else on the screen: no layout picker, no filters, no caption
 box. Every print is the four-up grid on 4 × 6.

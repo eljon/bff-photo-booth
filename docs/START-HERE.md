@@ -137,8 +137,8 @@ Now open the booth:
 1. Open **Safari on the Mac** and go to the **"On this Wi-Fi only"** address —
    in the example above, `http://192.168.1.42:8080`. Type it exactly, including
    the `:8080`.
-2. Click **Pick your 4 photos** and choose any four pictures — all four in one
-   go, not one at a time.
+2. Click **Pick 4 photos** — the button sits on top of the preview — and
+   choose any four pictures, all in one go.
 3. They fill the four slots and a preview of the print appears at the top.
 4. Click **Print**. It says **"Saved (dry run)"** — correct, this is a practice
    run and nothing was sent to the printer.
