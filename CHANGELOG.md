@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.19.1 — 2026-08-24
+
+**Fix: preview cards now show the true 4×6 / 6×4 shape.**
+
+- A `max-width` rule on the card canvas was clamping its width while leaving the
+  height — squishing every preview toward square (a landscape 6×4 showed nearly
+  square, a portrait 4×6 too narrow). Cards are now sized from a single scale
+  that fits the stage while keeping the exact paper aspect, so a 4×6 looks 4×6
+  and a 6×4 looks 6×4, and the centred card always fits on screen.
+
 ## 1.19.0 — 2026-08-24
 
 **Every photo fills its own frame — no skew, no floating, true orientation.**

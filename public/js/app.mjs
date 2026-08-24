@@ -290,19 +290,20 @@ function rebuildCoverflow() {
   const track = $('cfTrack');
   track.innerHTML = '';
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  // Fit every card inside one box, so a landscape sheet stays as tall as a
-  // portrait one is wide and neither overflows the narrow stage.
-  const maxH = Math.min(window.innerHeight * 0.4, 360);
-  const maxW = Math.min(window.innerWidth * 0.62, 300);
+  // Fit each card inside a box while keeping its true paper aspect: the display
+  // size comes from ONE scale for both axes, so nothing is squished. A landscape
+  // sheet fits by width, a portrait sheet by height.
+  const boxH = Math.min(window.innerHeight * 0.4, 340);
+  const boxW = Math.min(window.innerWidth * 0.66, 320);
 
   cfDesigns.forEach((design, i) => {
     const card = document.createElement('div');
     card.className = 'cf-card';
     const canvas = document.createElement('canvas');
-    const scale = Math.min((maxH * dpr) / design.page.h, (maxW * dpr) / design.page.w);
-    composePage(canvas, state, scale, design);
-    canvas.style.width = `${Math.round((design.page.w * scale) / dpr)}px`;
-    canvas.style.height = `${Math.round((design.page.h * scale) / dpr)}px`;
+    const dispScale = Math.min(boxH / design.page.h, boxW / design.page.w);
+    composePage(canvas, state, dispScale * dpr, design);
+    canvas.style.width = `${Math.round(design.page.w * dispScale)}px`;
+    canvas.style.height = `${Math.round(design.page.h * dispScale)}px`;
     card.appendChild(canvas);
     card.addEventListener('click', () => {
       if (cfJustDragged) return;
