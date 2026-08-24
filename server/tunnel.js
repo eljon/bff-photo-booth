@@ -3,10 +3,14 @@
 /**
  * Optional outbound tunnel, so guests on cellular (or any other network) can
  * reach a booth running on a laptop behind NAT. We shell out to whichever
- * tunnel binary is installed rather than shipping one:
+ * tunnel is available rather than shipping one:
  *
  *   cloudflared tunnel --url http://localhost:PORT   (no account needed)
  *   ngrok http PORT                                  (needs a free account)
+ *   ssh -R 80:localhost:PORT nokey@localhost.run     (--tunnel=ssh, installs nothing)
+ *
+ * The ssh route is opt-in on purpose: it relays every guest's photos through a
+ * third party nobody deliberately chose, so it is never a silent fallback.
  *
  * Nothing here is required for a LAN booth.
  */
@@ -19,6 +23,7 @@ let publicUrl = null;
 const PATTERNS = [
   /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i,
   /https:\/\/[a-z0-9-]+\.ngrok(?:-free)?\.(?:app|io)/i,
+  /https:\/\/[a-z0-9-]+\.lhr\.life/i,
 ];
 
 function which(binary) {
@@ -35,23 +40,45 @@ function findUrl(text) {
   return null;
 }
 
-/** Start a tunnel and resolve once it announces a public URL. */
-async function open(port, { timeoutMs = 30_000 } = {}) {
-  if (publicUrl) return { url: publicUrl };
-
-  const cloudflared = await which('cloudflared');
-  const ngrok = cloudflared ? null : await which('ngrok');
-
-  if (!cloudflared && !ngrok) {
+/** Which tunnel to use: 'auto' picks an installed binary, 'ssh' forces the no-install route. */
+async function pick(port, prefer) {
+  if (prefer === 'ssh') {
+    const ssh = await which('ssh');
+    if (!ssh) return { error: 'ssh was not found, which is unusual on macOS.' };
     return {
-      url: null,
-      error: 'no tunnel binary found. Install one with `brew install cloudflared` (no account needed), then start again with --tunnel.',
+      command: ssh,
+      args: [
+        '-o', 'StrictHostKeyChecking=accept-new',
+        '-o', 'ServerAliveInterval=30',
+        '-R', `80:localhost:${port}`,
+        'nokey@localhost.run',
+      ],
     };
   }
 
-  const [command, args] = cloudflared
-    ? [cloudflared, ['tunnel', '--url', `http://localhost:${port}`]]
-    : [ngrok, ['http', String(port), '--log', 'stdout']];
+  const cloudflared = await which('cloudflared');
+  if (cloudflared) return { command: cloudflared, args: ['tunnel', '--url', `http://localhost:${port}`] };
+
+  const ngrok = await which('ngrok');
+  if (ngrok) return { command: ngrok, args: ['http', String(port), '--log', 'stdout'] };
+
+  return {
+    error: [
+      'no tunnel found. Either install cloudflared (no account needed):',
+      '    curl -L -o cloudflared.tgz https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-$(uname -m | grep -q arm64 && echo arm64 || echo amd64).tgz',
+      '    tar -xzf cloudflared.tgz && sudo mv cloudflared /usr/local/bin/',
+      '  …or start with --tunnel=ssh to use localhost.run instead, which installs nothing',
+      '  but relays your guests\' photos through a third party.',
+    ].join('\n  '),
+  };
+}
+
+/** Start a tunnel and resolve once it announces a public URL. */
+async function open(port, { timeoutMs = 30_000, prefer = 'auto' } = {}) {
+  if (publicUrl) return { url: publicUrl };
+
+  const { command, args, error } = await pick(port, prefer);
+  if (error) return { url: null, error };
 
   child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 

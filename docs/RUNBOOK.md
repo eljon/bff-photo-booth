@@ -60,6 +60,24 @@ brew install cloudflared     # once, no account needed
 caffeinate -dims npm run tunnel
 ```
 
+No Homebrew? Download the binary straight from Cloudflare — same result, nothing
+else installed:
+
+```bash
+ARCH=$(uname -m | grep -q arm64 && echo arm64 || echo amd64)
+curl -L -o cloudflared.tgz "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-$ARCH.tgz"
+tar -xzf cloudflared.tgz && sudo mv cloudflared /usr/local/bin/ && cloudflared --version
+```
+
+Or install nothing at all and use the `ssh` that already ships with macOS:
+
+```bash
+caffeinate -dims npm start -- --tunnel=ssh
+```
+
+That routes guests through localhost.run, a third-party service — fine for a
+party, worth knowing before you point people at it.
+
 Wait for the `https://…trycloudflare.com` line, then open `/host` and show the
 QR. Guests can be on cellular or any network. If the tunnel drops, restart and
 show the new QR — the link changes.

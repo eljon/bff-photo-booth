@@ -33,7 +33,11 @@ const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
 const DRY_RUN = process.env.DRY_RUN === '1';
 const BOOTH_TOKEN = process.env.BOOTH_TOKEN || null;
-const WANT_TUNNEL = process.env.TUNNEL === '1' || process.argv.includes('--tunnel');
+const TUNNEL_ARG = process.argv.find((arg) => arg.startsWith('--tunnel')) || '';
+const WANT_TUNNEL = Boolean(TUNNEL_ARG) || Boolean(process.env.TUNNEL);
+// --tunnel=ssh (or TUNNEL=ssh) installs nothing and uses localhost.run instead
+const TUNNEL_CHOICE = (TUNNEL_ARG.split('=')[1] || process.env.TUNNEL || '').toLowerCase();
+const TUNNEL_PREFER = TUNNEL_CHOICE === 'ssh' ? 'ssh' : 'auto';
 const PUBLIC_URL = process.env.PUBLIC_URL || null;
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -683,7 +687,7 @@ function banner() {
 server.listen(PORT, HOST, async () => {
   if (WANT_TUNNEL) {
     console.log('\n  Opening a public tunnel…');
-    const result = await tunnel.open(activePort());
+    const result = await tunnel.open(activePort(), { prefer: TUNNEL_PREFER });
     if (!result.url) console.log(`  Tunnel unavailable: ${result.error}`);
   }
   banner();

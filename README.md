@@ -44,6 +44,11 @@ brew install cloudflared      # once, no account needed
 npm run tunnel                # prints a https://…trycloudflare.com link
 ```
 
+No Homebrew? Grab the binary from Cloudflare's releases, or install nothing at
+all and use the `ssh` already on your Mac with `npm start -- --tunnel=ssh`
+(which relays through localhost.run — opt-in on purpose, since a third party
+carries your guests' photos).
+
 **LAN mode** (plain `npm start`) is still there for when everyone is on the same
 Wi-Fi as the Mac.
 
