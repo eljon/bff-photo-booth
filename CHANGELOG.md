@@ -27,7 +27,9 @@ Every release now has a number you can point at.
   is installed.
 - `/api/health` and `/api/session` report the version, so a monitoring check can
   see what is running without opening the host screen.
-- This changelog, and git tags for every release below.
+- This changelog. `bash scripts/tag-releases.sh --push` turns every release
+  below into a git tag, so an older version can be checked out if a change ever
+  goes the wrong way.
 
 ## 1.4.0 — 2026-08-24
 

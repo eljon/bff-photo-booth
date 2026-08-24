@@ -242,7 +242,9 @@ as golden hashes.
 
 The running version appears at the foot of the guest page, on the host screen,
 and in the startup banner (with the git commit where one is available).
-`CHANGELOG.md` lists what changed in each; every release is a git tag.
+`CHANGELOG.md` lists what changed in each. `bash scripts/tag-releases.sh --push`
+turns those into git tags, so you can check out an older one if a change ever
+goes the wrong way.
 
 ```bash
 npm run version:show   # what is installed
