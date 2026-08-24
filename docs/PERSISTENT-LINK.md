@@ -30,8 +30,10 @@ the Mac brings the booth back without touching the terminal.
 
 One free static domain per account.
 
-1. Make a free account at ngrok.com, then **Domains ▸ Create Domain**. You get
-   something like `bff-booth.ngrok-free.app`.
+1. Make a free account at ngrok.com, then **Domains**. The free plan gives you
+   one static domain with a name it picks — something like
+   `avert-canon-washer.ngrok-free.dev`. Choosing your own name is a paid
+   feature; the assigned one works just as well.
 2. On the Mac:
 
    ```bash
@@ -43,7 +45,7 @@ One free static domain per account.
 
    ```bash
    cd ~/Downloads/bff-photo-booth
-   NGROK_DOMAIN=bff-booth.ngrok-free.app caffeinate -dims npm run tunnel
+   NGROK_DOMAIN=avert-canon-washer.ngrok-free.dev caffeinate -dims npm run tunnel
    ```
 
 The banner says `ngrok (persistent domain)` and the guest link is the same every
@@ -52,7 +54,7 @@ night. Print the QR once.
 To avoid retyping it, put the domain in your shell profile:
 
 ```bash
-echo 'export NGROK_DOMAIN=bff-booth.ngrok-free.app' >> ~/.zshrc
+echo 'export NGROK_DOMAIN=avert-canon-washer.ngrok-free.dev' >> ~/.zshrc
 ```
 
 ## Tailscale funnel — no domain, tied to the machine

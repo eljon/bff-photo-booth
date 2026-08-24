@@ -47,6 +47,22 @@ function which(binary) {
   });
 }
 
+/**
+ * ngrok renamed the static-address flag: older agents take --domain, current
+ * ones take --url. Ask the binary in front of us rather than guessing, because
+ * guessing wrong just makes it exit on startup.
+ */
+function ngrokDomainFlag(ngrok) {
+  return new Promise((resolve) => {
+    execFile(ngrok, ['http', '--help'], { timeout: 5000 }, (err, stdout, stderr) => {
+      const help = `${stdout || ''}${stderr || ''}`;
+      if (/--url\b/.test(help)) resolve('--url');
+      else if (/--domain\b/.test(help)) resolve('--domain');
+      else resolve('--url');
+    });
+  });
+}
+
 function findUrl(text) {
   for (const pattern of PATTERNS) {
     const match = text.match(pattern);
@@ -69,7 +85,11 @@ async function pick(port, prefer, env = process.env) {
     const ngrok = await which('ngrok');
     if (!ngrok) return { error: 'ngrok is not installed. `brew install ngrok`, then `ngrok config add-authtoken …`.' };
     const args = ['http', String(port), '--log', 'stdout'];
-    if (env.NGROK_DOMAIN) args.push('--url', https(env.NGROK_DOMAIN));
+    if (env.NGROK_DOMAIN) {
+      const flag = await ngrokDomainFlag(ngrok);
+      // --domain wants the bare host, --url wants a full URL
+      args.push(flag, flag === '--url' ? https(env.NGROK_DOMAIN) : env.NGROK_DOMAIN.replace(/^https?:\/\//, ''));
+    }
     return {
       command: ngrok,
       args,
@@ -146,8 +166,13 @@ function spawnTunnel(onUrl) {
   const startedAt = Date.now();
   child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
+  const recent = [];
   const scan = (chunk) => {
-    const found = findUrl(chunk.toString());
+    const text = chunk.toString();
+    recent.push(text);
+    if (recent.length > 12) recent.shift();
+
+    const found = findUrl(text);
     if (found && found !== publicUrl && !fixedUrl) {
       const previous = publicUrl;
       publicUrl = found;
@@ -161,6 +186,13 @@ function spawnTunnel(onUrl) {
     child = null;
     if (shuttingDown) return;
     if (!fixedUrl) publicUrl = null;
+
+    // A tunnel that dies within seconds is misconfigured, not asleep. Show what
+    // it actually said, or the retry loop hides the one useful message.
+    if (Date.now() - startedAt < 5000 && restartAttempt === 0) {
+      const complaint = recent.join('').trim().split('\n').filter(Boolean).slice(-4).join('\n    ');
+      if (complaint) onChange({ event: 'error', detail: complaint });
+    }
 
     // A tunnel that ran happily for a while and then dropped is a sleep, not a
     // broken setup — start its backoff over so waking is quick.

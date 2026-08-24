@@ -738,6 +738,9 @@ server.listen(PORT, HOST, async () => {
     const result = await tunnel.open(activePort(), {
       prefer: TUNNEL_PREFER,
       onEvent: (event) => {
+        if (event.event === 'error') {
+          console.log(`  The tunnel exited straight away. It said:\n    ${event.detail}`);
+        }
         if (event.event === 'restarting') {
           console.log(event.fixed
             ? `  Tunnel dropped — reconnecting in ${event.inSeconds}s. The guest link does not change.`

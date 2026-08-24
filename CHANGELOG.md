@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.9.1 — 2026-08-24
+
+- ngrok renamed its static-address flag (`--domain` on older agents, `--url` on
+  current ones). The booth now asks the installed binary which it takes instead
+  of guessing, so either version works.
+- A tunnel that dies within seconds of starting now prints what it actually
+  said — "requires a verified account and authtoken", say — instead of
+  disappearing into the reconnect loop with no explanation.
+
 ## 1.9.0 — 2026-08-24
 
 **A guest link that survives restarts and sleep.**
