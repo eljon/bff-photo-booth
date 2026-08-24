@@ -74,147 +74,163 @@ function photoAspect(photo) {
 const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
-const GAP = 26;         // uniform gutter between photos, in print pixels
-const HERO_FRAC = 0.64; // the hero's share of the long axis
-
-/** How much of a photo survives a contain-fit into a cell (1 = it matches exactly). */
-function kept(photoAspect, cellAspect) {
-  return Math.min(photoAspect, cellAspect) / Math.max(photoAspect, cellAspect);
-}
+const GAP = 26; // uniform gutter between photos, in print pixels
 
 /**
- * A hero grid that reaches all four paper edges with a uniform gutter between
- * the photos and NO outer margin. Photos contain-fit inside their cells, so
- * nothing is ever cropped; where a photo's shape differs from its cell it gets a
- * little matting, but the grid itself is flush to the paper on every side.
- *
- * arrange 'top' = hero across the top, three along the bottom;
- * arrange 'left' = hero down the left, three stacked on the right.
+ * Lay groups of photos out as justified ROWS. Every cell is shaped to its own
+ * photo's aspect ratio, so a contain-fit fills it exactly — no matting inside a
+ * frame, no skew, and every photo keeps its true orientation. Each row is scaled
+ * so the photos in it span the full width edge to edge (they touch, save for the
+ * gutter). The stack of rows is scaled to fit the sheet and centred, so the only
+ * whitespace is one thin, even margin on the axis the shapes could not fill.
  */
-function heroGrid(page, aspects, heroIndex, arrange) {
+function justifyRows(page, groups, aspects) {
   const W = page.w;
   const H = page.h;
-  const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
+  const rows = groups.map((g) => {
+    const sumA = g.reduce((s, i) => s + aspects[i], 0);
+    return { g, h: (W - GAP * (g.length - 1)) / sumA };
+  });
+  const naturalH = rows.reduce((s, r) => s + r.h, 0) + GAP * (rows.length - 1);
+  const scale = naturalH > H ? H / naturalH : 1;
+  const finalW = W * scale;
+  const finalH = naturalH * scale;
+  const x0 = (W - finalW) / 2;
+  let y = (H - finalH) / 2;
+
   const cells = [];
-
-  if (arrange === 'top') {
-    const heroH = (H - GAP) * HERO_FRAC;
-    const thumbH = H - GAP - heroH;
-    const tw = (W - GAP * 2) / 3;
-    cells.push({ x: 0, y: 0, w: W, h: heroH, photo: heroIndex, fit: 'contain' });
-    others.forEach((idx, k) => {
-      cells.push({ x: k * (tw + GAP), y: heroH + GAP, w: tw, h: thumbH, photo: idx, fit: 'contain' });
-    });
-  } else {
-    const heroW = (W - GAP) * HERO_FRAC;
-    const thumbW = W - GAP - heroW;
-    const th = (H - GAP * 2) / 3;
-    cells.push({ x: 0, y: 0, w: heroW, h: H, photo: heroIndex, fit: 'contain' });
-    others.forEach((idx, k) => {
-      cells.push({ x: heroW + GAP, y: k * (th + GAP), w: thumbW, h: th, photo: idx, fit: 'contain' });
-    });
+  for (const r of rows) {
+    const h = r.h * scale;
+    let x = x0;
+    for (const i of r.g) {
+      const w = aspects[i] * h;
+      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
+      x += w + GAP * scale;
+    }
+    y += h + GAP * scale;
   }
+  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
+  return { cells, coverage: area / (W * H) };
+}
 
-  // Prefer the arrangement whose cells best match the photos, so the matting is
-  // as small as possible. The hero counts double — keeping the star clean matters.
-  const score = cells.reduce((acc, c) => {
-    const weight = c.photo === heroIndex ? 2 : 1;
-    return acc + kept(aspects[c.photo], c.w / c.h) * weight;
-  }, 0) / (others.length + 2);
-  return { cells, score };
+/** As justifyRows, but as COLUMNS: each group fills the full height, side by side. */
+function justifyCols(page, groups, aspects) {
+  const W = page.w;
+  const H = page.h;
+  const cols = groups.map((g) => {
+    const sumInv = g.reduce((s, i) => s + 1 / aspects[i], 0);
+    return { g, w: (H - GAP * (g.length - 1)) / sumInv };
+  });
+  const naturalW = cols.reduce((s, c) => s + c.w, 0) + GAP * (cols.length - 1);
+  const scale = naturalW > W ? W / naturalW : 1;
+  const finalW = naturalW * scale;
+  const finalH = H * scale;
+  const y0 = (H - finalH) / 2;
+  let x = (W - finalW) / 2;
+
+  const cells = [];
+  for (const c of cols) {
+    const w = c.w * scale;
+    let y = y0;
+    for (const i of c.g) {
+      const h = w / aspects[i];
+      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
+      y += h + GAP * scale;
+    }
+    x += w + GAP * scale;
+  }
+  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
+  return { cells, coverage: area / (W * H) };
 }
 
 /**
- * The best sheet orientation for one hero placement — the arrangement is fixed,
- * only the paper is chosen, so both 'top' and 'left' can be offered side by side.
+ * The best hero design for one photo: try the hero along the top, the bottom,
+ * the left and the right, on both sheets, and keep whichever fills the most
+ * paper. Because cells are shaped to their photos, "most paper filled" is the
+ * layout with the least whitespace — nothing is cropped and nothing is skewed.
  */
-function heroDesign(aspects, heroIndex, arrange) {
+function heroDesign(aspects, heroIndex) {
+  const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
+  const plans = [
+    { arrange: 'top', fn: justifyRows, groups: [[heroIndex], others] },
+    { arrange: 'bottom', fn: justifyRows, groups: [others, [heroIndex]] },
+    { arrange: 'left', fn: justifyCols, groups: [[heroIndex], others] },
+    { arrange: 'right', fn: justifyCols, groups: [others, [heroIndex]] },
+  ];
   let best = null;
   for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
     const page = { w: paper.w, h: paper.h };
-    const laid = heroGrid(page, aspects, heroIndex, arrange);
-    if (!best || laid.score > best.score) {
-      best = { cells: laid.cells, score: laid.score, page, media: paper.media, paper: paper.paper };
+    for (const plan of plans) {
+      const laid = plan.fn(page, plan.groups, aspects);
+      if (!best || laid.coverage > best.coverage) {
+        best = { ...laid, page, media: paper.media, paper: paper.paper, arrange: plan.arrange };
+      }
     }
   }
+  // Hero cell first, whatever the placement — downstream code reads cells[0] as
+  // the hero (the crop editor, the "biggest photo" checks).
+  best.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : a.photo - b.photo));
   return best;
 }
 
-/**
- * Four equal cells in a 2×2, flush to every edge with uniform gutters and no
- * hero. Whichever sheet mats the photos least wins. Nothing is cropped.
- */
+/** Best no-hero layout: the four photos packed to fill the sheet as fully as they can. */
 function evenGrid(aspects) {
+  const plans = [
+    (p) => justifyRows(p, [[0, 1], [2, 3]], aspects),
+    (p) => justifyCols(p, [[0, 2], [1, 3]], aspects),
+    (p) => justifyRows(p, [[0, 1, 2, 3]], aspects),
+    (p) => justifyCols(p, [[0], [1], [2], [3]], aspects),
+  ];
   let best = null;
   for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
-    const W = paper.w;
-    const H = paper.h;
-    const cw = (W - GAP) / 2;
-    const ch = (H - GAP) / 2;
-    const cells = [
-      { x: 0, y: 0, w: cw, h: ch, photo: 0, fit: 'contain' },
-      { x: cw + GAP, y: 0, w: cw, h: ch, photo: 1, fit: 'contain' },
-      { x: 0, y: ch + GAP, w: cw, h: ch, photo: 2, fit: 'contain' },
-      { x: cw + GAP, y: ch + GAP, w: cw, h: ch, photo: 3, fit: 'contain' },
-    ];
-    const score = aspects.reduce((s, a) => s + kept(a, cw / ch), 0) / aspects.length;
-    if (!best || score > best.score) {
-      best = { cells, score, page: { w: W, h: H }, media: paper.media, paper: paper.paper };
+    const page = { w: paper.w, h: paper.h };
+    for (const fn of plans) {
+      const laid = fn(page);
+      if (!best || laid.coverage > best.coverage) {
+        best = { ...laid, page, media: paper.media, paper: paper.paper };
+      }
     }
   }
   return best;
 }
 
+const ARRANGE_SUB = { top: 'on top', bottom: 'on the bottom', left: 'on the left', right: 'on the right' };
+
 /**
- * Pick the hero placement and sheet orientation with the least matting, while
- * always filling the paper edge to edge. Photo 0 is the hero unless told otherwise.
+ * The booth's own pick: photo 0 as the hero (unless told otherwise), in the
+ * placement and on the sheet that fill the most paper without cropping.
  */
 export function resolveGrid(base, photos, heroIndex = 0) {
-  const aspects = photos.map(photoAspect);
-  let best = null;
-  for (const arrange of ['top', 'left']) {
-    const d = heroDesign(aspects, heroIndex, arrange);
-    if (!best || d.score > best.score) best = d;
-  }
-  return { cells: best.cells, captions: [], page: best.page, media: best.media, paper: best.paper };
+  const d = heroDesign(photos.map(photoAspect), heroIndex);
+  return { cells: d.cells, captions: [], page: d.page, media: d.media, paper: d.paper };
 }
 
 /**
- * The designs worth offering the guest as cards in the picker: each photo as the
- * hero — placed the way that fits it best (top vs side, portrait vs landscape) —
- * plus an even 2×2 with no hero. The auto-best design leads, so the default card
- * prints exactly as the booth would on its own. Every design fills the sheet edge
- * to edge and crops nothing; a card is only offered in its best arrangement, so
- * none of them come out looking half-empty.
+ * The designs offered as cards in the picker: each photo as the big hero (placed
+ * and sized to fill the most paper), plus an even layout with no hero. Photo 0
+ * leads, so the default card matches resolveGrid. Every design shapes its cells
+ * to the real photos, so nothing is cropped, nothing is skewed, and the only
+ * whitespace is one thin even margin.
  */
 export function designVariants(base, photos) {
   const aspects = photos.map(photoAspect);
 
-  // For each hero, keep only its best placement — the arrangement plus sheet
-  // orientation that leaves the least matting. Photo 0 leads, so the default
-  // card heroes the first photo picked, exactly as resolveGrid does.
-  const heroes = photos.map((_, hero) => {
-    let best = null;
-    for (const arrange of ['top', 'left']) {
-      const d = heroDesign(aspects, hero, arrange);
-      if (!best || d.score > best.score) best = { ...d, heroIndex: hero, arrange };
-    }
-    return best;
+  const out = photos.map((_, hero) => {
+    const d = heroDesign(aspects, hero);
+    return {
+      key: `hero:${hero}`,
+      kind: 'hero',
+      heroIndex: hero,
+      arrange: d.arrange,
+      title: `Big #${hero + 1}`,
+      sub: ARRANGE_SUB[d.arrange],
+      captions: [],
+      cells: d.cells,
+      page: d.page,
+      media: d.media,
+      paper: d.paper,
+    };
   });
-
-  const out = heroes.map((d) => ({
-    key: `hero:${d.heroIndex}`,
-    kind: 'hero',
-    heroIndex: d.heroIndex,
-    arrange: d.arrange,
-    title: `Big #${d.heroIndex + 1}`,
-    sub: d.arrange === 'top' ? 'on top' : 'on the side',
-    captions: [],
-    cells: d.cells,
-    page: d.page,
-    media: d.media,
-    paper: d.paper,
-  }));
 
   out.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [], ...evenGrid(aspects) });
   return out;

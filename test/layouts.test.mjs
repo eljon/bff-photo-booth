@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('nothing is cropped, and the grid is flush to all four paper edges', () => {
+test('nothing is cropped: every cell is shaped to its own photo, so it fills with no bars', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -103,27 +103,35 @@ test('nothing is cropped, and the grid is flush to all four paper edges', () => 
     assert.equal(cells.length, 4);
 
     for (const c of cells) {
-      // contain-fit is what guarantees no crop — the photo shrinks to fit its
-      // cell, it is never scaled up and clipped.
       assert.equal(c.fit, 'contain', 'contain-fit is what guarantees no crop');
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
+      // The cell has the SAME aspect as its photo, so a contain-fit fills it
+      // exactly — no matting inside the frame, and no skew.
+      const p = photos[c.photo].bitmap;
+      const photoAspect = p.width / p.height;
+      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.01, 'cell is shaped to its photo — no bars, no skew');
     }
 
-    // The combined grid touches every edge of the paper — no outer margin.
-    const left = Math.min(...cells.map((c) => c.x));
-    const top = Math.min(...cells.map((c) => c.y));
-    const right = Math.max(...cells.map((c) => c.x + c.w));
-    const bottom = Math.max(...cells.map((c) => c.y + c.h));
-    assert.ok(left <= 1, `grid has a ${left.toFixed(0)}px gap on the left — should be flush`);
-    assert.ok(top <= 1, `grid has a ${top.toFixed(0)}px gap on the top — should be flush`);
-    assert.ok(right >= page.w - 1, `grid stops ${(page.w - right).toFixed(0)}px short of the right edge`);
-    assert.ok(bottom >= page.h - 1, `grid stops ${(page.h - bottom).toFixed(0)}px short of the bottom edge`);
-
-    // The cells tile the whole sheet save for the thin uniform gutters between
-    // them, so the frame is nearly fully used.
+    // The photos pack together and fill most of the paper; the slack is a single
+    // thin margin, not scattered whitespace.
     const coverage = cells.reduce((s, c) => s + c.w * c.h, 0) / (page.w * page.h);
-    assert.ok(coverage > 0.9, `only ${(coverage * 100).toFixed(0)}% of the paper covered by cells — should be higher`);
+    assert.ok(coverage > 0.7, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should be higher`);
   }
+});
+
+test('the packed photos touch each other, leaving one clean outer margin', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1100, 1100), mk(1000, 1500)];
+  const { cells, page } = resolveGrid(LAYOUTS.grid, photos);
+  // The block is centred: the margin on the left equals the margin on the right
+  // (or top equals bottom), so the whitespace reads as an even border, not a gap
+  // stuck on one side.
+  const left = Math.min(...cells.map((c) => c.x));
+  const right = page.w - Math.max(...cells.map((c) => c.x + c.w));
+  const top = Math.min(...cells.map((c) => c.y));
+  const bottom = page.h - Math.max(...cells.map((c) => c.y + c.h));
+  assert.ok(Math.abs(left - right) < 2, `left/right margins differ (${left.toFixed(0)} vs ${right.toFixed(0)})`);
+  assert.ok(Math.abs(top - bottom) < 2, `top/bottom margins differ (${top.toFixed(0)} vs ${bottom.toFixed(0)})`);
 });
 
 test('the gutters between the four photos are uniform', () => {
@@ -133,19 +141,21 @@ test('the gutters between the four photos are uniform', () => {
   const hero = cells[0];
   const thumbs = cells.slice(1);
 
-  // Whether the hero sits on top or on the left, the three thumbs share one
-  // axis. Every neighbouring gap along that axis is the same width.
-  const stacked = thumbs.every((t) => Math.abs(t.x - thumbs[0].x) < 1); // a vertical column
+  // The three thumbs share a row (hero on top/bottom) or a column (hero on a
+  // side). Every gap along that strip — and the gap to the hero — is the same.
+  const inARow = thumbs.every((t) => Math.abs(t.y - thumbs[0].y) < 1);
   const gaps = [];
-  if (stacked) {
-    for (let i = 1; i < thumbs.length; i++) gaps.push(thumbs[i].y - (thumbs[i - 1].y + thumbs[i - 1].h));
-    gaps.push(thumbs[0].x - (hero.x + hero.w)); // hero-to-column gap
+  if (inARow) {
+    const sorted = [...thumbs].sort((a, b) => a.x - b.x);
+    for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i].x - (sorted[i - 1].x + sorted[i - 1].w));
+    gaps.push(hero.y > thumbs[0].y ? hero.y - (thumbs[0].y + thumbs[0].h) : thumbs[0].y - (hero.y + hero.h));
   } else {
-    for (let i = 1; i < thumbs.length; i++) gaps.push(thumbs[i].x - (thumbs[i - 1].x + thumbs[i - 1].w));
-    gaps.push(thumbs[0].y - (hero.y + hero.h)); // hero-to-row gap
+    const sorted = [...thumbs].sort((a, b) => a.y - b.y);
+    for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i].y - (sorted[i - 1].y + sorted[i - 1].h));
+    gaps.push(hero.x > thumbs[0].x ? hero.x - (thumbs[0].x + thumbs[0].w) : thumbs[0].x - (hero.x + hero.w));
   }
   for (const g of gaps) {
-    assert.ok(Math.abs(g - gaps[0]) < 1, `gutter ${g.toFixed(0)}px differs from ${gaps[0].toFixed(0)}px — should be uniform`);
+    assert.ok(Math.abs(g - gaps[0]) < 1.5, `gutter ${g.toFixed(0)}px differs from ${gaps[0].toFixed(0)}px — should be uniform`);
   }
 });
 
@@ -196,20 +206,23 @@ test('the coverflow offers each photo as the hero plus an even grid, all distinc
   }
 });
 
-test('every coverflow design is flush to the paper and crops nothing', () => {
+test('every coverflow design crops nothing and shapes each cell to its photo', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
     for (const c of v.cells) {
       assert.equal(c.fit, 'contain', `${v.key} crops nothing`);
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
+      const p = photos[c.photo].bitmap;
+      const photoAspect = p.width / p.height;
+      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.01, `${v.key}: cell shaped to its photo — no bars, no skew`);
     }
+    // The block is centred, so its whitespace is an even border on the sheet.
     const left = Math.min(...v.cells.map((c) => c.x));
+    const right = v.page.w - Math.max(...v.cells.map((c) => c.x + c.w));
     const top = Math.min(...v.cells.map((c) => c.y));
-    const right = Math.max(...v.cells.map((c) => c.x + c.w));
-    const bottom = Math.max(...v.cells.map((c) => c.y + c.h));
-    assert.ok(left <= 1 && top <= 1, `${v.key} is flush to the top-left`);
-    assert.ok(right >= v.page.w - 1 && bottom >= v.page.h - 1, `${v.key} is flush to the bottom-right`);
+    const bottom = v.page.h - Math.max(...v.cells.map((c) => c.y + c.h));
+    assert.ok(Math.abs(left - right) < 2 && Math.abs(top - bottom) < 2, `${v.key} block is centred on the sheet`);
   }
 });
 

@@ -177,7 +177,7 @@ of them — change `state.layoutId` in `public/js/app.mjs` to print a different 
 
 | Layout | Sheet | What comes out |
 | --- | --- | --- |
-| Auto grid *(in use)* | 4 × 6 or 6 × 4 | A coverflow of designs: any photo as the big hero (on top or on the side) or an even 2 × 2. Each is one block flush to all four paper edges with an even gutter between photos; nothing is cropped, and every card is shown in the placement and sheet orientation that leave the least matting |
+| Auto grid *(in use)* | 4 × 6 or 6 × 4 | A coverflow of designs: any photo as the big hero (placed top/bottom/side) or an even layout with no hero. Every cell is shaped to its own photo so each fills its frame exactly — nothing is cropped, skewed, or floating in bars — and the placement and sheet that fill the most paper win. The photos touch (uniform gutter); the only whitespace is one thin, even, centred border |
 | Classic strip | 4 × 6 portrait | Two identical 2 × 6 strips with a cut line |
 | Wide filmstrip | 6 × 4 landscape | Four tall frames in a row |
 

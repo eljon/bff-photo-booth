@@ -15,6 +15,23 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.19.0 — 2026-08-24
+
+**Every photo fills its own frame — no skew, no floating, true orientation.**
+
+- Rewrote the layout engine. Instead of fitting photos into fixed cells (which
+  left a landscape photo floating in a tall white cell), every cell is now shaped
+  to its own photo's aspect ratio, so each photo fills its frame exactly — nothing
+  is skewed, nothing floats in bars, and each photo keeps its real orientation.
+- Photos are packed so they touch (just a uniform gutter between them), and the
+  layout that fills the most paper wins — so the booth genuinely picks the best,
+  least-empty design rather than one with scattered whitespace.
+- Card previews now show the true sheet shape: a landscape design looks
+  landscape, a portrait one portrait.
+- Because photos are never cropped, the leftover slack is one thin, even border
+  around the packed block (centred), not gaps between the photos. Filling that
+  last border completely is only possible by cropping, which the booth doesn't do.
+
 ## 1.18.0 — 2026-08-24
 
 **Swipe to choose your design — a coverflow of layouts.**
