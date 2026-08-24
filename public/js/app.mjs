@@ -57,6 +57,7 @@ let accessKey = claimAccessKey();
 
 let editorIndex = null;
 let pendingSlot = null;
+let replaceAllNext = false;
 let lastPrintBlob = null;
 
 // ---------------------------------------------------------------- utilities
@@ -149,9 +150,34 @@ function renderAll() {
   composePage($('preview'), state, previewScale(layout));
   $('paperNote').textContent = `${layout.paper} · ${layout.name}`;
   $('slotCount').textContent = `${filledCount()} / 4`;
+  updatePickButton();
   $('printBtn').disabled = filledCount() < 4 || !session.printingEnabled;
   $('saveBtn').disabled = filledCount() < 4;
   renderSlots();
+}
+
+/** The picker is the main event: one tap should get all four photos. */
+function updatePickButton() {
+  const missing = 4 - filledCount();
+  const button = $('addAll');
+  const label = $('pickLabel');
+  const hint = $('pickHint');
+
+  if (missing === 4) {
+    label.textContent = 'Pick your 4 photos';
+    hint.textContent = 'One tap opens your camera roll — select all four there, then hit Done.';
+  } else if (missing > 0) {
+    label.textContent = `Add ${missing} more photo${missing === 1 ? '' : 's'}`;
+    hint.textContent = 'Pick them all at once — they drop into the empty slots in order.';
+  } else {
+    label.textContent = 'Swap all 4 photos';
+    hint.textContent = 'Happy with these? Style them below and print.';
+  }
+
+  button.classList.toggle('btn-primary', missing > 0);
+  button.classList.toggle('btn-ghost', missing === 0);
+  // Nothing to tap yet — do not offer to crop photos that do not exist.
+  $('editHint').classList.toggle('hidden', missing === 4);
 }
 
 function renderSlots() {
@@ -266,9 +292,18 @@ function pickInto(index) {
 }
 
 async function acceptFiles(files, startIndex = null) {
-  const list = [...files].slice(0, 4);
+  const chosen = [...files];
+  const list = chosen.slice(0, 4);
   if (!list.length) return;
-  toast(list.length > 1 ? 'Loading your photos…' : 'Loading…', 1400);
+
+  if (startIndex === null && replaceAllNext) {
+    state.photos = [null, null, null, null];
+    overflowCursor = 0;
+  }
+  replaceAllNext = false;
+
+  const tooMany = chosen.length > 4;
+  toast(tooMany ? 'A strip holds 4 — using the first four you picked.' : list.length > 1 ? 'Loading your photos…' : 'Loading…', tooMany ? 3200 : 1400);
 
   let cursor = startIndex;
   for (const file of list) {
@@ -283,7 +318,8 @@ async function acceptFiles(files, startIndex = null) {
     }
   }
 
-  if (filledCount() === 4) toast('Looking good. Style it below, then print.', 2200);
+  // Do not talk over the "only four fit" notice — that one is news.
+  if (filledCount() === 4 && !tooMany) toast('Looking good. Style it below, then print.', 2200);
 }
 
 let overflowCursor = 0;
@@ -588,6 +624,7 @@ function resetBooth() {
   $('caption').value = '';
   lastPrintBlob = null;
   overflowCursor = 0;
+  replaceAllNext = false;
   $('result').classList.add('hidden');
   scheduleRender();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -661,6 +698,7 @@ async function refreshPrinter() {
 
 function bind() {
   $('addAll').addEventListener('click', () => {
+    replaceAllNext = filledCount() === 4; // "Swap all 4" starts a fresh set
     $('filePicker').value = '';
     $('filePicker').click();
   });

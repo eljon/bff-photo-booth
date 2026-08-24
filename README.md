@@ -148,7 +148,8 @@ shell), and each phone is limited to 30 prints per 10 minutes.
 
 1. Scan the QR code. The page is mobile-first and installs to the home screen if
    they want it.
-2. **Add photos from your phone** — up to four at once, or tap an empty slot.
+2. **Pick your 4 photos** — one tap opens the camera roll and takes all four in
+   a single selection. Tapping an individual slot still fills just that one.
 3. Tap any photo to **crop** (drag to move, pinch or slide to zoom), **rotate**,
    **replace**, **remove** or reorder.
 4. Pick a layout, a look, a paper colour, a caption. The preview is the real

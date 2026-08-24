@@ -31,11 +31,12 @@
       <h2>Your four</h2>
       <span id="slotCount" class="pill">0 / 4</span>
     </div>
-    <div class="slots" id="slots"></div>
-    <button class="btn btn-add" id="addAll" type="button">
-      <span class="btn-icon">＋</span> Add photos from your phone
+    <button class="btn btn-primary btn-pick" id="addAll" type="button">
+      <span id="pickLabel">Pick your 4 photos</span>
     </button>
-    <p class="hint">Take them in your camera app first, then pick the four you like. Tap a photo to crop, rotate or swap it.</p>
+    <p class="hint" id="pickHint">One tap opens your camera roll — select all four there, then hit Done.</p>
+    <div class="slots" id="slots"></div>
+    <p class="hint hidden" id="editHint">Tap any photo above to crop, rotate, reorder or swap just that one.</p>
   </section>
 
   <section class="panel">
