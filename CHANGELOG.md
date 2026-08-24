@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.19.2 — 2026-08-24
+
+**Fix: swiping the coverflow no longer scrolls the page.**
+
+- The coverflow now claims the whole touch gesture (`touch-action: none`), so a
+  swipe to change designs never drags the page up or down underneath it.
+
 ## 1.19.1 — 2026-08-24
 
 **Fix: preview cards now show the true 4×6 / 6×4 shape.**
