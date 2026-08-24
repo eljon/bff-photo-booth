@@ -1,4 +1,4 @@
-import { LAYOUTS, FRAMES } from './layouts.mjs';
+import { LAYOUTS, FRAMES, autoLayout } from './layouts.mjs';
 import { FILTERS, supportsCtxFilter, applyPixelFilter } from './filters.mjs';
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -7,13 +7,14 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
  * Keep a crop inside its cell: however the guest pans, the photo still covers
  * the frame, so a print can never come out with a sliver of blank paper.
  */
-export function clampTransform(transform, cellW, cellH, bitmap) {
+export function clampTransform(transform, cellW, cellH, bitmap, fit = 'cover') {
   const t = { zoom: 1, dx: 0, dy: 0, rot: 0, ...transform };
   t.zoom = Math.min(4, Math.max(1, t.zoom));
   const swap = Math.abs(t.rot % 180) === 90;
   const fw = swap ? bitmap.height : bitmap.width;
   const fh = swap ? bitmap.width : bitmap.height;
-  const scale = Math.max(cellW / fw, cellH / fh) * t.zoom;
+  const base = fit === 'contain' ? Math.min(cellW / fw, cellH / fh) : Math.max(cellW / fw, cellH / fh);
+  const scale = base * t.zoom;
   const slackX = Math.max(0, (fw * scale - cellW) / 2) / cellW;
   const slackY = Math.max(0, (fh * scale - cellH) / 2) / cellH;
   t.dx = Math.min(slackX, Math.max(-slackX, t.dx));
@@ -24,13 +25,17 @@ export function clampTransform(transform, cellW, cellH, bitmap) {
 /** Draw one photo, cover-fitted into a cell and honouring the guest's crop. */
 function drawPhoto(ctx, cell, photo, filterId) {
   const { bitmap } = photo;
-  const t = clampTransform(photo.transform, cell.w, cell.h, bitmap);
+  const fit = cell.fit || 'cover';
+  const t = clampTransform(photo.transform, cell.w, cell.h, bitmap, fit);
   const swap = Math.abs(t.rot % 180) === 90;
   const nw = bitmap.width;
   const nh = bitmap.height;
   const footprintW = swap ? nh : nw;
   const footprintH = swap ? nw : nh;
-  const scale = Math.max(cell.w / footprintW, cell.h / footprintH) * t.zoom;
+  const fitScale = fit === 'contain'
+    ? Math.min(cell.w / footprintW, cell.h / footprintH)
+    : Math.max(cell.w / footprintW, cell.h / footprintH);
+  const scale = fitScale * t.zoom;
 
   ctx.save();
   ctx.beginPath();
@@ -137,7 +142,8 @@ function drawCutLine(ctx, layout, frame) {
  * `scale` of 1 renders the real 300 DPI print; the preview uses a fraction.
  */
 export function composePage(canvas, state, scale = 1) {
-  const layout = LAYOUTS[state.layoutId];
+  const base = LAYOUTS[state.layoutId];
+  const layout = base.dynamic ? { ...base, ...autoLayout(base, state.photos) } : base;
   const frame = FRAMES[state.frameId] || FRAMES.white;
   const w = Math.round(layout.page.w * scale);
   const h = Math.round(layout.page.h * scale);

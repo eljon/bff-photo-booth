@@ -1,6 +1,7 @@
 import { LAYOUTS, LAYOUT_ORDER, FRAMES } from './layouts.mjs';
 import { FILTERS, FILTER_ORDER } from './filters.mjs';
 import { composePage, exportPrint, drawSinglePhoto, clampTransform } from './render.mjs';
+import { autoLayout } from './layouts.mjs';
 
 const $ = (id) => document.getElementById(id);
 const MAX_SOURCE_DIM = 2400; // plenty for a 300 DPI cell, gentle on phone memory
@@ -308,7 +309,8 @@ function nextOpenSlot() {
 const crop = { dragging: false, startX: 0, startY: 0, baseDx: 0, baseDy: 0, pinchDist: 0, baseZoom: 1 };
 
 function cellFor(index) {
-  const layout = LAYOUTS[state.layoutId];
+  const base = LAYOUTS[state.layoutId];
+  const layout = base.dynamic ? autoLayout(base, state.photos) : base;
   return layout.cells.find((c) => c.photo === index) || layout.cells[0];
 }
 

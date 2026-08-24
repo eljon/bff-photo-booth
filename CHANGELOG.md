@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.13.0 — 2026-08-24
+
+**The grid fits portrait and landscape photos without cropping.**
+
+- Every photo now gets a cell shaped to its own aspect ratio, so a landscape
+  shot is shown wide and a portrait one tall — the whole frame, nothing cut off.
+  Before, all four were force-cropped into fixed portrait squares.
+- The photos are packed into rows and the arrangement that gives the fairest
+  spread wins: four portraits become a 2×2, four landscapes a stack, one
+  portrait among three landscapes lands beside a wide one with the rest below,
+  and so on. No photo is shrunk to a stamp to make another huge.
+- The crop editor follows suit — its frame matches each photo's shape, and a
+  guest can still zoom in to crop deliberately if they want.
+
 ## 1.12.0 — 2026-08-24
 
 **Save to Photos with no share sheet.**

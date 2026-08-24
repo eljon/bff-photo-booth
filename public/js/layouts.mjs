@@ -43,34 +43,121 @@ function stripLayout() {
 }
 
 function gridLayout() {
-  // 2x2 on a 4x6 portrait sheet.
+  // Cells are computed per print from the real photos (see autoLayout), so a
+  // mix of portrait and landscape shots each get a cell shaped to fit them
+  // without cropping. The static values here are the frame around that.
   const page = { w: inches(4), h: inches(6) };
-  const pad = 60;
-  const gap = 30;
-  const footer = 170;
-  const cellW = Math.floor((page.w - pad * 2 - gap) / 2);
-  const cellH = Math.floor((page.h - pad * 2 - footer - gap) / 2);
-  const cells = [];
-  for (let i = 0; i < 4; i++) {
-    cells.push({
-      x: pad + (i % 2) * (cellW + gap),
-      y: pad + Math.floor(i / 2) * (cellH + gap),
-      w: cellW,
-      h: cellH,
-      photo: i,
-    });
-  }
-  const captionY = pad + 2 * cellH + gap;
   return {
     id: 'grid',
-    name: 'Four-up grid',
-    blurb: 'Big 2×2 squares on a 4×6 print',
+    name: 'Auto grid',
+    blurb: 'Fits portrait and landscape photos without cropping',
     paper: '4×6 portrait',
     media: 'Custom.4x6in',
     page,
-    cells,
-    captions: [{ x: pad, y: captionY, w: page.w - pad * 2, h: page.h - pad - captionY }],
+    dynamic: true,
+    pad: 56,
+    gap: 26,
+    footer: 150,
+    cells: [], // filled in by autoLayout at render time
+    captions: [],
     cutLine: null,
+  };
+}
+
+/** Aspect ratio (w/h) a photo occupies, honouring a 90° rotation. */
+function photoAspect(photo) {
+  if (!photo || !photo.bitmap) return 3 / 4; // an empty slot stands in as portrait
+  const t = photo.transform || {};
+  const swap = Math.abs((t.rot || 0) % 180) === 90;
+  const w = swap ? photo.bitmap.height : photo.bitmap.width;
+  const h = swap ? photo.bitmap.width : photo.bitmap.height;
+  return w / h || 3 / 4;
+}
+
+/** Every way to split n items into consecutive rows (order preserved). */
+function compositions(n) {
+  const out = [];
+  for (let mask = 0; mask < 1 << (n - 1); mask++) {
+    const rows = [];
+    let row = [0];
+    for (let i = 1; i < n; i++) {
+      if (mask & (1 << (i - 1))) {
+        rows.push(row);
+        row = [];
+      }
+      row.push(i);
+    }
+    rows.push(row);
+    out.push(rows);
+  }
+  return out;
+}
+
+/** Lay a row of photos out at the height that fills the content width. */
+function measure(rows, aspects, W, gap) {
+  return rows.map((row) => {
+    const aspectSum = row.reduce((s, i) => s + aspects[i], 0);
+    const height = (W - gap * (row.length - 1)) / aspectSum;
+    return { row, height };
+  });
+}
+
+/**
+ * Give every photo a cell shaped to its own aspect ratio, packed into rows and
+ * scaled to fill the sheet. Because each cell matches its photo, a contain-fit
+ * fills the cell with no crop and no letterbox bars. The row grouping that
+ * covers the most paper wins, so 4 portraits land as a 2×2, 4 landscapes as a
+ * stack, and any mix arranges itself sensibly.
+ */
+export function autoLayout(layout, photos) {
+  const { page, pad, gap, footer } = layout;
+  const W = page.w - pad * 2;
+  const availH = page.h - pad * 2 - footer;
+  const aspects = photos.map(photoAspect);
+
+  let best = null;
+  for (const rows of compositions(photos.length)) {
+    const measured = measure(rows, aspects, W, gap);
+    const totalH = measured.reduce((s, m) => s + m.height, 0) + gap * (rows.length - 1);
+    const scale = Math.min(1, availH / totalH);
+
+    // Fair share, not raw coverage: maximise the *smallest* photo so no one's
+    // shot ends up tiny. Total area is only the tiebreak. (Maximising coverage
+    // instead makes one photo huge and the rest postage stamps.)
+    let minArea = Infinity;
+    let totalArea = 0;
+    for (const m of measured) {
+      for (const i of m.row) {
+        const a = aspects[i] * (m.height * scale) * (m.height * scale);
+        minArea = Math.min(minArea, a);
+        totalArea += a;
+      }
+    }
+    if (!best || minArea > best.minArea + 1 || (Math.abs(minArea - best.minArea) <= 1 && totalArea > best.totalArea)) {
+      best = { measured, totalH, scale, minArea, totalArea };
+    }
+  }
+
+  const { measured, totalH, scale } = best;
+  const blockH = totalH * scale;
+  let y = pad + (availH - blockH) / 2;
+  const cells = [];
+
+  for (const m of measured) {
+    const h = m.height * scale;
+    const widths = m.row.map((i) => aspects[i] * h);
+    const rowW = widths.reduce((s, w) => s + w, 0) + gap * scale * (m.row.length - 1);
+    let x = pad + (W - rowW) / 2;
+    m.row.forEach((photoIndex, k) => {
+      cells.push({ x, y, w: widths[k], h, photo: photoIndex, fit: 'contain' });
+      x += widths[k] + gap * scale;
+    });
+    y += h + gap * scale;
+  }
+
+  return {
+    cells,
+    captions: [{ x: pad, y: pad + availH, w: W, h: footer }],
   };
 }
 
