@@ -1,0 +1,39 @@
+# fly deploy — the relay half only. The printer stays on your MacBook.
+#
+#   fly launch --no-deploy --copy-config
+#   fly secrets set BOOTH_TOKEN=$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")
+#   fly secrets set ACCESS_KEY=$(node -e "console.log(require('crypto').randomBytes(9).toString('base64url'))")
+#   fly volumes create booth_data --size 1
+#   fly deploy
+#
+# ACCESS_KEY pins the guest key so a redeploy does not invalidate QR codes you
+# have already printed.
+
+app = "bff-photo-booth"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  MODE = "relay"
+  PORT = "8080"
+  BOOTH_NAME = "BFF Photo Booth"
+
+[mounts]
+  source = "booth_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # a sleeping relay drops the agent's long poll
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health"

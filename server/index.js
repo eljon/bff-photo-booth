@@ -49,7 +49,14 @@ if (MODE === 'relay' && !BOOTH_TOKEN) {
   process.exit(1);
 }
 
-fs.mkdirSync(PRINTS_DIR, { recursive: true });
+try {
+  fs.mkdirSync(PRINTS_DIR, { recursive: true });
+  fs.accessSync(PRINTS_DIR, fs.constants.W_OK);
+} catch (err) {
+  console.error(`Cannot write prints to ${PRINTS_DIR}: ${err.message}`);
+  console.error('Point PRINTS_DIR somewhere writable (a mounted volume needs to be writable by this user).');
+  process.exit(1);
+}
 
 /** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
@@ -413,6 +420,17 @@ async function handleApi(req, res, url) {
 
   const cfg = config.load();
 
+  // Cheap unauthenticated probe for platform health checks and uptime pings.
+  if (url.pathname === '/api/health' && req.method === 'GET') {
+    return sendJson(res, 200, {
+      ok: true,
+      mode: MODE,
+      agentOnline: MODE === 'relay' ? agentOnline() : true,
+      printingEnabled: cfg.printingEnabled,
+      uptimeSeconds: Math.round(process.uptime()),
+    });
+  }
+
   if (url.pathname === '/api/session' && req.method === 'GET') {
     return sendJson(res, 200, {
       boothName: cfg.boothName,
@@ -470,6 +488,7 @@ async function handleApi(req, res, url) {
       exposed: isExposed(),
       keyRequired: guestKeyRequired(),
       agent: { online: agentOnline(), name: agent.name, printers: agent.printers },
+      pinned: config.pinnedKeys(),
       urls: joinUrls(),
     });
   }
@@ -638,7 +657,7 @@ const server = http.createServer(async (req, res) => {
 function banner() {
   const cfg = config.load();
   const [primary, ...rest] = joinUrls();
-  const key = guestKeyRequired() ? `?k=${cfg.accessKey}` : '';
+  const key = guestKeyRequired() ? `/?k=${cfg.accessKey}` : '';
   console.log('');
   console.log(`  ${cfg.boothName}${MODE === 'relay' ? ' · relay' : ''}`);
   console.log(`  ${'-'.repeat(cfg.boothName.length + (MODE === 'relay' ? 8 : 0))}`);

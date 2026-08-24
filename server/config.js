@@ -28,6 +28,29 @@ function newKey() {
   return crypto.randomBytes(9).toString('base64url');
 }
 
+/**
+ * Settings a stateless deploy can pin from the environment. ACCESS_KEY matters
+ * most: without it a redeploy would mint a new guest key and every QR code you
+ * printed for the party would stop working.
+ */
+const ENV_PINNED = {
+  accessKey: process.env.ACCESS_KEY,
+  boothName: process.env.BOOTH_NAME,
+};
+
+function pinned() {
+  const out = {};
+  for (const [key, value] of Object.entries(ENV_PINNED)) {
+    if (value) out[key] = String(value).slice(0, 200);
+  }
+  return out;
+}
+
+/** Which settings the host screen cannot change, because the env owns them. */
+function pinnedKeys() {
+  return Object.keys(pinned());
+}
+
 function load() {
   if (cache) return cache;
   let stored = {};
@@ -36,7 +59,7 @@ function load() {
   } catch {
     stored = {};
   }
-  cache = { ...DEFAULTS, ...stored };
+  cache = { ...DEFAULTS, ...stored, ...pinned() };
   if (!cache.accessKey) {
     cache.accessKey = newKey();
     persist(cache);
@@ -54,9 +77,10 @@ function persist(value) {
 
 function save(patch) {
   const next = { ...load() };
+  const locked = new Set(pinnedKeys());
 
   for (const key of Object.keys(DEFAULTS)) {
-    if (patch[key] === undefined) continue;
+    if (patch[key] === undefined || locked.has(key)) continue;
     const def = DEFAULTS[key];
     let value = patch[key];
 
@@ -72,13 +96,13 @@ function save(patch) {
     next[key] = value;
   }
 
-  if (patch.rotateKey) next.accessKey = newKey();
+  if (patch.rotateKey && !locked.has('accessKey')) next.accessKey = newKey();
   next.maxCopies = Math.max(1, Math.min(10, next.maxCopies));
   next.copies = Math.max(1, Math.min(next.maxCopies, next.copies));
 
   persist(next);
-  cache = next;
+  cache = { ...next, ...pinned() };
   return cache;
 }
 
-module.exports = { load, save, DEFAULTS, CONFIG_PATH };
+module.exports = { load, save, pinnedKeys, DEFAULTS, CONFIG_PATH };

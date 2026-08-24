@@ -171,3 +171,40 @@ test('a LAN booth stays frictionless — no key, no token', async (t) => {
   assert.equal(status, 200);
   assert.equal((await fetch(`${booth.base}/api/config`)).status, 200);
 });
+
+test('the health probe answers without a token, for platform checks', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  const response = await fetch(`${booth.base}/api/health`);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.ok, true);
+  assert.equal(data.mode, 'relay');
+  assert.equal(data.agentOnline, false, 'no Mac has connected yet');
+  assert.equal(typeof data.uptimeSeconds, 'number');
+});
+
+test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working', async (t) => {
+  const booth = await startRelay({ ACCESS_KEY: 'party-2026', BOOTH_NAME: 'Pinned Booth' });
+  t.after(() => booth.close());
+
+  const settings = await (await fetch(`${booth.base}/api/config`, { headers: host })).json();
+  assert.equal(settings.config.accessKey, 'party-2026');
+  assert.equal(settings.config.boothName, 'Pinned Booth');
+  assert.deepEqual(settings.pinned.sort(), ['accessKey', 'boothName']);
+
+  // the pinned key really is the one that prints
+  const { status } = await printAsGuest(booth, { key: 'party-2026' });
+  assert.equal(status, 503, 'no agent yet, but the key was accepted');
+
+  // and the host cannot rotate or rename around the environment
+  await fetch(`${booth.base}/api/config`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...host },
+    body: JSON.stringify({ rotateKey: true, boothName: 'Something Else' }),
+  });
+  const after = await (await fetch(`${booth.base}/api/config`, { headers: host })).json();
+  assert.equal(after.config.accessKey, 'party-2026');
+  assert.equal(after.config.boothName, 'Pinned Booth');
+});

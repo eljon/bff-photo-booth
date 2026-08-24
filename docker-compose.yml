@@ -1,0 +1,25 @@
+# Self-hosting the relay on a VPS or a spare box.
+#
+#   BOOTH_TOKEN=$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))") \
+#   ACCESS_KEY=$(node -e "console.log(require('crypto').randomBytes(9).toString('base64url'))") \
+#   docker compose up -d
+#
+# Put it behind a TLS terminator (Caddy, nginx, Cloudflare) and set PUBLIC_URL
+# to the address guests will actually see, so the QR code points at it.
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MODE: relay
+      BOOTH_TOKEN: ${BOOTH_TOKEN:?set BOOTH_TOKEN}
+      ACCESS_KEY: ${ACCESS_KEY:-}
+      BOOTH_NAME: ${BOOTH_NAME:-BFF Photo Booth}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+    volumes:
+      - booth-data:/data
+
+volumes:
+  booth-data:

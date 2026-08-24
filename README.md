@@ -92,6 +92,10 @@ RELAY_URL=… BOOTH_TOKEN=… npm run agent   # on the Mac ┘ permanent link
 Open the **host screen** (`/host`) on the MacBook and leave it up: QR code for
 guests, printer and paper pickers, live queue, approvals.
 
+See **[docs/RUNBOOK.md](docs/RUNBOOK.md)** for the party-night procedure and
+**[docs/DEPLOY.md](docs/DEPLOY.md)** for deploying the relay to Fly, Render or
+your own Docker host.
+
 ### Running the relay
 
 The relay is the same codebase with `MODE=relay`. It needs no printer, holds no
@@ -186,11 +190,14 @@ Host-screen settings live in `photobooth.config.json` (git ignored).
 | `PRINTS_DIR` | `./prints` | Where composed prints are written |
 | `PHOTOBOOTH_CONFIG` | `./photobooth.config.json` | Settings file location |
 | `AGENT_NAME` | hostname | Label shown on the host screen |
+| `ACCESS_KEY` | generated | Pins the guest QR key across restarts |
+| `BOOTH_NAME` | config | Booth name, pinned from the environment |
 
 ## API
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /api/health` | Unauthenticated probe: mode, agent connectivity, uptime |
 | `GET /api/session` | Booth name, copy limits, whether a key is needed |
 | `GET /api/printers` | Printers — local, or the ones the agent reported |
 | `GET /api/queue` | Live queue, job history, agent health *(host)* |
@@ -211,7 +218,7 @@ minutes, so a Mac that goes to sleep mid-print does not swallow a guest's strip.
 npm test
 ```
 
-30 tests: the print endpoint end to end (real PNG bytes in, file on disk out),
+32 tests: the print endpoint end to end (real PNG bytes in, file on disk out),
 the full relay round trip with the real agent process (guest → relay → agent →
 `lp` → status back to the guest), approval holding a job away from the agent,
 guest-key and host-token enforcement, per-job print privacy, copy clamping, rate

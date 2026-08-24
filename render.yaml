@@ -1,0 +1,26 @@
+# Render blueprint — the relay half only. The printer stays on your MacBook.
+#
+#   1. push this repo to GitHub
+#   2. Render ▸ New ▸ Blueprint ▸ pick the repo
+#   3. copy the generated BOOTH_TOKEN and ACCESS_KEY from the dashboard —
+#      the agent on the Mac needs BOOTH_TOKEN
+services:
+  - type: web
+    name: bff-photo-booth
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter          # free instances sleep, which drops the agent's poll
+    healthCheckPath: /api/health
+    disk:
+      name: booth-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: MODE
+        value: relay
+      - key: BOOTH_NAME
+        value: BFF Photo Booth
+      - key: BOOTH_TOKEN
+        generateValue: true   # host + agent password
+      - key: ACCESS_KEY
+        generateValue: true   # pins the guest QR key across deploys
