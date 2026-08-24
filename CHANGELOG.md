@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.7.0 — 2026-08-24
+
+**No host password, and the control screen opens itself.**
+
+- The host screen is open by default. Setting `BOOTH_TOKEN` puts a password
+  back; relay mode still requires one, because a permanent public address is a
+  different proposition from a tunnel link that changes every launch.
+- `npm run tunnel` now opens the host screen in your default browser once the
+  link is up. `--open` does the same for a plain Wi-Fi start, `--no-open`
+  suppresses it, and a relay never opens anything.
+
 ## 1.6.0 — 2026-08-24
 
 **The guest screen is one button.**

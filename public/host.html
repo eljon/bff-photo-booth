@@ -22,11 +22,10 @@
   <div class="result-card">
     <div class="result-emoji">🔒</div>
     <h2>Host sign in</h2>
-    <p>This booth can be reached from outside your network, so the controls need
-       its password. Look in the Terminal window where you started the booth —
-       it is the line that says <strong>Host screen password</strong>.</p>
+    <p>This booth was started with a <code>BOOTH_TOKEN</code>, so its controls
+       are password protected. Enter that token to unlock them.</p>
     <input id="tokenInput" class="text-input" type="password" autocomplete="current-password"
-           placeholder="Host screen password" style="margin-top:16px">
+           placeholder="BOOTH_TOKEN" style="margin-top:16px">
     <p class="hint" id="signinError"></p>
     <div class="result-actions">
       <button class="btn btn-primary" id="tokenSave" type="button">Unlock</button>

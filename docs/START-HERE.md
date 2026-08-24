@@ -175,9 +175,11 @@ Wait about 10 seconds. The Terminal prints:
   On this Wi-Fi only:   http://192.168.1.42:8080/?k=mo0YlOfR2eWB
   Host screen:          https://amber-forest-9241.trycloudflare.com/host
 
-  This booth is public. Host screen password:  UbNgjvaR_YVffwFd
-  (generated for you — set BOOTH_TOKEN to choose your own)
+  Opened the host screen in your browser.
 ```
+
+Your browser opens the host screen by itself. If it does not, click the
+**Host screen** address above.
 
 **Now** there is an address guests can use. The `https://` one works from any
 network — mobile data, the neighbour's Wi-Fi, anywhere. The `http://192.168…`
@@ -187,24 +189,20 @@ cannot reach it, and you do not need it.
 **Leave this window open for the whole party.** Closing it, or closing the
 laptop lid, shuts the booth down.
 
-Two lines matter:
-
-- **Host screen** — the page you control the booth from.
-- **Host screen password** — you need it once, in the next step.
+One line matters: **Guests scan or type** — that is the address behind the QR
+code, and it works from any network.
 
 ---
 
 ## Step 7 · Set up your control page
 
-1. In Safari on the Mac, go to the **Host screen** address from Step 6 (the one
-   ending in `/host`).
-2. It asks for a password. Copy the **Host screen password** line from the
-   Terminal, paste it, click **Unlock**.
-3. Set these, then click **Save settings**:
+1. The host screen should already be open in your browser. If not, go to the
+   **Host screen** address from Step 6 (the one ending in `/host`).
+2. Set these, then click **Save settings**:
    - **Destination** — your printer.
    - **Paper** — `4×6 in` for photo paper. Match what is actually loaded.
-   - **Booth name** — what gets printed along the bottom of every strip.
-4. Leave everything else as it is for now.
+   - **Booth name** — what gets printed along the bottom of every print.
+3. Leave everything else as it is for now.
 
 The page now shows a **big QR code**. That is the booth.
 
@@ -252,8 +250,8 @@ cd ~/Downloads/bff-photo-booth
 caffeinate -dims npm run tunnel
 ```
 
-The guest link and password are **new every time you start it**, so print the QR
-code fresh, or read `docs/DEPLOY.md` for a permanent link.
+The guest link is **new every time you start it**, so print the QR code fresh,
+or read `docs/DEPLOY.md` for a permanent link.
 
 ---
 
@@ -293,7 +291,7 @@ update — none of that is part of the download.
 | A popup about "command line developer tools" | Click **Install**, wait, then paste the command again. |
 | `Tunnel unavailable` | Step 3 did not finish. Run `cloudflared --version` — if that fails, do Step 3 again. |
 | Guests get "Scan the booth QR code" | They opened a plain link instead of scanning. Have them scan the QR itself. |
-| The host page will not take the password | Copy the **whole** line after `Host screen password:`, with no spaces at the ends. |
+| The host screen did not open by itself | Open the **Host screen** address from the Terminal yourself. |
 | Host page says no printer found | Go back to Step 1. If Preview cannot print, the booth cannot either. |
 | It printed, but nothing came out | Check the printer itself — paper, ink, lid. Look at **Printer queue** on the host page. |
 | The Terminal window closed by accident | The booth stopped. Run the two "next time" commands above. The link will be new. |

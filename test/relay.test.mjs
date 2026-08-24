@@ -192,7 +192,7 @@ test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working
   const settings = await (await fetch(`${booth.base}/api/config`, { headers: host })).json();
   assert.equal(settings.config.accessKey, 'party-2026');
   assert.equal(settings.config.boothName, 'Pinned Booth');
-  assert.deepEqual(settings.pinned.sort(), ['accessKey', 'boothName', 'hostToken']);
+  assert.deepEqual(settings.pinned.sort(), ['accessKey', 'boothName']);
 
   // the pinned key really is the one that prints
   const { status } = await printAsGuest(booth, { key: 'party-2026' });
@@ -209,28 +209,30 @@ test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working
   assert.equal(after.config.boothName, 'Pinned Booth');
 });
 
-test('a tunnelled booth generates its own host password instead of locking you out', async (t) => {
+test('a tunnelled booth leaves the host screen open — no password to lose', async (t) => {
   // PUBLIC_URL exposes the booth exactly as a tunnel does, with no BOOTH_TOKEN.
   const booth = await startServer({ PUBLIC_URL: 'https://booth.example.com', BOOTH_TOKEN: '' });
   t.after(() => booth.close());
 
-  const locked = await fetch(`${booth.base}/api/config`);
-  assert.equal(locked.status, 401, 'a public booth must still ask for a password');
+  const response = await fetch(`${booth.base}/api/config`);
+  assert.equal(response.status, 200, 'the host screen should open without a password');
 
-  const { readFileSync } = await import('node:fs');
-  const generated = JSON.parse(readFileSync(booth.configPath, 'utf8')).hostToken;
-  assert.ok(generated && generated.length >= 12, 'the booth should mint a host token');
-  assert.match(booth.stderr() + '', /^$/, 'and not crash doing it');
-
-  const opened = await fetch(`${booth.base}/api/config`, { headers: { 'x-booth-token': generated } });
-  assert.equal(opened.status, 200);
-  const data = await opened.json();
+  const data = await response.json();
   assert.equal(data.exposed, true);
-  assert.equal(data.keyRequired, true, 'guests need the QR key on a public booth');
+  assert.equal(data.keyRequired, true, 'guests still need the QR key to print');
   assert.equal(data.urls[0], 'https://booth.example.com', 'the QR points at the public address');
+
+  // the settings screen is usable, not just readable
+  const saved = await fetch(`${booth.base}/api/config`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ boothName: 'Open Booth' }),
+  });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).config.boothName, 'Open Booth');
 });
 
-test('BOOTH_TOKEN still wins when you set one', async (t) => {
+test('setting BOOTH_TOKEN puts the password back', async (t) => {
   const booth = await startServer({ PUBLIC_URL: 'https://booth.example.com', BOOTH_TOKEN: 'my-own-token' });
   t.after(() => booth.close());
 

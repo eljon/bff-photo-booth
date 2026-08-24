@@ -28,6 +28,7 @@ const cups = require('./cups');
 const config = require('./config');
 const tunnel = require('./tunnel');
 const build = require('./version');
+const { openInBrowser } = require('./open-browser');
 
 const MODE = process.env.MODE === 'relay' ? 'relay' : 'booth';
 const PORT = Number(process.env.PORT || 8080);
@@ -39,6 +40,10 @@ const WANT_TUNNEL = Boolean(TUNNEL_ARG) || Boolean(process.env.TUNNEL);
 // --tunnel=ssh (or TUNNEL=ssh) installs nothing and uses localhost.run instead
 const TUNNEL_CHOICE = (TUNNEL_ARG.split('=')[1] || process.env.TUNNEL || '').toLowerCase();
 const TUNNEL_PREFER = TUNNEL_CHOICE === 'ssh' ? 'ssh' : 'auto';
+// A booth you can reach from anywhere wants its control screen up straight
+// away. --open forces it for a plain LAN start, --no-open suppresses it.
+const NO_OPEN = process.argv.includes('--no-open') || process.env.NO_OPEN === '1';
+const FORCE_OPEN = process.argv.includes('--open');
 const PUBLIC_URL = process.env.PUBLIC_URL || null;
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -215,20 +220,20 @@ function guestAuthorised(req, url) {
 }
 
 /** Host controls (and the agent) need the booth token once we are public. */
-/** BOOTH_TOKEN when you set one, otherwise the booth's own generated token. */
-function hostToken() {
-  return BOOTH_TOKEN || config.ensureHostToken();
-}
-
 function presentedToken(req) {
   const header = req.headers.authorization || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
   return req.headers['x-booth-token'] || bearer;
 }
 
+/**
+ * The host screen is open unless you deliberately set BOOTH_TOKEN. A tunnel URL
+ * is unguessable enough for a party; relay mode always has a token, because a
+ * permanent public address is a different proposition.
+ */
 function hostAuthorised(req) {
-  if (!isExposed()) return true;
-  return secretsMatch(presentedToken(req), hostToken());
+  if (!BOOTH_TOKEN) return true;
+  return secretsMatch(presentedToken(req), BOOTH_TOKEN);
 }
 
 function agentAuthorised(req) {
@@ -708,10 +713,8 @@ function banner() {
   if (MODE === 'relay') console.log('  Waiting for the booth Mac to connect (npm run agent).');
   if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved but never sent to a printer.');
 
-  if (isExposed()) {
-    console.log('');
-    console.log(`  This booth is public. Host screen password:  ${hostToken()}`);
-    console.log(`  ${BOOTH_TOKEN ? '(from BOOTH_TOKEN)' : '(generated for you — set BOOTH_TOKEN to choose your own)'}`);
+  if (isExposed() && !BOOTH_TOKEN) {
+    console.log('  Host screen is open to anyone with that link. Set BOOTH_TOKEN to require a password.');
   }
   console.log('');
 }
@@ -723,6 +726,16 @@ server.listen(PORT, HOST, async () => {
     if (!result.url) console.log(`  Tunnel unavailable: ${result.error}`);
   }
   banner();
+
+  // Any publicly reachable booth (tunnel or PUBLIC_URL) raises its control
+  // screen; a relay is a headless server and never should.
+  const shouldOpen = MODE !== 'relay' && !NO_OPEN && (FORCE_OPEN || isExposed());
+  if (shouldOpen) {
+    const hostUrl = `${joinUrls()[0]}/host`;
+    const opened = await openInBrowser(hostUrl);
+    console.log(opened ? `  Opened the host screen in your browser.` : `  Open the host screen yourself: ${hostUrl}`);
+    console.log('');
+  }
 });
 
 process.on('SIGINT', () => {

@@ -67,7 +67,8 @@ export async function startServer(env = {}) {
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'booth-test-'));
   const port = await freePort();
 
-  const child = spawn(process.execPath, [path.join(root, 'server', 'index.js')], {
+  const extraArgs = (env.BOOTH_ARGS || '').split(' ').filter(Boolean);
+  const child = spawn(process.execPath, [path.join(root, 'server', 'index.js'), ...extraArgs], {
     env: {
       ...process.env,
       PORT: String(port),

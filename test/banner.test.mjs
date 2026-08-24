@@ -25,7 +25,8 @@ test('a public booth labels which address reaches guests and which does not', as
   assert.match(banner, /On this Wi-Fi only:\s+http:\/\//, 'the LAN address is still shown, but demoted');
   assert.match(banner, /Host screen:\s+https:\/\/amber-forest-9241\.trycloudflare\.com\/host/);
   assert.doesNotMatch(banner, /same Wi-Fi as this Mac/, 'no need to warn — guests can be anywhere');
-  assert.match(banner, /Host screen password:\s+\S+/);
+  assert.doesNotMatch(banner, /password:/i, 'the host screen is open unless BOOTH_TOKEN is set');
+  assert.match(banner, /Host screen is open to anyone with that link/);
 });
 
 test('the running version is reported everywhere a human or a monitor looks', async (t) => {

@@ -131,11 +131,11 @@ On a plain LAN booth none of this is enforced, so nothing gets in the way.
   (`/?k=…`). The app stores it and wipes it from the address bar, so a guest
   still types nothing. Rotate it from the host screen (*New guest link*) if a
   screenshot escapes into the wild.
-- **You** unlock the host screen with a password — config, approvals, cancels,
-  the queue and the gallery all require it. Set `BOOTH_TOKEN` to choose it; a
-  tunnelled booth without one generates a password and prints it at startup, so
-  going public can never lock you out of your own booth. The booth agent signs
-  in with the same token (relay mode requires you to set it explicitly).
+- **You** get the host screen — config, approvals, cancels, the queue and the
+  gallery. It is open by default: a tunnel link changes every launch and is
+  unguessable, so a party booth does not need a second password. Set
+  `BOOTH_TOKEN` to require one. Relay mode always does, since its address is
+  permanent, and the agent signs in with the same token.
 - **Prints** are served with a per-job token, so a guest can fetch their own
   strip and nobody else's. The host sees everything.
 

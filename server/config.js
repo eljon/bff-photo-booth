@@ -20,31 +20,12 @@ const DEFAULTS = {
   // the local network; true/false override that.
   guestKeyRequired: 'auto',
   accessKey: '',            // generated on first run, carried in the QR link
-  hostToken: '',            // generated when a booth without BOOTH_TOKEN goes public
 };
 
 let cache = null;
 
 function newKey() {
   return crypto.randomBytes(9).toString('base64url');
-}
-
-function newHostToken() {
-  return crypto.randomBytes(12).toString('base64url');
-}
-
-/**
- * The password for the host screen. Set BOOTH_TOKEN and it is yours; otherwise
- * a booth that becomes public generates one and prints it at startup, so
- * `npm run tunnel` cannot lock you out of your own booth.
- */
-function ensureHostToken() {
-  const current = load();
-  if (current.hostToken) return current.hostToken;
-  const token = newHostToken();
-  cache = { ...current, hostToken: token };
-  persist(cache);
-  return token;
 }
 
 /**
@@ -55,7 +36,6 @@ function ensureHostToken() {
 const ENV_PINNED = {
   accessKey: process.env.ACCESS_KEY,
   boothName: process.env.BOOTH_NAME,
-  hostToken: process.env.BOOTH_TOKEN,
 };
 
 function pinned() {
@@ -108,7 +88,7 @@ function save(patch) {
       next[key] = value === 'auto' ? 'auto' : Boolean(value);
       continue;
     }
-    if (key === 'accessKey' || key === 'hostToken') continue; // never set by hand
+    if (key === 'accessKey') continue; // rotated deliberately, never set by hand
 
     if (typeof def === 'boolean') value = Boolean(value);
     else if (typeof def === 'number') value = Number(value) || def;
@@ -117,7 +97,6 @@ function save(patch) {
   }
 
   if (patch.rotateKey && !locked.has('accessKey')) next.accessKey = newKey();
-  if (patch.rotateHostToken && !locked.has('hostToken')) next.hostToken = newHostToken();
   next.maxCopies = Math.max(1, Math.min(10, next.maxCopies));
   next.copies = Math.max(1, Math.min(next.maxCopies, next.copies));
 
@@ -126,4 +105,4 @@ function save(patch) {
   return cache;
 }
 
-module.exports = { load, save, ensureHostToken, pinnedKeys, DEFAULTS, CONFIG_PATH };
+module.exports = { load, save, pinnedKeys, DEFAULTS, CONFIG_PATH };

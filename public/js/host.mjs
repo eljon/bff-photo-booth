@@ -271,7 +271,7 @@ function bind() {
       $('signin').classList.add('hidden');
       start();
     } catch {
-      askForToken('That password was not accepted. Copy the whole line from the Terminal window where you started the booth.');
+      askForToken('That token was not accepted. It is the BOOTH_TOKEN the booth was started with.');
     }
   });
   $('tokenInput').addEventListener('keydown', (event) => {
