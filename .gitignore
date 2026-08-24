@@ -1,0 +1,6 @@
+node_modules/
+prints/*
+!prints/.gitkeep
+photobooth.config.json
+.DS_Store
+*.log

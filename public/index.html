@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#15111b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Photo Booth</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1 id="boothName">Photo Booth</h1>
+    <p id="boothMessage">Pick 4 photos. Make a strip. Take it home.</p>
+  </header>
+
+  <section class="stage" aria-label="Print preview">
+    <div class="paper-shadow">
+      <canvas id="preview" aria-label="Live preview of your print"></canvas>
+    </div>
+    <p class="paper-note"><span id="paperNote">4×6 print</span></p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Your four</h2>
+      <span id="slotCount" class="pill">0 / 4</span>
+    </div>
+    <div class="slots" id="slots"></div>
+    <button class="btn btn-add" id="addAll" type="button">
+      <span class="btn-icon">＋</span> Add photos from your phone
+    </button>
+    <p class="hint">Take them in your camera app first, then pick the four you like. Tap a photo to crop, rotate or swap it.</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Style</h2></div>
+
+    <h3 class="sub">Layout</h3>
+    <div class="chips" id="layoutChips" role="radiogroup" aria-label="Layout"></div>
+
+    <h3 class="sub">Look</h3>
+    <div class="chips" id="filterChips" role="radiogroup" aria-label="Filter"></div>
+
+    <h3 class="sub">Paper colour</h3>
+    <div class="chips swatches" id="frameChips" role="radiogroup" aria-label="Paper colour"></div>
+
+    <h3 class="sub">Caption</h3>
+    <input id="caption" class="text-input" type="text" inputmode="text" maxlength="28"
+           placeholder="Sam &amp; Alex · 2026" autocomplete="off">
+  </section>
+
+  <section class="panel" id="printPanel">
+    <div class="panel-head">
+      <h2>Print</h2>
+      <span id="printerState" class="pill quiet">checking printer…</span>
+    </div>
+    <div class="copies">
+      <span>Copies</span>
+      <div class="stepper">
+        <button type="button" id="copiesDown" aria-label="Fewer copies">−</button>
+        <output id="copiesValue">1</output>
+        <button type="button" id="copiesUp" aria-label="More copies">＋</button>
+      </div>
+    </div>
+    <p class="hint" id="printHint">Prints on the MacBook at the booth. Grab it from the tray.</p>
+  </section>
+
+  <div class="spacer"></div>
+</div>
+
+<div class="actionbar">
+  <button class="btn btn-ghost" id="saveBtn" type="button">Save</button>
+  <button class="btn btn-primary" id="printBtn" type="button" disabled>Print my strip</button>
+</div>
+
+<div class="sheet hidden" id="editor" role="dialog" aria-modal="true" aria-label="Adjust photo">
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <h2>Adjust photo <span id="editorIndex" class="pill"></span></h2>
+      <button class="icon-btn" id="editorClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="crop-wrap">
+      <canvas id="cropCanvas"></canvas>
+      <p class="crop-hint">Drag to move · pinch or slide to zoom</p>
+    </div>
+    <input id="zoom" class="slider" type="range" min="1" max="3" step="0.01" value="1" aria-label="Zoom">
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="rotateBtn" type="button">Rotate</button>
+      <button class="btn btn-ghost" id="resetBtn" type="button">Reset</button>
+      <button class="btn btn-ghost" id="replaceBtn" type="button">Replace</button>
+      <button class="btn btn-ghost danger" id="removeBtn" type="button">Remove</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="moveLeft" type="button">← Move back</button>
+      <button class="btn btn-ghost" id="moveRight" type="button">Move forward →</button>
+    </div>
+    <button class="btn btn-primary wide" id="editorDone" type="button">Done</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="result" role="dialog" aria-modal="true">
+  <div class="result-card">
+    <div class="result-emoji" id="resultEmoji">🖨️</div>
+    <h2 id="resultTitle">Sending to the printer…</h2>
+    <p id="resultBody">Hold tight.</p>
+    <img id="resultImage" alt="Your print" class="result-image hidden">
+    <div class="result-actions">
+      <button class="btn btn-ghost" id="resultSave" type="button">Save to phone</button>
+      <button class="btn btn-primary" id="resultDone" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+<input id="filePicker" type="file" accept="image/*" multiple hidden>
+<input id="fileOne" type="file" accept="image/*" hidden>
+
+<div class="toast hidden" id="toast"></div>
+
+<script type="module" src="/js/app.mjs"></script>
+</body>
+</html>

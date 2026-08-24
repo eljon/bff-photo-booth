@@ -1,0 +1,61 @@
+body.host { padding: 0 0 40px; }
+
+.host-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: #15111bf2;
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+.host-top h1 { margin: 0; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.host-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
+}
+.host-grid .panel { margin-top: 0; }
+.host-grid h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+.host-grid h2.spaced { margin-top: 24px; }
+
+.join { text-align: center; }
+#qr { width: min(100%, 300px); height: auto; border-radius: 12px; background: #fff; padding: 0; image-rendering: pixelated; }
+.url { font-size: 20px; font-weight: 700; margin: 14px 0 6px; word-break: break-all; }
+
+.field { display: block; margin-bottom: 12px; }
+.field span { display: block; font-size: 12px; color: var(--ink-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.switch { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-size: 14px; }
+.switch input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+.job-list { display: flex; flex-direction: column; gap: 10px; }
+
+.job {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+}
+.job img { width: 46px; height: 68px; object-fit: cover; border-radius: 6px; background: #fff; }
+.job .meta { flex: 1; min-width: 0; }
+.job .meta strong { display: block; font-size: 14px; }
+.job .meta span { font-size: 12px; color: var(--ink-dim); }
+.job .actions { display: flex; gap: 6px; }
+.job .actions .btn { padding: 9px 12px; font-size: 13px; border-radius: 10px; }
+
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.gallery a { display: block; }
+.gallery img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; background: #fff; }
