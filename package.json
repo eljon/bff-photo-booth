@@ -1,10 +1,12 @@
 {
   "name": "bff-photo-booth",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Mobile-first self-shoot photo booth: guests build a 4-photo strip on their phone, it prints from the MacBook running this server.",
   "license": "MIT",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server/index.js",
     "tunnel": "node server/index.js --tunnel",
@@ -12,6 +14,8 @@
     "agent": "node server/agent.js",
     "dev": "DRY_RUN=1 node server/index.js",
     "test": "node --test test/*.test.mjs",
-    "printers": "lpstat -p -d"
+    "printers": "lpstat -p -d",
+    "update": "git pull --ff-only && node -e \"console.log('Booth updated to v' + require('./package.json').version)\"",
+    "version:show": "node -e \"console.log(require('./server/version.js').label)\""
   }
 }

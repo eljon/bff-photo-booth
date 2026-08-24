@@ -197,6 +197,15 @@ body {
 }
 .stepper output { min-width: 34px; text-align: center; font-weight: 800; font-size: 17px; }
 
+.version {
+  text-align: center;
+  color: var(--ink-dim);
+  opacity: 0.5;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  margin: 20px 0 0;
+}
+
 .spacer { height: calc(var(--bar-h) + env(safe-area-inset-bottom) + 20px); }
 
 .actionbar {

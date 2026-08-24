@@ -238,6 +238,17 @@ parsing, and the QR encoder — verified module-for-module against the `qrcode`
 reference implementation across versions 1–10 at EC levels L and M, then frozen
 as golden hashes.
 
+## Versions
+
+The running version appears at the foot of the guest page, on the host screen,
+and in the startup banner (with the git commit where one is available).
+`CHANGELOG.md` lists what changed in each; every release is a git tag.
+
+```bash
+npm run version:show   # what is installed
+npm run update         # pull the newest, then restart the booth
+```
+
 ## Requirements
 
 Node 18+ and macOS for the printing half (any CUPS machine works — Linux too).

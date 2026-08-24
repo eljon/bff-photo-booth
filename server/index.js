@@ -27,6 +27,7 @@ const crypto = require('node:crypto');
 const cups = require('./cups');
 const config = require('./config');
 const tunnel = require('./tunnel');
+const build = require('./version');
 
 const MODE = process.env.MODE === 'relay' ? 'relay' : 'booth';
 const PORT = Number(process.env.PORT || 8080);
@@ -444,6 +445,8 @@ async function handleApi(req, res, url) {
   if (url.pathname === '/api/health' && req.method === 'GET') {
     return sendJson(res, 200, {
       ok: true,
+      version: build.version,
+      commit: build.commit,
       mode: MODE,
       agentOnline: MODE === 'relay' ? agentOnline() : true,
       printingEnabled: cfg.printingEnabled,
@@ -453,6 +456,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === '/api/session' && req.method === 'GET') {
     return sendJson(res, 200, {
+      version: build.version,
       boothName: cfg.boothName,
       message: cfg.message,
       maxCopies: cfg.maxCopies,
@@ -503,6 +507,8 @@ async function handleApi(req, res, url) {
     if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     return sendJson(res, 200, {
       config: cfg,
+      version: build.version,
+      commit: build.commit,
       mode: MODE,
       dryRun: DRY_RUN,
       exposed: isExposed(),
@@ -681,8 +687,8 @@ function banner() {
   const title = `${cfg.boothName}${MODE === 'relay' ? ' · relay' : ''}`;
 
   console.log('');
-  console.log(`  ${title}`);
-  console.log(`  ${'-'.repeat(title.length)}`);
+  console.log(`  ${title}  v${build.label}`);
+  console.log(`  ${'-'.repeat(title.length + build.label.length + 4)}`);
 
   if (publicUrl) {
     console.log(`  Guests scan or type:  ${publicUrl}${key}   <- works on any network`);

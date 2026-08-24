@@ -21,6 +21,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const cups = require('./cups');
+const build = require('./version');
 
 const RELAY_URL = (process.env.RELAY_URL || '').replace(/\/+$/, '');
 const BOOTH_TOKEN = process.env.BOOTH_TOKEN || '';
@@ -66,7 +67,7 @@ async function sayHello() {
   const response = await relay('/api/agent/hello', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name: AGENT_NAME, printers, dryRun: DRY_RUN }),
+    body: JSON.stringify({ name: AGENT_NAME, printers, dryRun: DRY_RUN, version: build.version }),
   });
   if (!response.ok) throw new Error(`hello failed (${response.status})`);
   lastHello = Date.now();
@@ -146,7 +147,7 @@ async function tick() {
 
 async function main() {
   console.log('');
-  console.log(`  ${AGENT_NAME}`);
+  console.log(`  ${AGENT_NAME}  v${build.label}`);
   console.log(`  relay:    ${RELAY_URL}`);
   console.log(`  printers: ${(await localPrinters()).map((p) => p.name).join(', ') || 'none found'}`);
   if (DRY_RUN) console.log('  DRY_RUN=1 — jobs are downloaded but never printed.');

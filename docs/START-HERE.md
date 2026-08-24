@@ -257,6 +257,35 @@ code fresh, or read `docs/DEPLOY.md` for a permanent link.
 
 ---
 
+## Updating to a newer version
+
+The booth prints its version when it starts, and shows it at the bottom of the
+guest page and top-right of the host screen:
+
+```
+  BFF Photo Booth  v1.5.0 (bede64a)
+```
+
+To get the newest version:
+
+1. **Stop the booth** — click the Terminal window, hold **Control**, press **C**.
+2. Paste this:
+
+   ```bash
+   cd ~/Downloads/bff-photo-booth
+   npm run update
+   ```
+
+   It prints `Booth updated to v1.5.0` (or whatever the newest is).
+3. Start it again with `caffeinate -dims npm run tunnel`.
+
+Your settings, the guest key and every photo in the `prints` folder survive an
+update — none of that is part of the download.
+
+`CHANGELOG.md` in the folder lists what changed in each version.
+
+---
+
 ## If something goes wrong
 
 | What you see | What to do |
@@ -269,3 +298,4 @@ code fresh, or read `docs/DEPLOY.md` for a permanent link.
 | Host page says no printer found | Go back to Step 1. If Preview cannot print, the booth cannot either. |
 | It printed, but nothing came out | Check the printer itself — paper, ink, lid. Look at **Printer queue** on the host page. |
 | The Terminal window closed by accident | The booth stopped. Run the two "next time" commands above. The link will be new. |
+| `npm run update` says the pull was refused | You have edited files in the folder. Either keep them (`git stash`) or start fresh with a new `git clone`. |

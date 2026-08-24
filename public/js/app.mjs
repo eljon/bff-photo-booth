@@ -643,6 +643,7 @@ async function loadSession() {
 
   $('boothName').textContent = session.boothName;
   document.title = session.boothName;
+  $('version').textContent = session.version ? `v${session.version}` : '';
   if (session.message) $('boothMessage').textContent = session.message;
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
   $('copiesValue').textContent = String(state.copies);

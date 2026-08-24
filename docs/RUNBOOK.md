@@ -188,6 +188,20 @@ tear anything down. Ctrl-C to stop.
 
 ---
 
+## Updating
+
+Stop the booth (Control-C), then:
+
+```bash
+cd ~/Downloads/bff-photo-booth
+npm run update
+```
+
+Settings, the guest key and `prints/` all survive. `CHANGELOG.md` lists what
+changed; `npm run version:show` prints what you have.
+
+---
+
 ## Environment quick reference
 
 | Variable | Where | Purpose |
