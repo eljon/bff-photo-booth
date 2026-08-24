@@ -192,7 +192,7 @@ test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working
   const settings = await (await fetch(`${booth.base}/api/config`, { headers: host })).json();
   assert.equal(settings.config.accessKey, 'party-2026');
   assert.equal(settings.config.boothName, 'Pinned Booth');
-  assert.deepEqual(settings.pinned.sort(), ['accessKey', 'boothName']);
+  assert.deepEqual(settings.pinned.sort(), ['accessKey', 'boothName', 'hostToken']);
 
   // the pinned key really is the one that prints
   const { status } = await printAsGuest(booth, { key: 'party-2026' });
@@ -207,4 +207,33 @@ test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working
   const after = await (await fetch(`${booth.base}/api/config`, { headers: host })).json();
   assert.equal(after.config.accessKey, 'party-2026');
   assert.equal(after.config.boothName, 'Pinned Booth');
+});
+
+test('a tunnelled booth generates its own host password instead of locking you out', async (t) => {
+  // PUBLIC_URL exposes the booth exactly as a tunnel does, with no BOOTH_TOKEN.
+  const booth = await startServer({ PUBLIC_URL: 'https://booth.example.com', BOOTH_TOKEN: '' });
+  t.after(() => booth.close());
+
+  const locked = await fetch(`${booth.base}/api/config`);
+  assert.equal(locked.status, 401, 'a public booth must still ask for a password');
+
+  const { readFileSync } = await import('node:fs');
+  const generated = JSON.parse(readFileSync(booth.configPath, 'utf8')).hostToken;
+  assert.ok(generated && generated.length >= 12, 'the booth should mint a host token');
+  assert.match(booth.stderr() + '', /^$/, 'and not crash doing it');
+
+  const opened = await fetch(`${booth.base}/api/config`, { headers: { 'x-booth-token': generated } });
+  assert.equal(opened.status, 200);
+  const data = await opened.json();
+  assert.equal(data.exposed, true);
+  assert.equal(data.keyRequired, true, 'guests need the QR key on a public booth');
+  assert.equal(data.urls[0], 'https://booth.example.com', 'the QR points at the public address');
+});
+
+test('BOOTH_TOKEN still wins when you set one', async (t) => {
+  const booth = await startServer({ PUBLIC_URL: 'https://booth.example.com', BOOTH_TOKEN: 'my-own-token' });
+  t.after(() => booth.close());
+
+  assert.equal((await fetch(`${booth.base}/api/config`, { headers: { 'x-booth-token': 'my-own-token' } })).status, 200);
+  assert.equal((await fetch(`${booth.base}/api/config`, { headers: { 'x-booth-token': 'guessed' } })).status, 401);
 });

@@ -200,19 +200,25 @@ function guestAuthorised(req, url) {
 }
 
 /** Host controls (and the agent) need the booth token once we are public. */
-function hostAuthorised(req) {
-  if (!isExposed()) return true;
-  if (!BOOTH_TOKEN) return false;
+/** BOOTH_TOKEN when you set one, otherwise the booth's own generated token. */
+function hostToken() {
+  return BOOTH_TOKEN || config.ensureHostToken();
+}
+
+function presentedToken(req) {
   const header = req.headers.authorization || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
-  return secretsMatch(req.headers['x-booth-token'] || bearer, BOOTH_TOKEN);
+  return req.headers['x-booth-token'] || bearer;
+}
+
+function hostAuthorised(req) {
+  if (!isExposed()) return true;
+  return secretsMatch(presentedToken(req), hostToken());
 }
 
 function agentAuthorised(req) {
-  if (!BOOTH_TOKEN) return false;
-  const header = req.headers.authorization || '';
-  const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
-  return secretsMatch(req.headers['x-booth-token'] || bearer, BOOTH_TOKEN);
+  if (!BOOTH_TOKEN) return false; // relay mode always has an explicit token
+  return secretsMatch(presentedToken(req), BOOTH_TOKEN);
 }
 
 const agentOnline = () => Date.now() - agent.lastSeen < AGENT_ONLINE_MS;
@@ -666,7 +672,11 @@ function banner() {
   console.log(`  Host screen:          ${primary}/host`);
   if (MODE === 'relay') console.log('  Waiting for the booth Mac to connect (npm run agent).');
   if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved but never sent to a printer.');
-  if (guestKeyRequired()) console.log('  The booth is public: guests need the QR link, the host screen needs BOOTH_TOKEN.');
+  if (isExposed()) {
+    console.log('');
+    console.log(`  This booth is public. Host screen password:  ${hostToken()}`);
+    console.log(`  ${BOOTH_TOKEN ? '(from BOOTH_TOKEN)' : '(generated for you — set BOOTH_TOKEN to choose your own)'}`);
+  }
   console.log('');
 }
 

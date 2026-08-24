@@ -91,8 +91,10 @@ calls, so no firewall prompt and no port forwarding. Leave the window open.
 
 ## 3. Set up the host screen
 
-Open `/host` on the Mac and leave it up. On a public booth it asks for
-`BOOTH_TOKEN` once.
+Open `/host` on the Mac and leave it up. A public booth (tunnel or relay) asks
+for a password once — it is printed in the terminal under
+**"Host screen password"** when the booth starts. Set `BOOTH_TOKEN` yourself to
+choose it; otherwise the booth generates one and keeps it.
 
 Set these, then **Save settings**:
 
