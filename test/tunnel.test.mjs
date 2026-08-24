@@ -103,3 +103,19 @@ test('finds a CLI that a GUI installer left inside its app bundle', async () => 
     assert.doesNotMatch(result.error, /not installed\.$/, 'a bare "not installed" is not an instruction');
   }
 });
+
+test('a tunnel choice is remembered, so the start command stops changing', async (t) => {
+  const { startServer, until } = await import('./helpers.mjs');
+  const { readFileSync, existsSync } = await import('node:fs');
+
+  // The choice is written at startup, before the tunnel is even attempted —
+  // which matters, because attempting one can take a while.
+  const booth = await startServer({ BOOTH_ARGS: '--tunnel=ssh', NO_OPEN: '1' });
+  t.after(() => booth.close());
+
+  const stored = await until(() => {
+    if (!existsSync(booth.configPath)) return null;
+    return JSON.parse(readFileSync(booth.configPath, 'utf8')).tunnel || null;
+  });
+  assert.equal(stored, 'ssh', 'the booth should write down what it was told to use');
+});

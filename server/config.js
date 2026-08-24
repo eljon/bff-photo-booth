@@ -19,6 +19,9 @@ const DEFAULTS = {
   // Off by default: guests scan and print, nothing in the way. Turn it on and
   // only phones that came in through the QR link can print.
   guestKeyRequired: false,
+  // Which tunnel this booth uses. Set once with --tunnel=…, remembered after,
+  // so starting the booth is the same command every time.
+  tunnel: '',
   accessKey: '',            // generated on first run, carried in the QR link
 };
 

@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.11.0 — 2026-08-24
+
+**The booth remembers which tunnel you chose.**
+
+- Pick a tunnel once with `--tunnel=…` and it is stored. Every start after that
+  is the same two words — `npm start` — whether you settled on Tailscale, ngrok
+  or a quick tunnel. `--no-tunnel` forgets it and goes back to Wi-Fi only.
+- This also makes updating one fixed recipe: stop, `git pull`, start. Nothing to
+  remember about how you set the booth up weeks ago.
+
 ## 1.10.1 — 2026-08-24
 
 **Fixed: Save told you what to do after you had already done it.**

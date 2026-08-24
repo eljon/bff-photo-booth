@@ -272,15 +272,25 @@ guest page and top-right of the host screen:
 
 To get the newest version:
 
+Updating is always these three steps, in this order:
+
 1. **Stop the booth** — click the Terminal window, hold **Control**, press **C**.
-2. Paste this:
+2. **Pull the new version:**
 
    ```bash
    cd ~/Downloads/bff-photo-booth
    git pull
    ```
 
-3. Start it again with `caffeinate -dims npm run tunnel`.
+3. **Start it again:**
+
+   ```bash
+   caffeinate -dims npm start
+   ```
+
+Step 3 is not optional — `git pull` only downloads the new version, it does not
+run anything. Until you start it again the booth is off and its address is dead.
+The booth remembers which tunnel you set up, so `npm start` is all it needs.
 
 Your settings, the guest key and every photo in the `prints` folder survive an
 update — none of that is part of the download.

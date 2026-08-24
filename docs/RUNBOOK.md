@@ -194,9 +194,11 @@ Stop the booth (Control-C), then:
 ```bash
 cd ~/Downloads/bff-photo-booth
 git pull
+caffeinate -dims npm start
 ```
 
-Settings, the guest key and `prints/` all survive. `CHANGELOG.md` lists what
+The last line matters: `git pull` only downloads, it does not start anything.
+Settings, your tunnel choice and `prints/` all survive. `CHANGELOG.md` lists what
 changed; `npm run version:show` prints what you have.
 
 ---

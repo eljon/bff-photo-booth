@@ -69,9 +69,11 @@ async function loadConfig() {
   $('hostName').textContent = `${config.boothName} · Host`;
   $('versionPill').textContent = `v${data.version}${data.commit ? ` · ${data.commit}` : ''}`;
   $('updateHint').replaceChildren(
-    document.createTextNode('To update: stop the booth with Control-C, run '),
+    document.createTextNode('To update: Control-C to stop, then '),
     Object.assign(document.createElement('code'), { textContent: 'git pull' }),
-    document.createTextNode(' in the same folder, then start it again.'),
+    document.createTextNode(' and '),
+    Object.assign(document.createElement('code'), { textContent: 'caffeinate -dims npm start' }),
+    document.createTextNode(' — the pull alone does not restart it.'),
   );
   const mode = data.mode === 'relay' ? 'relay' : data.exposed ? 'public' : 'local Wi-Fi';
   $('modePill').textContent = data.dryRun ? 'dry run' : config.printingEnabled ? mode : 'printing off';
