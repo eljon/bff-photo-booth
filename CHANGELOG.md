@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.10.1 — 2026-08-24
+
+**Fixed: Save told you what to do after you had already done it.**
+
+- `navigator.share()` resolves only once the share sheet is finished with, so
+  "Choose Save Image" was appearing *after* the photo was saved, and nothing ever
+  confirmed it. It now says **Saved to your phone** at that point, and the
+  instruction moved to where it belongs — a line on the page, before you tap.
+- The share sheet itself cannot be skipped: no web page on iOS can write to the
+  Photos library directly, and the sheet is the only route there. A download
+  link would put the print in Files instead, which is worse.
+
 ## 1.10.0 — 2026-08-24
 
 **No guest key. The link is just the link.**

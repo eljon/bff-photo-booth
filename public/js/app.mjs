@@ -617,15 +617,17 @@ async function savePhoto() {
 
   if (canShare) {
     try {
+      // Resolves only once the guest has finished with the sheet, so anything
+      // said here is said *after* they saved. Confirm, do not instruct.
       await navigator.share({ files: [file] });
-      toast('Choose “Save Image” to put it in your photos.', 3200);
+      toast('Saved to your phone.', 2400);
       return;
     } catch (err) {
       if (err && err.name === 'AbortError') return; // guest closed the sheet
       // NotAllowedError means the tap expired while rendering; the blob is warm
       // now, so a second tap will go straight to the sheet.
       if (err && err.name === 'NotAllowedError') {
-        toast('Tap Save once more to send it to your photos.', 3200);
+        toast('Tap Save once more.', 2600);
         return;
       }
     }
