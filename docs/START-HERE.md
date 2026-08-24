@@ -116,16 +116,25 @@ The Terminal prints something like this and then **stays open**:
 ```
   BFF Photo Booth
   ---------------
-  Guests scan or type:  http://192.168.1.42:8080
+  On this Wi-Fi only:   http://192.168.1.42:8080
   Host screen:          http://192.168.1.42:8080/host
+
+  Guests must be on the same Wi-Fi as this Mac.
+  To let them join from anywhere — mobile data, another network —
+  stop this with Control-C and run:  npm run tunnel
   DRY_RUN=1 — composites are saved but never sent to a printer.
 ```
 
 Your numbers will be different. That is fine.
 
+**"On this Wi-Fi only" means what it says.** This practice address works from
+this Mac and from phones on your home Wi-Fi, and nowhere else. That is fine for
+a rehearsal — the address guests actually use comes in Step 6, and it works from
+any network.
+
 Now open the booth:
 
-1. Open **Safari on the Mac** and go to the **"Guests scan or type"** address —
+1. Open **Safari on the Mac** and go to the **"On this Wi-Fi only"** address —
    in the example above, `http://192.168.1.42:8080`. Type it exactly, including
    the `:8080`.
 2. Click **Add photos from your phone** and choose any four pictures.
@@ -142,8 +151,9 @@ Now check the file it made:
 **Then stop the practice booth:** click the Terminal window, hold **Control**
 and press **C**. The prompt comes back.
 
-> Want to try it from your phone too? Your phone must be on the same Wi-Fi as
-> the Mac for the practice run. Type that same address into Safari on the phone.
+> Want to try it from your phone too? For the practice run your phone has to be
+> on the same Wi-Fi as the Mac — that is the whole point of the "on this Wi-Fi
+> only" label. Type that same address into Safari on the phone.
 
 ---
 
@@ -160,12 +170,18 @@ Wait about 10 seconds. The Terminal prints:
 ```
   BFF Photo Booth
   ---------------
-  Guests scan or type:  https://amber-forest-9241.trycloudflare.com/?k=mo0YlOfR2eWB
+  Guests scan or type:  https://amber-forest-9241.trycloudflare.com/?k=mo0YlOfR2eWB   <- works on any network
+  On this Wi-Fi only:   http://192.168.1.42:8080/?k=mo0YlOfR2eWB
   Host screen:          https://amber-forest-9241.trycloudflare.com/host
 
   This booth is public. Host screen password:  UbNgjvaR_YVffwFd
   (generated for you — set BOOTH_TOKEN to choose your own)
 ```
+
+**Now** there is an address guests can use. The `https://` one works from any
+network — mobile data, the neighbour's Wi-Fi, anywhere. The `http://192.168…`
+line below it is the same booth seen from your own Wi-Fi; guests elsewhere
+cannot reach it, and you do not need it.
 
 **Leave this window open for the whole party.** Closing it, or closing the
 laptop lid, shuts the booth down.

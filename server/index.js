@@ -176,14 +176,24 @@ function activePort() {
   return address && typeof address === 'object' ? address.port : PORT;
 }
 
+/**
+ * The addresses this booth answers on, split by how far they actually reach.
+ * A LAN address only works for phones on this same Wi-Fi; the public one works
+ * from anywhere. Keeping them apart matters — labelling a LAN address as the
+ * guest link is a promise the booth cannot keep.
+ */
+function addresses() {
+  const lan = lanAddresses().map((entry) => `http://${entry.address}:${activePort()}`);
+  return {
+    public: PUBLIC_URL || tunnel.url() || null,
+    lan: lan.length ? lan : [`http://localhost:${activePort()}`],
+  };
+}
+
 /** The address guests should use, best first. */
 function joinUrls() {
-  const urls = [];
-  const publicUrl = PUBLIC_URL || tunnel.url();
-  if (publicUrl) urls.push(publicUrl);
-  for (const lan of lanAddresses()) urls.push(`http://${lan.address}:${activePort()}`);
-  if (!urls.length) urls.push(`http://localhost:${activePort()}`);
-  return urls;
+  const { public: publicUrl, lan } = addresses();
+  return publicUrl ? [publicUrl, ...lan] : lan;
 }
 
 /** True once the booth is reachable from outside the local network. */
@@ -666,16 +676,32 @@ const server = http.createServer(async (req, res) => {
 
 function banner() {
   const cfg = config.load();
-  const [primary, ...rest] = joinUrls();
+  const { public: publicUrl, lan } = addresses();
   const key = guestKeyRequired() ? `/?k=${cfg.accessKey}` : '';
+  const title = `${cfg.boothName}${MODE === 'relay' ? ' · relay' : ''}`;
+
   console.log('');
-  console.log(`  ${cfg.boothName}${MODE === 'relay' ? ' · relay' : ''}`);
-  console.log(`  ${'-'.repeat(cfg.boothName.length + (MODE === 'relay' ? 8 : 0))}`);
-  console.log(`  Guests scan or type:  ${primary}${key}`);
-  for (const url of rest) console.log(`  also reachable at:    ${url}${key}`);
-  console.log(`  Host screen:          ${primary}/host`);
+  console.log(`  ${title}`);
+  console.log(`  ${'-'.repeat(title.length)}`);
+
+  if (publicUrl) {
+    console.log(`  Guests scan or type:  ${publicUrl}${key}   <- works on any network`);
+    for (const url of lan) console.log(`  On this Wi-Fi only:   ${url}${key}`);
+  } else {
+    for (const url of lan) console.log(`  On this Wi-Fi only:   ${url}${key}`);
+  }
+  console.log(`  Host screen:          ${publicUrl || lan[0]}/host`);
+
+  if (!publicUrl) {
+    console.log('');
+    console.log('  Guests must be on the same Wi-Fi as this Mac.');
+    console.log('  To let them join from anywhere — mobile data, another network —');
+    console.log('  stop this with Control-C and run:  npm run tunnel');
+  }
+
   if (MODE === 'relay') console.log('  Waiting for the booth Mac to connect (npm run agent).');
   if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved but never sent to a printer.');
+
   if (isExposed()) {
     console.log('');
     console.log(`  This booth is public. Host screen password:  ${hostToken()}`);

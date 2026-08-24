@@ -80,7 +80,9 @@ export async function startServer(env = {}) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const errors = [];
+  const output = [];
   child.stderr.on('data', (data) => errors.push(data.toString()));
+  child.stdout.on('data', (data) => output.push(data.toString()));
 
   const base = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + 8000;
@@ -103,6 +105,8 @@ export async function startServer(env = {}) {
     configPath,
     printsDir: path.join(sandbox, 'prints'),
     stderr: () => errors.join(''),
+    /** Everything the booth printed at startup — the banner guests are read from. */
+    banner: () => output.join(''),
     /** The access key the booth generated for itself on first run. */
     accessKey() {
       try {
