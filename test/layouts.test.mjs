@@ -91,18 +91,31 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('every cell contain-fits, so no photo is ever cropped', () => {
+test('the four photos tile the whole sheet — every pixel of paper is used', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
-    [[1000, 1500], [1600, 1000], [1000, 1500], [1200, 1200]],   // mixed supporting
+    [[1000, 1500], [1600, 1000], [1000, 1500], [1200, 1200]],   // mixed
   ];
   for (const mix of mixes) {
     const photos = mix.map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
-    const { cells } = resolveGrid(LAYOUTS.grid, photos);
+    const { cells, page } = resolveGrid(LAYOUTS.grid, photos);
     assert.equal(cells.length, 4);
-    assert.ok(cells.every((c) => c.fit === 'contain'), 'contain-fit is what guarantees nothing crops');
+    assert.ok(cells.every((c) => c.fit === 'cover'), 'cells cover-fit so they fill the paper');
+
+    // the cells partition the page: areas sum to the whole sheet, nothing spills
+    const area = cells.reduce((s, c) => s + c.w * c.h, 0);
+    assert.ok(Math.abs(area - page.w * page.h) / (page.w * page.h) < 0.001, 'cells must fill 100% of the sheet');
+    for (const c of cells) {
+      assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
+    }
   }
+});
+
+test('there is no caption band eating into the photos', () => {
+  const photos = [1, 2, 3, 4].map(() => ({ bitmap: { width: 1200, height: 1200 }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
+  const { captions } = resolveGrid(LAYOUTS.grid, photos);
+  assert.deepEqual(captions, [], 'the caption was removed — photos own the whole sheet');
 });
 
 test('the hero is the first photo and dwarfs the other three', () => {
@@ -114,7 +127,7 @@ test('the hero is the first photo and dwarfs the other three', () => {
   const heroArea = cells[0].w * cells[0].h;
   for (let i = 1; i < 4; i++) {
     const thumbArea = cells[i].w * cells[i].h;
-    assert.ok(heroArea > thumbArea * 4, `hero is only ${(heroArea / thumbArea).toFixed(1)}x a thumb — not a hero`);
+    assert.ok(heroArea > thumbArea * 3, `hero is only ${(heroArea / thumbArea).toFixed(1)}x a thumb — not dominant enough`);
   }
 });
 

@@ -164,64 +164,74 @@ export function autoLayout(spec, photos) {
   };
 }
 
+/**
+ * Full-bleed collage templates. Each tiles the whole sheet edge to edge with no
+ * gaps or margins, so the four photos cover every bit of paper. Photos cover-fit
+ * (crop to fill) — that is the price of filling a rectangle with mixed shapes,
+ * and filling the paper is the priority. Cells are fractions of the page.
+ * Photo 0 leads (the hero, where a template has one).
+ */
+const TEMPLATES = [
+  // one big hero on top, three across the bottom
+  { id: 'hero-top', cells: [
+    { x: 0, y: 0, w: 1, h: 0.64, p: 0 },
+    { x: 0, y: 0.64, w: 1 / 3, h: 0.36, p: 1 },
+    { x: 1 / 3, y: 0.64, w: 1 / 3, h: 0.36, p: 2 },
+    { x: 2 / 3, y: 0.64, w: 1 / 3, h: 0.36, p: 3 },
+  ] },
+  // one big hero on the left, three stacked on the right
+  { id: 'hero-left', cells: [
+    { x: 0, y: 0, w: 0.64, h: 1, p: 0 },
+    { x: 0.64, y: 0, w: 0.36, h: 1 / 3, p: 1 },
+    { x: 0.64, y: 1 / 3, w: 0.36, h: 1 / 3, p: 2 },
+    { x: 0.64, y: 2 / 3, w: 0.36, h: 1 / 3, p: 3 },
+  ] },
+];
+
+/** How much of a photo survives a cover-fit into a cell (1 = no crop). */
+function keptFraction(photoAspect, cellAspect) {
+  return Math.min(photoAspect, cellAspect) / Math.max(photoAspect, cellAspect);
+}
+
+/** Lay a template onto a sheet, returning real cells and how well it fits. */
+function placeTemplate(template, page, aspects, heroIndex) {
+  // photo 0 in the template maps to the chosen hero; the rest keep their order.
+  const order = [heroIndex, ...aspects.map((_, i) => i).filter((i) => i !== heroIndex)];
+  const cells = template.cells.map((c) => {
+    const photo = order[c.p];
+    const cell = { x: c.x * page.w, y: c.y * page.h, w: c.w * page.w, h: c.h * page.h, photo, fit: 'cover' };
+    cell.kept = keptFraction(aspects[photo], cell.w / cell.h);
+    // Weight the hero: keeping the star intact matters more than a corner tile.
+    cell.weight = photo === heroIndex ? 2 : 1;
+    return cell;
+  });
+  const score = cells.reduce((s, c) => s + c.kept * c.weight, 0) / cells.reduce((s, c) => s + c.weight, 0);
+  return { cells: cells.map(({ kept, weight, ...c }) => c), score };
+}
+
 const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
 /**
- * The classic event-booth look: one big hero photo with a row of three smaller
- * ones beneath it. The hero (photo 0 — the first one picked) spans the full
- * width and its own natural height, so it fills its cell with no crop; the three
- * supporting photos are contain-fit into equal tiles, letterboxed on the paper
- * if their shape differs. Nothing is ever cut off.
- */
-export function heroLayout(spec, photos, heroIndex = 0) {
-  const { page, pad, gap, footer } = spec;
-  const W = page.w - pad * 2;
-  const availH = page.h - pad * 2 - footer;
-
-  const heroAspect = photoAspect(photos[heroIndex]);
-  const thumbIdx = photos.map((_, i) => i).filter((i) => i !== heroIndex);
-
-  const tileW = (W - gap * (thumbIdx.length - 1)) / thumbIdx.length;
-  const tileH = tileW; // square tiles read as a tidy strip whatever the photos are
-  const heroH = W / heroAspect; // full width, natural height → no crop
-
-  const blockH = heroH + gap + tileH;
-  const scale = Math.min(1, availH / blockH);
-
-  const drawnW = W * scale;
-  const offsetX = pad + (W - drawnW) / 2;
-  let y = pad + (availH - blockH * scale) / 2;
-
-  const cells = [];
-  cells.push({ x: offsetX, y, w: drawnW, h: heroH * scale, photo: heroIndex, fit: 'contain' });
-  y += heroH * scale + gap * scale;
-
-  let x = offsetX;
-  for (const i of thumbIdx) {
-    cells.push({ x, y, w: tileW * scale, h: tileH * scale, photo: i, fit: 'contain' });
-    x += (tileW + gap) * scale;
-  }
-
-  const usedArea = cells.reduce((sum, c) => sum + c.w * c.h, 0);
-  return { cells, captions: [{ x: pad, y: pad + availH, w: W, h: footer }], page, coverage: usedArea / (page.w * page.h) };
-}
-
-/**
- * Fit the photos onto whichever sheet orientation wastes the least paper. A row
- * of landscapes barely fills a portrait 4×6 but nearly fills a landscape 6×4, so
- * the booth rotates the print to match the photos instead of leaving big
- * margins. Portrait wins ties, since a photo strip is portrait by habit.
+ * Choose the template and sheet orientation that fill the paper with the least
+ * cropping. Every option already covers 100% of the sheet; the winner is the one
+ * that keeps the most of the photos (the hero counted double).
  */
 export function resolveGrid(base, photos, heroIndex = 0) {
-  const spec = (o) => ({ page: { w: o.w, h: o.h }, pad: base.pad, gap: base.gap, footer: base.footer });
-  const portrait = heroLayout(spec(PORTRAIT_4X6), photos, heroIndex);
-  const landscape = heroLayout(spec(LANDSCAPE_6X4), photos, heroIndex);
-
-  const pick = landscape.coverage > portrait.coverage * 1.02 ? landscape : portrait;
-  const paper = pick === landscape ? LANDSCAPE_6X4 : PORTRAIT_4X6;
-  return { cells: pick.cells, captions: pick.captions, page: pick.page, media: paper.media, paper: paper.paper };
+  const aspects = photos.map(photoAspect);
+  let best = null;
+  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
+    const page = { w: paper.w, h: paper.h };
+    for (const template of TEMPLATES) {
+      const placed = placeTemplate(template, page, aspects, heroIndex);
+      if (!best || placed.score > best.score) {
+        best = { ...placed, page, media: paper.media, paper: paper.paper };
+      }
+    }
+  }
+  return { cells: best.cells, captions: [], page: best.page, media: best.media, paper: best.paper };
 }
+
 
 function filmstripLayout() {
   // Four tall frames across a 6x4 landscape sheet.

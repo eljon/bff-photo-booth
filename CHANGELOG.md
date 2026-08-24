@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.16.0 — 2026-08-24
+
+**The photos now fill the whole sheet, edge to edge.**
+
+- The four photos cover every pixel of the paper — no white margins, no caption
+  band. Filling the sheet is the priority, so photos crop to fill (cover-fit)
+  instead of leaving the letterbox bars the no-crop layout produced.
+- Still a hero: photo 0 is the big one (full width on top, or full height on the
+  left), with the other three tiled beside it. The booth picks the hero
+  placement and sheet orientation that crop the photos the least while filling
+  100%.
+- The caption is gone for now, as requested.
+
 ## 1.15.0 — 2026-08-24
 
 **A hero layout, like a real event photo booth.**
