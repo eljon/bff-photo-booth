@@ -149,20 +149,25 @@ shell), and each phone is limited to 30 prints per 10 minutes.
 1. Scan the QR code. The page is mobile-first and installs to the home screen if
    they want it.
 2. **Pick your 4 photos** — one tap opens the camera roll and takes all four in
-   a single selection. Tapping an individual slot still fills just that one.
+   a single selection.
 3. Tap any photo to **crop** (drag to move, pinch or slide to zoom), **rotate**,
    **replace**, **remove** or reorder.
-4. Pick a layout, a look, a paper colour, a caption. The preview is the real
-   print, just smaller.
-5. **Print my strip** → an upload bar, then live status until the printer takes
-   it. **Save** keeps a copy on the phone.
+4. **Print** → an upload bar, then live status until the printer takes it.
+   **Save** keeps a copy on the phone.
+
+There is nothing else on the screen: no layout picker, no filters, no caption
+box. Every print is the four-up grid on 4 × 6.
 
 ### Layouts
 
+The renderer still knows three (`public/js/layouts.mjs`), and the print pipeline
+handles any of them — the guest app is simply locked to `grid`. Change
+`state.layoutId` in `public/js/app.mjs` to print a different one.
+
 | Layout | Sheet | What comes out |
 | --- | --- | --- |
-| Classic strip | 4 × 6 portrait | Two identical 2 × 6 strips with a cut line — keep one, give one away |
-| Four-up grid | 4 × 6 portrait | Four big frames in a 2 × 2 |
+| Four-up grid *(in use)* | 4 × 6 portrait | Four big frames in a 2 × 2 |
+| Classic strip | 4 × 6 portrait | Two identical 2 × 6 strips with a cut line |
 | Wide filmstrip | 6 × 4 landscape | Four tall frames in a row |
 
 Pages are composed on the phone at true print size (1200 × 1800 px = 4 × 6 in at

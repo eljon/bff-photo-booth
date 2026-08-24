@@ -16,7 +16,7 @@
 <div class="app">
   <header class="topbar">
     <h1 id="boothName">Photo Booth</h1>
-    <p id="boothMessage">Pick 4 photos. Make a strip. Take it home.</p>
+    <p id="boothMessage">Pick 4 photos. Take it home.</p>
   </header>
 
   <section class="stage" aria-label="Print preview">
@@ -26,50 +26,15 @@
     <p class="paper-note"><span id="paperNote">4×6 print</span></p>
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <h2>Your four</h2>
-      <span id="slotCount" class="pill">0 / 4</span>
-    </div>
+  <section class="pick">
     <button class="btn btn-primary btn-pick" id="addAll" type="button">
       <span id="pickLabel">Pick your 4 photos</span>
     </button>
-    <p class="hint" id="pickHint">One tap opens your camera roll — select all four there, then hit Done.</p>
-    <div class="slots" id="slots"></div>
-    <p class="hint hidden" id="editHint">Tap any photo above to crop, rotate, reorder or swap just that one.</p>
-  </section>
+    <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done.</p>
 
-  <section class="panel">
-    <div class="panel-head"><h2>Style</h2></div>
-
-    <h3 class="sub">Layout</h3>
-    <div class="chips" id="layoutChips" role="radiogroup" aria-label="Layout"></div>
-
-    <h3 class="sub">Look</h3>
-    <div class="chips" id="filterChips" role="radiogroup" aria-label="Filter"></div>
-
-    <h3 class="sub">Paper colour</h3>
-    <div class="chips swatches" id="frameChips" role="radiogroup" aria-label="Paper colour"></div>
-
-    <h3 class="sub">Caption</h3>
-    <input id="caption" class="text-input" type="text" inputmode="text" maxlength="28"
-           placeholder="Sam &amp; Alex · 2026" autocomplete="off">
-  </section>
-
-  <section class="panel" id="printPanel">
-    <div class="panel-head">
-      <h2>Print</h2>
-      <span id="printerState" class="pill quiet">checking printer…</span>
-    </div>
-    <div class="copies">
-      <span>Copies</span>
-      <div class="stepper">
-        <button type="button" id="copiesDown" aria-label="Fewer copies">−</button>
-        <output id="copiesValue">1</output>
-        <button type="button" id="copiesUp" aria-label="More copies">＋</button>
-      </div>
-    </div>
-    <p class="hint" id="printHint">Prints on the MacBook at the booth. Grab it from the tray.</p>
+    <div class="slots hidden" id="slots"></div>
+    <p class="hint hidden" id="editHint">Tap any photo to crop, rotate, reorder or swap it.</p>
+    <p class="hint problem hidden" id="printProblem"></p>
   </section>
 
   <p class="version" id="version">&nbsp;</p>
@@ -78,7 +43,7 @@
 
 <div class="actionbar">
   <button class="btn btn-ghost" id="saveBtn" type="button">Save</button>
-  <button class="btn btn-primary" id="printBtn" type="button" disabled>Print my strip</button>
+  <button class="btn btn-primary" id="printBtn" type="button" disabled>Print</button>
 </div>
 
 <div class="sheet hidden" id="editor" role="dialog" aria-modal="true" aria-label="Adjust photo">

@@ -15,7 +15,7 @@ const DEFAULTS = {
   maxCopies: 3,
   requireApproval: false,   // host taps "Print" on /host before anything reaches the queue
   printingEnabled: true,    // false => download-only mode (no printer at the party)
-  message: 'Pick 4 photos. Make a strip. Take it home.',
+  message: 'Pick 4 photos. Take it home.',
   // 'auto' asks for the QR key only once the booth is reachable from outside
   // the local network; true/false override that.
   guestKeyRequired: 'auto',

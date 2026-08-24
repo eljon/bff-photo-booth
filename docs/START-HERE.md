@@ -140,8 +140,8 @@ Now open the booth:
 2. Click **Pick your 4 photos** and choose any four pictures — all four in one
    go, not one at a time.
 3. They fill the four slots and a preview of the print appears at the top.
-4. Click **Print my strip**. It says **"Saved (dry run)"** — correct, this is a
-   practice run and nothing was sent to the printer.
+4. Click **Print**. It says **"Saved (dry run)"** — correct, this is a practice
+   run and nothing was sent to the printer.
 
 Now check the file it made:
 
@@ -216,7 +216,7 @@ Show them the QR code — on the laptop screen, or take a photo of it and put it
 on a table card.
 
 A guest just: opens their phone **Camera** app, points it at the QR code, taps
-the link that appears, picks four photos, taps **Print my strip**. The print
+the link that appears, picks four photos, taps **Print**. The print
 comes out of your printer. They install nothing, type nothing, and can be on any
 network.
 

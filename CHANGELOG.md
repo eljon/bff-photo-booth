@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.6.0 — 2026-08-24
+
+**The guest screen is one button.**
+
+- On load there is no empty photo grid to puzzle over — just **Pick your 4
+  photos**, the live preview above it, and Save / Print at the bottom. The four
+  slots appear only once there are photos in them.
+- One add button. The per-slot "+" buttons are gone; empty slots are numbered
+  placeholders, and tapping a filled photo still opens crop / rotate / reorder /
+  swap.
+- Layout, look, paper colour, caption and the copies stepper are all gone. Every
+  print is the four-up grid on 4×6.
+- The printer only speaks up when something would stop a print — offline booth,
+  no printer, missing QR key — instead of showing a status pill nobody needed.
+
 ## 1.5.0 — 2026-08-24
 
 Every release now has a number you can point at.

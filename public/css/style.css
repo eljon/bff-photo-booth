@@ -100,7 +100,9 @@ body {
 
 /* ---------------------------------------------------------------- slots */
 
-.btn-pick { width: 100%; margin-top: 14px; padding: 18px; font-size: 17px; }
+.pick { margin-top: 22px; }
+.btn-pick { width: 100%; padding: 19px; font-size: 17px; }
+.hint.problem { color: var(--accent); }
 
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
 
@@ -123,6 +125,7 @@ body {
 }
 .slot.filled { opacity: 1; }
 .slot canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.slot:disabled { cursor: default; font-size: 13px; font-weight: 700; opacity: 0.45; }
 .slot.filled { border-style: solid; border-color: transparent; }
 .slot .num {
   position: absolute;
@@ -136,26 +139,7 @@ body {
   padding: 2px 5px;
 }
 
-/* ---------------------------------------------------------------- chips */
-
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.chip {
-  border: 1px solid var(--line);
-  background: var(--bg-soft);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.chip[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.chip small { display: block; font-weight: 500; font-size: 11px; opacity: 0.75; }
-
-.swatches .chip { display: flex; align-items: center; gap: 8px; }
-.dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #0004; display: inline-block; }
+/* ------------------------------------------------------- forms (host page) */
 
 .text-input {
   width: 100%;
@@ -188,14 +172,6 @@ body {
 .btn-add { width: 100%; margin-top: 14px; background: #ffffff12; color: var(--ink); }
 .btn-icon { font-weight: 800; }
 .wide { width: 100%; margin-top: 12px; }
-
-.copies { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 15px; }
-.stepper { display: flex; align-items: center; gap: 4px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
-.stepper button {
-  width: 40px; height: 40px; border-radius: 50%; border: 0;
-  background: #ffffff12; color: var(--ink); font-size: 20px; font-weight: 700; cursor: pointer;
-}
-.stepper output { min-width: 34px; text-align: center; font-weight: 800; font-size: 17px; }
 
 .version {
   text-align: center;

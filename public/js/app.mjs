@@ -5,8 +5,10 @@ import { composePage, exportPrint, drawSinglePhoto, clampTransform } from './ren
 const $ = (id) => document.getElementById(id);
 const MAX_SOURCE_DIM = 2400; // plenty for a 300 DPI cell, gentle on phone memory
 
+// One layout, one look, one paper. The guest picks photos and prints — that is
+// the whole app.
 const state = {
-  layoutId: 'strip',
+  layoutId: 'grid',
   frameId: 'white',
   filterId: 'none',
   caption: '',
@@ -148,8 +150,7 @@ function renderAll() {
   const layout = LAYOUTS[state.layoutId];
   state.subtitle = `${session.boothName} · ${todayStamp()}`;
   composePage($('preview'), state, previewScale(layout));
-  $('paperNote').textContent = `${layout.paper} · ${layout.name}`;
-  $('slotCount').textContent = `${filledCount()} / 4`;
+  $('paperNote').textContent = layout.paper;
   updatePickButton();
   $('printBtn').disabled = filledCount() < 4 || !session.printingEnabled;
   $('saveBtn').disabled = filledCount() < 4;
@@ -176,8 +177,10 @@ function updatePickButton() {
 
   button.classList.toggle('btn-primary', missing > 0);
   button.classList.toggle('btn-ghost', missing === 0);
-  // Nothing to tap yet — do not offer to crop photos that do not exist.
-  $('editHint').classList.toggle('hidden', missing === 4);
+  // Nothing to tap yet — no empty grid, no crop hint, just the one button.
+  const empty = missing === 4;
+  $('slots').classList.toggle('hidden', empty);
+  $('editHint').classList.toggle('hidden', empty);
 }
 
 function renderSlots() {
@@ -201,10 +204,12 @@ function renderSlots() {
     num.className = 'num';
     num.textContent = String(i + 1);
     if (!photo) {
-      btn.textContent = '＋';
-      btn.setAttribute('aria-label', `Add photo ${i + 1}`);
+      btn.textContent = String(i + 1);
+      btn.disabled = true;
+      btn.setAttribute('aria-label', `Photo ${i + 1}, empty`);
       return;
     }
+    btn.disabled = false;
     const thumb = document.createElement('canvas');
     thumb.width = 120;
     thumb.height = 160;
@@ -217,72 +222,11 @@ function renderSlots() {
 
 // ---------------------------------------------------------------- controls
 
-function buildChips() {
-  const layoutBox = $('layoutChips');
-  for (const id of LAYOUT_ORDER) {
-    const layout = LAYOUTS[id];
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip';
-    chip.setAttribute('role', 'radio');
-    chip.dataset.value = id;
-    chip.innerHTML = `${layout.name}<small>${layout.blurb}</small>`;
-    chip.addEventListener('click', () => {
-      state.layoutId = id;
-      syncChips();
-      scheduleRender();
-    });
-    layoutBox.appendChild(chip);
-  }
-
-  const filterBox = $('filterChips');
-  for (const id of FILTER_ORDER) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip';
-    chip.setAttribute('role', 'radio');
-    chip.dataset.value = id;
-    chip.textContent = FILTERS[id].name;
-    chip.addEventListener('click', () => {
-      state.filterId = id;
-      syncChips();
-      scheduleRender();
-    });
-    filterBox.appendChild(chip);
-  }
-
-  const frameBox = $('frameChips');
-  for (const frame of Object.values(FRAMES)) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip';
-    chip.setAttribute('role', 'radio');
-    chip.dataset.value = frame.id;
-    chip.innerHTML = `<span class="dot" style="background:${frame.bg}"></span>${frame.name}`;
-    chip.addEventListener('click', () => {
-      state.frameId = frame.id;
-      syncChips();
-      scheduleRender();
-    });
-    frameBox.appendChild(chip);
-  }
-  syncChips();
-}
-
-function syncChips() {
-  const map = { layoutChips: state.layoutId, filterChips: state.filterId, frameChips: state.frameId };
-  for (const [boxId, value] of Object.entries(map)) {
-    for (const chip of $(boxId).children) {
-      chip.setAttribute('aria-checked', String(chip.dataset.value === value));
-    }
-  }
-}
-
 // ---------------------------------------------------------------- picking
 
 function onSlotTap(index) {
+  // Empty slots are placeholders now — the one button above fills them.
   if (state.photos[index]) openEditor(index);
-  else pickInto(index);
 }
 
 function pickInto(index) {
@@ -303,7 +247,7 @@ async function acceptFiles(files, startIndex = null) {
   replaceAllNext = false;
 
   const tooMany = chosen.length > 4;
-  toast(tooMany ? 'A strip holds 4 — using the first four you picked.' : list.length > 1 ? 'Loading your photos…' : 'Loading…', tooMany ? 3200 : 1400);
+  toast(tooMany ? 'A print holds 4 — using the first four you picked.' : list.length > 1 ? 'Loading your photos…' : 'Loading…', tooMany ? 3200 : 1400);
 
   let cursor = startIndex;
   for (const file of list) {
@@ -461,7 +405,7 @@ function showJob(job) {
     return showResult({
       emoji: '👀',
       title: 'Waiting for the host',
-      body: 'Your strip is in the queue — the booth host taps print. Stay close to the tray.',
+      body: 'Your print is in the queue — the booth host taps print. Stay close to the tray.',
       image: job.image,
       busy: true,
     });
@@ -470,7 +414,7 @@ function showJob(job) {
     return showResult({
       emoji: '📡',
       title: 'Sending it to the booth',
-      body: 'The printer is picking up your strip now.',
+      body: 'The printer is picking up your photos now.',
       image: job.image,
       busy: true,
     });
@@ -553,7 +497,7 @@ async function doPrint() {
   const params = new URLSearchParams({
     layout: state.layoutId,
     copies: String(state.copies),
-    guest: state.caption.slice(0, 40),
+    guest: '',
   });
 
   try {
@@ -620,8 +564,6 @@ async function savePhoto() {
 
 function resetBooth() {
   state.photos = [null, null, null, null];
-  state.caption = '';
-  $('caption').value = '';
   lastPrintBlob = null;
   overflowCursor = 0;
   replaceAllNext = false;
@@ -646,52 +588,44 @@ async function loadSession() {
   $('version').textContent = session.version ? `v${session.version}` : '';
   if (session.message) $('boothMessage').textContent = session.message;
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
-  $('copiesValue').textContent = String(state.copies);
 
   if (session.keyRequired && !accessKey) {
-    $('printHint').textContent = 'Scan the booth QR code to unlock printing — you can still build and save a strip.';
+    showProblem('Scan the booth QR code to unlock printing — you can still save to your phone.');
   }
 
   if (!session.printingEnabled || !session.online) {
-    $('printPanel').classList.add('hidden');
     $('printBtn').classList.add('hidden');
     $('saveBtn').classList.remove('btn-ghost');
     $('saveBtn').classList.add('btn-primary');
-    $('saveBtn').textContent = 'Save my strip';
+    $('saveBtn').textContent = 'Save to phone';
     $('saveBtn').style.flex = '1';
   }
   scheduleRender();
   if (session.online && session.printingEnabled) refreshPrinter();
 }
 
+/** A one-line warning, shown only when something would stop a print. */
+function showProblem(message) {
+  const el = $('printProblem');
+  el.textContent = message;
+  el.classList.toggle('hidden', !message);
+}
+
+/** No status chatter — the guest only hears about the printer when it matters. */
 async function refreshPrinter() {
-  const pill = $('printerState');
   try {
-    const response = await fetch('/api/printers');
-    const data = await response.json();
-    if (data.dryRun) {
-      pill.textContent = 'dry run';
-      pill.className = 'pill quiet';
-      return;
-    }
+    const data = await (await fetch('/api/printers')).json();
     if (data.remote && !data.agentOnline) {
-      pill.textContent = 'booth offline';
-      pill.className = 'pill bad';
-      $('printHint').textContent = 'The booth Mac is not connected right now. Save your strip and try again in a minute.';
+      showProblem('The booth printer is offline right now. You can still save to your phone.');
       return;
     }
-    const chosen = data.printers.find((p) => p.name === data.default) || data.printers[0];
-    if (!chosen) {
-      pill.textContent = 'no printer';
-      pill.className = 'pill bad';
-      $('printHint').textContent = 'No printer is set up on the booth Mac yet. Ask the host, or save to your phone.';
+    if (!data.printers.length) {
+      showProblem('No printer is set up at the booth yet. You can still save to your phone.');
       return;
     }
-    pill.textContent = chosen.ready ? 'ready' : chosen.state;
-    pill.className = `pill ${chosen.ready ? 'good' : 'bad'}`;
+    showProblem('');
   } catch {
-    pill.textContent = 'offline';
-    pill.className = 'pill bad';
+    showProblem('Cannot reach the booth right now. You can still save to your phone.');
   }
 }
 
@@ -708,20 +642,6 @@ function bind() {
     const slot = pendingSlot;
     pendingSlot = null;
     acceptFiles(event.target.files, slot);
-  });
-
-  $('caption').addEventListener('input', (event) => {
-    state.caption = event.target.value.trim();
-    scheduleRender();
-  });
-
-  $('copiesDown').addEventListener('click', () => {
-    state.copies = Math.max(1, state.copies - 1);
-    $('copiesValue').textContent = String(state.copies);
-  });
-  $('copiesUp').addEventListener('click', () => {
-    state.copies = Math.min(session.maxCopies || 3, state.copies + 1);
-    $('copiesValue').textContent = String(state.copies);
   });
 
   $('printBtn').addEventListener('click', doPrint);
@@ -784,7 +704,6 @@ function swapEditor(direction) {
   scheduleRender();
 }
 
-buildChips();
 bind();
 loadSession();
 scheduleRender();
