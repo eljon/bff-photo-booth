@@ -109,8 +109,8 @@ function measure(rows, aspects, W, gap) {
  * covers the most paper wins, so 4 portraits land as a 2×2, 4 landscapes as a
  * stack, and any mix arranges itself sensibly.
  */
-export function autoLayout(layout, photos) {
-  const { page, pad, gap, footer } = layout;
+export function autoLayout(spec, photos) {
+  const { page, pad, gap, footer } = spec;
   const W = page.w - pad * 2;
   const availH = page.h - pad * 2 - footer;
   const aspects = photos.map(photoAspect);
@@ -155,10 +155,32 @@ export function autoLayout(layout, photos) {
     y += h + gap * scale;
   }
 
+  const usedArea = cells.reduce((sum, c) => sum + c.w * c.h, 0);
   return {
     cells,
     captions: [{ x: pad, y: pad + availH, w: W, h: footer }],
+    page,
+    coverage: usedArea / (page.w * page.h),
   };
+}
+
+const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
+const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
+
+/**
+ * Fit the photos onto whichever sheet orientation wastes the least paper. A row
+ * of landscapes barely fills a portrait 4×6 but nearly fills a landscape 6×4, so
+ * the booth rotates the print to match the photos instead of leaving big
+ * margins. Portrait wins ties, since a photo strip is portrait by habit.
+ */
+export function resolveGrid(base, photos) {
+  const spec = (o) => ({ page: { w: o.w, h: o.h }, pad: base.pad, gap: base.gap, footer: base.footer });
+  const portrait = autoLayout(spec(PORTRAIT_4X6), photos);
+  const landscape = autoLayout(spec(LANDSCAPE_6X4), photos);
+
+  const pick = landscape.coverage > portrait.coverage * 1.02 ? landscape : portrait;
+  const paper = pick === landscape ? LANDSCAPE_6X4 : PORTRAIT_4X6;
+  return { cells: pick.cells, captions: pick.captions, page: pick.page, media: paper.media, paper: paper.paper };
 }
 
 function filmstripLayout() {

@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.14.0 — 2026-08-24
+
+**The sheet rotates to fill the paper.**
+
+- The print now chooses its own orientation: photos that pack tighter on a
+  landscape 6×4 sheet get one, portrait-friendly sets stay on 4×6. Four
+  landscapes used to sit as a thin stack on a portrait page with big margins —
+  now they fill a landscape sheet as a 2×2.
+- Whichever orientation wastes less paper wins (portrait breaks ties). The
+  printer is told the matching paper size — Custom.6x4in for a rotated print,
+  Custom.4x6in otherwise — unless the host chose non-photo paper, which is kept
+  as-is.
+
 ## 1.13.0 — 2026-08-24
 
 **The grid fits portrait and landscape photos without cropping.**

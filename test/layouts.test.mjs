@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, LAYOUT_ORDER, FRAMES, autoLayout } from '../public/js/layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, autoLayout, resolveGrid } from '../public/js/layouts.mjs';
 
 // Four stand-in photos of mixed orientation, so the dynamic grid is exercised
 // on the case that matters — not just placeholders.
@@ -11,10 +11,14 @@ const MIXED = [
   { bitmap: { width: 1600, height: 1000 }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } },
 ];
 
-/** Cells for a layout — computed from real photos when the layout is dynamic. */
-function cellsFor(id, photos = MIXED) {
+/** The resolved layout for an id — dynamic grids flip the sheet to fit. */
+function resolved(id, photos = MIXED) {
   const base = LAYOUTS[id];
-  return base.dynamic ? autoLayout(base, photos).cells : base.cells;
+  const r = base.dynamic ? resolveGrid(base, photos) : { cells: base.cells, page: base.page };
+  return { cells: r.cells, page: r.page };
+}
+function cellsFor(id, photos = MIXED) {
+  return resolved(id, photos).cells;
 }
 
 const overlaps = (a, b) =>
@@ -30,12 +34,11 @@ test('every layout is a real photo paper size at 300 DPI', () => {
 
 test('cells stay on the paper and never overlap each other', () => {
   for (const id of LAYOUT_ORDER) {
-    const layout = LAYOUTS[id];
-    const cells = cellsFor(id);
+    const { cells, page } = resolved(id);
     for (const cell of cells) {
       assert.ok(cell.x >= -1 && cell.y >= -1, `${id}: cell starts off the page`);
-      assert.ok(cell.x + cell.w <= layout.page.w + 1, `${id}: cell runs off the right edge`);
-      assert.ok(cell.y + cell.h <= layout.page.h + 1, `${id}: cell runs off the bottom edge`);
+      assert.ok(cell.x + cell.w <= page.w + 1, `${id}: cell runs off the right edge`);
+      assert.ok(cell.y + cell.h <= page.h + 1, `${id}: cell runs off the bottom edge`);
       assert.ok(cell.w > 100 && cell.h > 100, `${id}: cell is implausibly small`);
     }
     for (let i = 0; i < cells.length; i++) {
@@ -117,4 +120,20 @@ test('the auto grid keeps a fair spread — the smallest photo is not a stamp', 
   const areas = cells.map((c) => c.w * c.h);
   const ratio = Math.min(...areas) / Math.max(...areas);
   assert.ok(ratio > 0.35, `smallest cell is ${(ratio * 100).toFixed(0)}% of the largest — too lopsided`);
+});
+
+test('the sheet rotates to landscape when that fills more paper', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+
+  const landscapes = resolveGrid(LAYOUTS.grid, [mk(1600, 1000), mk(1600, 1000), mk(1600, 1000), mk(1600, 1000)]);
+  assert.ok(landscapes.page.w > landscapes.page.h, 'four landscapes should print on a landscape sheet');
+  assert.equal(landscapes.media, 'Custom.6x4in');
+
+  const portraits = resolveGrid(LAYOUTS.grid, [mk(1000, 1600), mk(1000, 1600), mk(1000, 1600), mk(1000, 1600)]);
+  assert.ok(portraits.page.h > portraits.page.w, 'four portraits should stay on a portrait sheet');
+  assert.equal(portraits.media, 'Custom.4x6in');
+
+  // the rotate is only taken when it genuinely helps
+  const coverage = (r) => r.cells.reduce((s, c) => s + c.w * c.h, 0) / (r.page.w * r.page.h);
+  assert.ok(coverage(landscapes) > 0.5, 'landscape sheet should be well filled by landscape photos');
 });

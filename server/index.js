@@ -575,6 +575,15 @@ async function handleApi(req, res, url) {
     const copies = Math.max(1, Math.min(cfg.maxCopies, Number(url.searchParams.get('copies')) || cfg.copies));
     const requestedPrinter = (url.searchParams.get('printer') || '').slice(0, 128) || null;
 
+    // The guest app rotates the sheet to match the photos. Only honour that when
+    // the host is on 4x6/6x4 photo paper; a host who chose Letter/A4 keeps it.
+    // orient is never passed to lp directly — it only selects a known media.
+    const orient = url.searchParams.get('orient') === 'landscape' ? 'landscape' : 'portrait';
+    const photoPaper = cfg.media === 'Custom.4x6in' || cfg.media === 'Custom.6x4in';
+    const jobMedia = photoPaper
+      ? (orient === 'landscape' ? 'Custom.6x4in' : 'Custom.4x6in')
+      : null;
+
     const id = crypto.randomUUID();
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const file = path.join(PRINTS_DIR, `${stamp}_${layout}_${id.slice(0, 8)}.${kind}`);
@@ -588,7 +597,7 @@ async function handleApi(req, res, url) {
       guest,
       copies,
       printer: requestedPrinter,
-      media: null,
+      media: jobMedia,
       status: cfg.requireApproval ? 'awaiting-approval' : 'pending',
       createdAt: Date.now(),
       claimedAt: 0,

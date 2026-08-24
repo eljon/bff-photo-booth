@@ -1,4 +1,4 @@
-import { LAYOUTS, FRAMES, autoLayout } from './layouts.mjs';
+import { LAYOUTS, FRAMES, resolveGrid } from './layouts.mjs';
 import { FILTERS, supportsCtxFilter, applyPixelFilter } from './filters.mjs';
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -141,9 +141,15 @@ function drawCutLine(ctx, layout, frame) {
  * Compose the whole page.
  * `scale` of 1 renders the real 300 DPI print; the preview uses a fraction.
  */
-export function composePage(canvas, state, scale = 1) {
+/** The layout to print for this state — resolving a dynamic grid to real cells,
+ *  the chosen sheet orientation, and its paper size. */
+export function resolveLayout(state) {
   const base = LAYOUTS[state.layoutId];
-  const layout = base.dynamic ? { ...base, ...autoLayout(base, state.photos) } : base;
+  return base.dynamic ? { ...base, ...resolveGrid(base, state.photos) } : base;
+}
+
+export function composePage(canvas, state, scale = 1) {
+  const layout = resolveLayout(state);
   const frame = FRAMES[state.frameId] || FRAMES.white;
   const w = Math.round(layout.page.w * scale);
   const h = Math.round(layout.page.h * scale);
