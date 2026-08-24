@@ -248,7 +248,7 @@ goes the wrong way.
 
 ```bash
 npm run version:show   # what is installed
-npm run update         # pull the newest, then restart the booth
+git pull               # get the newest, then restart the booth
 ```
 
 ## Requirements

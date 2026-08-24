@@ -70,7 +70,7 @@ async function loadConfig() {
   $('versionPill').textContent = `v${data.version}${data.commit ? ` · ${data.commit}` : ''}`;
   $('updateHint').replaceChildren(
     document.createTextNode('To update: stop the booth with Control-C, run '),
-    Object.assign(document.createElement('code'), { textContent: 'npm run update' }),
+    Object.assign(document.createElement('code'), { textContent: 'git pull' }),
     document.createTextNode(' in the same folder, then start it again.'),
   );
   const mode = data.mode === 'relay' ? 'relay' : data.exposed ? 'public' : 'local Wi-Fi';

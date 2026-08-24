@@ -273,10 +273,9 @@ To get the newest version:
 
    ```bash
    cd ~/Downloads/bff-photo-booth
-   npm run update
+   git pull
    ```
 
-   It prints `Booth updated to v1.5.0` (or whatever the newest is).
 3. Start it again with `caffeinate -dims npm run tunnel`.
 
 Your settings, the guest key and every photo in the `prints` folder survive an
@@ -298,4 +297,4 @@ update — none of that is part of the download.
 | Host page says no printer found | Go back to Step 1. If Preview cannot print, the booth cannot either. |
 | It printed, but nothing came out | Check the printer itself — paper, ink, lid. Look at **Printer queue** on the host page. |
 | The Terminal window closed by accident | The booth stopped. Run the two "next time" commands above. The link will be new. |
-| `npm run update` says the pull was refused | You have edited files in the folder. Either keep them (`git stash`) or start fresh with a new `git clone`. |
+| `git pull` says your changes would be overwritten | You have edited files in the folder. Either keep them (`git stash`) or start fresh with a new `git clone`. |

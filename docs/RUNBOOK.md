@@ -194,7 +194,7 @@ Stop the booth (Control-C), then:
 
 ```bash
 cd ~/Downloads/bff-photo-booth
-npm run update
+git pull
 ```
 
 Settings, the guest key and `prints/` all survive. `CHANGELOG.md` lists what

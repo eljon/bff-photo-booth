@@ -7,7 +7,7 @@ of the host screen, and in the terminal banner when the booth starts.
 
 ```bash
 cd ~/Downloads/bff-photo-booth
-npm run update      # stop the booth with Control-C first
+git pull            # stop the booth with Control-C first
 ```
 
 Then start the booth again. Your settings, the guest key and everything in
@@ -23,8 +23,9 @@ Every release now has a number you can point at.
   as a pill on the host screen, and in the terminal banner at startup — with the
   git commit alongside it where one is available, so a bug report from a party
   is answerable.
-- `npm run update` pulls the newest version; `npm run version:show` prints what
-  is installed.
+- `npm run version:show` prints what is installed. (`npm run update` is a
+  wrapper around `git pull`, but `git pull` is the one to document — a script
+  cannot update a copy that does not have the script yet.)
 - `/api/health` and `/api/session` report the version, so a monitoring check can
   see what is running without opening the host screen.
 - This changelog. `bash scripts/tag-releases.sh --push` turns every release
