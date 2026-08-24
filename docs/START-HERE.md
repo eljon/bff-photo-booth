@@ -166,8 +166,7 @@ caffeinate -dims npm run tunnel
 
 (`caffeinate` stops the Mac falling asleep and killing the booth.)
 
-Wait 10–30 seconds — it says `Waiting for the link to go live…` while the
-address is being set up, which is normal. Then:
+After a second or two:
 
 ```
   BFF Photo Booth
@@ -181,6 +180,10 @@ address is being set up, which is normal. Then:
 
 Your browser opens the host screen by itself. If it does not, click the
 **Host screen** address above.
+
+A moment later it adds `Guest link answered — ready to scan`. If it says it
+could not reach the link instead, that is usually just this Mac's DNS catching
+up — try the link on a phone before worrying.
 
 **Now** there is an address guests can use. The `https://` one works from any
 network — mobile data, the neighbour's Wi-Fi, anywhere. The `http://192.168…`

@@ -32,7 +32,8 @@ test('a public booth opens its host screen in the browser', { skip }, async (t) 
   t.after(() => booth.close());
 
   const opened = await until(() => launcher.opened() || null, { timeoutMs: 6000 });
-  assert.equal(opened, 'https://amber-forest-9241.trycloudflare.com/host');
+  assert.match(opened, /^http:\/\/localhost:\d+\/host$/,
+    'the host screen belongs to this machine — opening it through the tunnel would wait on DNS');
   assert.match(booth.banner(), /Opened the host screen in your browser/);
 });
 

@@ -23,7 +23,8 @@ test('a public booth labels which address reaches guests and which does not', as
 
   assert.match(banner, /Guests scan or type:\s+https:\/\/amber-forest-9241\.trycloudflare\.com\/\?k=\S+\s+<- works on any network/);
   assert.match(banner, /On this Wi-Fi only:\s+http:\/\//, 'the LAN address is still shown, but demoted');
-  assert.match(banner, /Host screen:\s+https:\/\/amber-forest-9241\.trycloudflare\.com\/host/);
+  assert.match(banner, /Host screen:\s+http:\/\/localhost:\d+\/host/,
+    'the host screen is for this Mac, so it should point at localhost, not through the tunnel');
   assert.doesNotMatch(banner, /same Wi-Fi as this Mac/, 'no need to warn — guests can be anywhere');
   assert.doesNotMatch(banner, /password:/i, 'the host screen is open unless BOOTH_TOKEN is set');
   assert.match(banner, /Host screen is open to anyone with that link/);

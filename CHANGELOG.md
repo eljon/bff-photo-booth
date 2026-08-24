@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.8.1 — 2026-08-24
+
+**Fixed: 1.7.1 made startup slow and stopped opening the browser at all.**
+
+- The readiness check now blocks nothing. The banner appears and the host screen
+  opens as soon as the tunnel reports its address — a second or two, as before.
+- The host screen opens on `http://localhost:PORT/host` instead of through the
+  tunnel. It is the screen for whoever is sitting at the Mac, and localhost never
+  waits on DNS. The QR code on it still carries the public guest link.
+- The guest link is still checked, but in the background and only to print a
+  line about it. A Mac that cannot resolve its own fresh tunnel hostname — the
+  resolver caches the failure for a while, even though phones resolve it fine —
+  no longer holds up the booth or suppresses the browser.
+
 ## 1.8.0 — 2026-08-24
 
 **Save goes to the Photos app, and the button sits on the print.**

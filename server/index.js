@@ -44,7 +44,7 @@ const TUNNEL_PREFER = TUNNEL_CHOICE === 'ssh' ? 'ssh' : 'auto';
 // away. --open forces it for a plain LAN start, --no-open suppresses it.
 const NO_OPEN = process.argv.includes('--no-open') || process.env.NO_OPEN === '1';
 const FORCE_OPEN = process.argv.includes('--open');
-const TUNNEL_WAIT_MS = Number(process.env.TUNNEL_WAIT_MS) || 60_000;
+const TUNNEL_WAIT_MS = Number(process.env.TUNNEL_WAIT_MS) || 30_000;
 
 /** Set when a tunnel was asked for but never came up, so the banner can say so. */
 let tunnelFailed = false;
@@ -705,7 +705,9 @@ function banner() {
   } else {
     for (const url of lan) console.log(`  On this Wi-Fi only:   ${url}${key}`);
   }
-  console.log(`  Host screen:          ${publicUrl || lan[0]}/host`);
+  // Always the local address: this screen is for whoever is at the Mac, and
+  // localhost never waits on DNS or a tunnel.
+  console.log(`  Host screen:          http://localhost:${activePort()}/host`);
 
   if (!publicUrl && tunnelFailed) {
     console.log('');
@@ -728,38 +730,36 @@ function banner() {
 }
 
 server.listen(PORT, HOST, async () => {
-  let tunnelLive = true;
-
   if (WANT_TUNNEL) {
     console.log('\n  Opening a public tunnel…');
     const result = await tunnel.open(activePort(), { prefer: TUNNEL_PREFER });
     if (!result.url) {
       tunnelFailed = true;
       console.log(`  Tunnel unavailable: ${result.error}`);
-    } else {
-      // The hostname exists before DNS knows about it. Wait for the link to
-      // answer for real, or guests (and the browser we are about to open) get
-      // "site can't be reached".
-      console.log('  Waiting for the link to go live…');
-      const ready = await tunnel.waitUntilLive(result.url, { timeoutMs: TUNNEL_WAIT_MS });
-      tunnelLive = ready.live;
-      if (!ready.live) tunnelFailed = true;
-      console.log(ready.live
-        ? `  Link is live after ${ready.attempts}s.`
-        : '  The link is not answering yet. Give it a minute, then reload it — or restart with Control-C and npm run tunnel.');
     }
   }
 
   banner();
 
-  // Any publicly reachable booth (tunnel or PUBLIC_URL) raises its control
-  // screen; a relay is a headless server and never should.
-  const shouldOpen = MODE !== 'relay' && !NO_OPEN && tunnelLive && (FORCE_OPEN || isExposed());
+  // The host screen is for whoever is sitting at this Mac, so open it on
+  // localhost. Going through the tunnel would mean waiting on DNS that this
+  // machine may not see for a minute even while phones resolve it fine.
+  const shouldOpen = MODE !== 'relay' && !NO_OPEN && (FORCE_OPEN || isExposed());
   if (shouldOpen) {
-    const hostUrl = `${joinUrls()[0]}/host`;
+    const hostUrl = `http://localhost:${activePort()}/host`;
     const opened = await openInBrowser(hostUrl);
     console.log(opened ? '  Opened the host screen in your browser.' : `  Open the host screen yourself: ${hostUrl}`);
     console.log('');
+  }
+
+  // Confirm the guest link in the background — never make anyone wait for it.
+  const publicUrl = tunnel.url() || PUBLIC_URL;
+  if (publicUrl && WANT_TUNNEL) {
+    tunnel.waitUntilLive(publicUrl, { timeoutMs: TUNNEL_WAIT_MS }).then(({ live, attempts }) => {
+      console.log(live
+        ? `  Guest link answered after ${attempts}s — ready to scan.`
+        : '  Could not reach the guest link from this Mac. That is usually local DNS catching up;\n  try it on a phone, and give it a minute before worrying.');
+    });
   }
 });
 
