@@ -110,6 +110,31 @@ async function open(port, { timeoutMs = 30_000, prefer = 'auto' } = {}) {
   });
 }
 
+/**
+ * A quick tunnel prints its hostname the moment it is assigned, which is before
+ * DNS resolves anywhere. Opening a browser on it then gives NXDOMAIN, and the
+ * browser caches that. So poll the public URL until it actually answers.
+ */
+async function waitUntilLive(target, { timeoutMs = 60_000, everyMs = 1000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let attempts = 0;
+
+  while (Date.now() < deadline) {
+    attempts += 1;
+    try {
+      const response = await fetch(`${target}/api/health`, {
+        signal: AbortSignal.timeout(4000),
+        headers: { 'cache-control': 'no-cache' },
+      });
+      if (response.ok) return { live: true, attempts };
+    } catch {
+      // DNS has not propagated, or the edge has no connection yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, everyMs));
+  }
+  return { live: false, attempts };
+}
+
 function url() {
   return publicUrl;
 }
@@ -120,4 +145,4 @@ function close() {
   publicUrl = null;
 }
 
-module.exports = { open, url, close, findUrl };
+module.exports = { open, url, close, findUrl, waitUntilLive };

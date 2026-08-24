@@ -33,3 +33,23 @@ test('explains both ways forward when no tunnel is installed', async () => {
   assert.match(result.error, /cloudflared/);
   assert.match(result.error, /--tunnel=ssh/);
 });
+
+test('waits for a public link to actually answer before trusting it', async (t) => {
+  const { startServer } = await import('./helpers.mjs');
+  const booth = await startServer({ NO_OPEN: '1' });
+  t.after(() => booth.close());
+
+  const live = await tunnel.waitUntilLive(booth.base, { timeoutMs: 8000, everyMs: 200 });
+  assert.equal(live.live, true, 'a booth that is up should be seen straight away');
+  assert.ok(live.attempts <= 3, `should not have needed ${live.attempts} tries`);
+});
+
+test('gives up on a hostname that never resolves, instead of hanging', async () => {
+  const started = Date.now();
+  const result = await tunnel.waitUntilLive('https://lease-archives-wins-removable.trycloudflare.invalid', {
+    timeoutMs: 2500,
+    everyMs: 300,
+  });
+  assert.equal(result.live, false);
+  assert.ok(Date.now() - started < 9000, 'the wait must respect its own timeout');
+});

@@ -166,7 +166,8 @@ caffeinate -dims npm run tunnel
 
 (`caffeinate` stops the Mac falling asleep and killing the booth.)
 
-Wait about 10 seconds. The Terminal prints:
+Wait 10–30 seconds — it says `Waiting for the link to go live…` while the
+address is being set up, which is normal. Then:
 
 ```
   BFF Photo Booth
@@ -292,6 +293,7 @@ update — none of that is part of the download.
 | `Tunnel unavailable` | Step 3 did not finish. Run `cloudflared --version` — if that fails, do Step 3 again. |
 | Guests get "Scan the booth QR code" | They opened a plain link instead of scanning. Have them scan the QR itself. |
 | The host screen did not open by itself | Open the **Host screen** address from the Terminal yourself. |
+| Browser says **DNS_PROBE_FINISHED_NXDOMAIN** or "site can't be reached" | The link was not ready yet. Wait a few seconds and reload. If it still fails, Control-C and run `caffeinate -dims npm run tunnel` again — you get a fresh link. |
 | Host page says no printer found | Go back to Step 1. If Preview cannot print, the booth cannot either. |
 | It printed, but nothing came out | Check the printer itself — paper, ink, lid. Look at **Printer queue** on the host page. |
 | The Terminal window closed by accident | The booth stopped. Run the two "next time" commands above. The link will be new. |

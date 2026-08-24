@@ -44,6 +44,10 @@ const TUNNEL_PREFER = TUNNEL_CHOICE === 'ssh' ? 'ssh' : 'auto';
 // away. --open forces it for a plain LAN start, --no-open suppresses it.
 const NO_OPEN = process.argv.includes('--no-open') || process.env.NO_OPEN === '1';
 const FORCE_OPEN = process.argv.includes('--open');
+const TUNNEL_WAIT_MS = Number(process.env.TUNNEL_WAIT_MS) || 60_000;
+
+/** Set when a tunnel was asked for but never came up, so the banner can say so. */
+let tunnelFailed = false;
 const PUBLIC_URL = process.env.PUBLIC_URL || null;
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -703,7 +707,11 @@ function banner() {
   }
   console.log(`  Host screen:          ${publicUrl || lan[0]}/host`);
 
-  if (!publicUrl) {
+  if (!publicUrl && tunnelFailed) {
+    console.log('');
+    console.log('  The tunnel did not come up, so guests can only reach this booth');
+    console.log('  on your own Wi-Fi. Stop with Control-C and try npm run tunnel again.');
+  } else if (!publicUrl) {
     console.log('');
     console.log('  Guests must be on the same Wi-Fi as this Mac.');
     console.log('  To let them join from anywhere — mobile data, another network —');
@@ -720,20 +728,37 @@ function banner() {
 }
 
 server.listen(PORT, HOST, async () => {
+  let tunnelLive = true;
+
   if (WANT_TUNNEL) {
     console.log('\n  Opening a public tunnel…');
     const result = await tunnel.open(activePort(), { prefer: TUNNEL_PREFER });
-    if (!result.url) console.log(`  Tunnel unavailable: ${result.error}`);
+    if (!result.url) {
+      tunnelFailed = true;
+      console.log(`  Tunnel unavailable: ${result.error}`);
+    } else {
+      // The hostname exists before DNS knows about it. Wait for the link to
+      // answer for real, or guests (and the browser we are about to open) get
+      // "site can't be reached".
+      console.log('  Waiting for the link to go live…');
+      const ready = await tunnel.waitUntilLive(result.url, { timeoutMs: TUNNEL_WAIT_MS });
+      tunnelLive = ready.live;
+      if (!ready.live) tunnelFailed = true;
+      console.log(ready.live
+        ? `  Link is live after ${ready.attempts}s.`
+        : '  The link is not answering yet. Give it a minute, then reload it — or restart with Control-C and npm run tunnel.');
+    }
   }
+
   banner();
 
   // Any publicly reachable booth (tunnel or PUBLIC_URL) raises its control
   // screen; a relay is a headless server and never should.
-  const shouldOpen = MODE !== 'relay' && !NO_OPEN && (FORCE_OPEN || isExposed());
+  const shouldOpen = MODE !== 'relay' && !NO_OPEN && tunnelLive && (FORCE_OPEN || isExposed());
   if (shouldOpen) {
     const hostUrl = `${joinUrls()[0]}/host`;
     const opened = await openInBrowser(hostUrl);
-    console.log(opened ? `  Opened the host screen in your browser.` : `  Open the host screen yourself: ${hostUrl}`);
+    console.log(opened ? '  Opened the host screen in your browser.' : `  Open the host screen yourself: ${hostUrl}`);
     console.log('');
   }
 });

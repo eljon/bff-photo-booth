@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.7.1 — 2026-08-24
+
+**Fixed: the browser opened before the tunnel link existed.**
+
+- A quick tunnel prints its hostname the moment it is assigned, which is before
+  DNS knows about it — so the browser opened on a link that answered
+  `DNS_PROBE_FINISHED_NXDOMAIN`, and cached the failure. The booth now polls its
+  own public link until it really answers, then opens the browser.
+- If the link never comes up, the booth says so plainly instead of opening a
+  broken page, and no longer tells you to run `npm run tunnel` when that is
+  exactly what you just ran.
+- `TUNNEL_WAIT_MS` sets how long to wait (default 60 seconds).
+
 ## 1.7.0 — 2026-08-24
 
 **No host password, and the control screen opens itself.**
