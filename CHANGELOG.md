@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.12.0 — 2026-08-24
+
+**Save to Photos with no share sheet.**
+
+- On a phone, **Save** now shows the finished photo full size with "touch and
+  hold, then Save to Photos". Press-and-hold on the image goes straight to the
+  camera roll — no share sheet, no icon-picking. This is the most direct path a
+  web page has to Photos; the one action left is the OS "Save to Photos" tap,
+  which Apple requires of every website and no web API can remove.
+- A **Share instead** button keeps the old share-sheet route for anyone who
+  prefers it, and desktop browsers still download directly.
+
 ## 1.11.1 — 2026-08-24
 
 **Fixed: a Tailscale link that resolved but served nothing.**

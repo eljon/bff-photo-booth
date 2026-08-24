@@ -594,47 +594,76 @@ function downloadBlob(blob) {
  * Photos app. A download link would only drop it in Files, which is not where
  * anyone looks for a photo.
  */
+let saveObjectUrl = null;
+
+function isTouchDevice() {
+  return 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+}
+
+/** The share sheet's "Save Image" also lands in Photos — kept as the fallback. */
+async function shareToPhotos(blob) {
+  const file = printFile(blob);
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      toast('Saved to your phone.', 2400);
+      return true;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return true; // guest closed the sheet
+      if (err && err.name === 'NotAllowedError') {
+        toast('Tap Share once more.', 2600);
+        return true;
+      }
+    }
+  }
+  downloadBlob(blob);
+  toast('Saved to your downloads.');
+  return true;
+}
+
+async function buildPrintBlob() {
+  if (lastPrintBlob) return lastPrintBlob;
+  toast('Getting your photo ready…', 1200);
+  try {
+    lastPrintBlob = (await exportPrint(state)).blob;
+    return lastPrintBlob;
+  } catch (err) {
+    toast(err.message || 'Could not build the photo.');
+    return null;
+  }
+}
+
+/**
+ * On a phone, show the finished photo big and let the guest press-and-hold it —
+ * iOS and Android both offer "Save to Photos" / "Download image" from that, and
+ * it goes straight to the camera roll with no share sheet in the way. On a
+ * desktop, where there is no long-press, go straight to share/download.
+ */
 async function savePhoto() {
   if (filledCount() < 4) {
     toast('Four photos first.');
     return;
   }
+  const blob = await buildPrintBlob();
+  if (!blob) return;
 
-  let blob = lastPrintBlob;
-  if (!blob) {
-    toast('Getting your print ready…', 1200);
-    try {
-      blob = (await exportPrint(state)).blob;
-      lastPrintBlob = blob;
-    } catch (err) {
-      toast(err.message || 'Could not build the print.');
-      return;
-    }
+  if (!isTouchDevice()) {
+    await shareToPhotos(blob);
+    return;
   }
 
-  const file = printFile(blob);
-  const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+  if (saveObjectUrl) URL.revokeObjectURL(saveObjectUrl);
+  saveObjectUrl = URL.createObjectURL(blob);
+  $('saveImage').src = saveObjectUrl;
+  $('saveSheet').classList.remove('hidden');
+}
 
-  if (canShare) {
-    try {
-      // Resolves only once the guest has finished with the sheet, so anything
-      // said here is said *after* they saved. Confirm, do not instruct.
-      await navigator.share({ files: [file] });
-      toast('Saved to your phone.', 2400);
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // guest closed the sheet
-      // NotAllowedError means the tap expired while rendering; the blob is warm
-      // now, so a second tap will go straight to the sheet.
-      if (err && err.name === 'NotAllowedError') {
-        toast('Tap Save once more.', 2600);
-        return;
-      }
-    }
+function closeSaveSheet() {
+  $('saveSheet').classList.add('hidden');
+  if (saveObjectUrl) {
+    URL.revokeObjectURL(saveObjectUrl);
+    saveObjectUrl = null;
   }
-
-  downloadBlob(blob);
-  toast('Saved to your downloads.');
 }
 
 function resetBooth() {
@@ -722,6 +751,11 @@ function bind() {
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
   $('resultSave').addEventListener('click', savePhoto);
+  $('saveClose').addEventListener('click', closeSaveSheet);
+  $('saveShare').addEventListener('click', async () => {
+    const blob = await buildPrintBlob();
+    if (blob) await shareToPhotos(blob);
+  });
   $('resultDone').addEventListener('click', resetBooth);
 
   $('editorClose').addEventListener('click', closeEditor);
