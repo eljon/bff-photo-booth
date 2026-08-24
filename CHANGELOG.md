@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.11.1 — 2026-08-24
+
+**Fixed: a Tailscale link that resolved but served nothing.**
+
+- Tailscale's funnel config is persistent — a funnel started by hand and stopped
+  with Ctrl-C stays advertised, and collides with the one the booth starts, so
+  the `.ts.net` address answered with nothing useful. The booth now clears
+  funnel/serve state before advertising its own, and clears it again on exit so
+  it cannot leave a stale entry behind.
+
 ## 1.11.0 — 2026-08-24
 
 **The booth remembers which tunnel you chose.**

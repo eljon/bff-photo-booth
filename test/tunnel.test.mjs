@@ -119,3 +119,15 @@ test('a tunnel choice is remembered, so the start command stops changing', async
   });
   assert.equal(stored, 'ssh', 'the booth should write down what it was told to use');
 });
+
+test('clears stale Tailscale funnel state before advertising its own', async () => {
+  // A funnel left over from a hand-run `tailscale funnel` keeps answering, so
+  // the booth must reset serve/funnel config before starting its own.
+  const choice = await tunnel.pick(8080, 'tailscale', { PATH: process.env.PATH });
+  if (choice.command) {
+    assert.equal(typeof choice.cleanup, 'function', 'it should also clean up on exit');
+    assert.deepEqual(choice.args, ['funnel', '8080']);
+  } else {
+    assert.match(choice.error, /Install it from tailscale\.com/);
+  }
+});

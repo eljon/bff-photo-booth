@@ -100,6 +100,18 @@ function findUrl(text) {
 const https = (host) => (/^https?:\/\//.test(host) ? host.replace(/\/+$/, '') : `https://${host}`);
 
 /**
+ * Clear any funnel/serve config Tailscale is holding. Its config is persistent —
+ * a funnel started by hand and Ctrl-C'd earlier stays advertised, and collides
+ * with the one the booth starts. Best effort: if reset is unavailable we carry
+ * on, since a first-ever run has nothing to clear.
+ */
+function resetTailscale(binary) {
+  return new Promise((resolve) => {
+    execFile(binary, ['serve', 'reset'], { timeout: 8000 }, () => resolve());
+  });
+}
+
+/**
  * Work out what to run. Environment beats guessing: naming a persistent address
  * is how you say "this booth has an address of its own".
  */
@@ -144,6 +156,9 @@ async function pick(port, prefer, env = process.env) {
     if (!tailscale) {
       return { error: 'Tailscale was not found. Install it from tailscale.com/download and sign in, then try again.' };
     }
+    // Wipe leftover funnel state before we advertise our own, or a stale entry
+    // from a hand-run `tailscale funnel` keeps answering with nothing useful.
+    await resetTailscale(tailscale);
     return {
       command: tailscale,
       args: ['funnel', String(port)],
@@ -152,6 +167,8 @@ async function pick(port, prefer, env = process.env) {
       // The address is tied to the machine and tailnet, so it is the same every
       // run — we just have to read it out of the output the first time.
       stable: true,
+      // Leave nothing advertised once the booth stops.
+      cleanup: () => resetTailscale(tailscale),
     };
   }
 
@@ -338,6 +355,7 @@ function isPersistent() {
 function close() {
   shuttingDown = true;
   clearTimeout(restartTimer);
+  if (currentLaunch && currentLaunch.cleanup) currentLaunch.cleanup();
   if (child) child.kill();
   child = null;
   publicUrl = null;
