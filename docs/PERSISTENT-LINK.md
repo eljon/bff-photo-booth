@@ -10,8 +10,8 @@ Here are the ways to get an address that stays put, cheapest effort first.
 | | Link survives a restart | Works while the Mac sleeps | Setup |
 | --- | --- | --- | --- |
 | Quick tunnel *(default)* | no | no | none |
-| **ngrok static domain** | **yes** | no | free account, 5 min |
 | **Tailscale funnel** | **yes** | no | free account, 10 min |
+| **ngrok static domain** | **yes** | no | free account, 5 min — but see the warning below |
 | **Named Cloudflare tunnel** | **yes** | no | account + a domain you own |
 | **Relay** | **yes** | **yes** | deploy once, see `DEPLOY.md` |
 
@@ -26,7 +26,29 @@ the Mac brings the booth back without touching the terminal.
 
 ---
 
-## ngrok static domain — easiest persistent link
+## Tailscale funnel — free, permanent, nothing in the way
+
+Gives you `https://<machine>.<tailnet>.ts.net`, tied to the Mac itself, and it
+serves your page directly — no interstitial, no account prompt for guests.
+
+1. Install Tailscale from tailscale.com/download and sign in.
+2. Run `tailscale funnel 8080` once. If Funnel is not enabled for your tailnet
+   it prints a link — open it, approve, and run the command again.
+3. Start the booth:
+
+   ```bash
+   cd ~/Downloads/bff-photo-booth
+   caffeinate -dims npm start -- --tunnel=tailscale
+   ```
+
+## ngrok static domain — persistent, but guests meet a warning page first
+
+> **On the free tier, every new visitor sees an ngrok interstitial** — "You are
+> about to visit… Visit Site" — before your booth loads. ngrok's documented
+> workarounds are the `ngrok-skip-browser-warning` header or a non-standard
+> `User-Agent`, and neither is available to a guest tapping a QR code: a browser
+> cannot add headers to a top-level navigation. Only a paid plan removes it.
+> For a party, Tailscale Funnel above is the better free option.
 
 One free static domain per account.
 
@@ -56,18 +78,6 @@ To avoid retyping it, put the domain in your shell profile:
 ```bash
 echo 'export NGROK_DOMAIN=avert-canon-washer.ngrok-free.dev' >> ~/.zshrc
 ```
-
-## Tailscale funnel — no domain, tied to the machine
-
-Gives you `https://<machine>.<tailnet>.ts.net`, permanent and free.
-
-1. Install Tailscale and sign in.
-2. Enable funnel for your tailnet once (the CLI prints a link to click).
-3. Start the booth:
-
-   ```bash
-   caffeinate -dims npm start -- --tunnel=tailscale
-   ```
 
 ## Named Cloudflare tunnel — your own hostname
 

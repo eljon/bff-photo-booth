@@ -39,7 +39,8 @@ const TUNNEL_ARG = process.argv.find((arg) => arg.startsWith('--tunnel')) || '';
 const WANT_TUNNEL = Boolean(TUNNEL_ARG) || Boolean(process.env.TUNNEL);
 // --tunnel=ssh (or TUNNEL=ssh) installs nothing and uses localhost.run instead
 const TUNNEL_CHOICE = (TUNNEL_ARG.split('=')[1] || process.env.TUNNEL || '').toLowerCase();
-const TUNNEL_PREFER = TUNNEL_CHOICE === 'ssh' ? 'ssh' : 'auto';
+const TUNNEL_KINDS = ['ssh', 'tailscale', 'ngrok', 'named', 'cloudflared'];
+const TUNNEL_PREFER = TUNNEL_KINDS.includes(TUNNEL_CHOICE) ? TUNNEL_CHOICE : 'auto';
 // A booth you can reach from anywhere wants its control screen up straight
 // away. --open forces it for a plain LAN start, --no-open suppresses it.
 const NO_OPEN = process.argv.includes('--no-open') || process.env.NO_OPEN === '1';

@@ -26,6 +26,7 @@ const { spawn, execFile } = require('node:child_process');
 let child = null;
 let publicUrl = null;
 let fixedUrl = null; // known before the process starts, for persistent tunnels
+let stableAddress = false; // address is discovered, but does not change between runs
 let shuttingDown = false;
 let restartAttempt = 0;
 let restartTimer = null;
@@ -116,7 +117,15 @@ async function pick(port, prefer, env = process.env) {
   if (wanted === 'tailscale') {
     const tailscale = await which('tailscale');
     if (!tailscale) return { error: 'tailscale is not installed. See tailscale.com/download.' };
-    return { command: tailscale, args: ['funnel', String(port)], label: 'tailscale funnel (persistent)', fixed: null };
+    return {
+      command: tailscale,
+      args: ['funnel', String(port)],
+      label: 'tailscale funnel',
+      fixed: null,
+      // The address is tied to the machine and tailnet, so it is the same every
+      // run — we just have to read it out of the output the first time.
+      stable: true,
+    };
   }
 
   // ── throwaway: localhost.run over the ssh that macOS already has
@@ -137,6 +146,17 @@ async function pick(port, prefer, env = process.env) {
   }
 
   // ── throwaway: a cloudflare quick tunnel, no account needed
+  if (wanted === 'cloudflared') {
+    const binary = await which('cloudflared');
+    if (!binary) return { error: 'cloudflared is not installed.' };
+    return {
+      command: binary,
+      args: ['tunnel', '--url', `http://localhost:${port}`],
+      label: 'cloudflare quick tunnel',
+      fixed: null,
+    };
+  }
+
   const cloudflared = await which('cloudflared');
   if (cloudflared) {
     return {
@@ -185,7 +205,7 @@ function spawnTunnel(onUrl) {
   child.on('exit', () => {
     child = null;
     if (shuttingDown) return;
-    if (!fixedUrl) publicUrl = null;
+    if (!fixedUrl && !stableAddress) publicUrl = null;
 
     // A tunnel that dies within seconds is misconfigured, not asleep. Show what
     // it actually said, or the retry loop hides the one useful message.
@@ -227,6 +247,7 @@ async function open(port, { timeoutMs = 30_000, prefer = 'auto', onEvent } = {})
   restartAttempt = 0;
   currentLaunch = choice;
   fixedUrl = choice.fixed || null;
+  stableAddress = Boolean(choice.stable);
   if (fixedUrl) publicUrl = fixedUrl;
 
   return new Promise((resolve) => {
@@ -284,7 +305,7 @@ function url() {
 
 /** True when the address survives a restart, so printed QR codes keep working. */
 function isPersistent() {
-  return Boolean(fixedUrl);
+  return Boolean(fixedUrl || stableAddress);
 }
 
 function close() {
@@ -294,6 +315,7 @@ function close() {
   child = null;
   publicUrl = null;
   fixedUrl = null;
+  stableAddress = false;
 }
 
 module.exports = { open, url, close, findUrl, waitUntilLive, isPersistent, pick };

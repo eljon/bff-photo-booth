@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.9.2 — 2026-08-24
+
+**Fixed: `--tunnel=tailscale` never actually selected Tailscale.**
+
+- Only `ssh` was passed through to the tunnel picker; every other value was
+  silently downgraded to "auto", so a documented option did nothing. All the
+  kinds now work: `ssh`, `tailscale`, `ngrok`, `named`, `cloudflared`.
+- A Tailscale funnel address is read out of the command's output rather than
+  known up front, so the booth had been calling it temporary. It is tied to the
+  machine and tailnet and does not change, and is now reported as persistent.
+- Worth knowing when choosing: ngrok's free tier shows every new visitor a
+  browser interstitial before your page. The documented ways around it are
+  request headers, which a guest scanning a QR code cannot send. Tailscale
+  Funnel and Cloudflare tunnels serve your page directly.
+
 ## 1.9.1 — 2026-08-24
 
 - ngrok renamed its static-address flag (`--domain` on older agents, `--url` on
