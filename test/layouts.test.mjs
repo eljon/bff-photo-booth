@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('the four photos tile the whole sheet — every pixel of paper is used', () => {
+test('nothing is cropped, and the paper is filled as much as the shapes allow', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -101,14 +101,20 @@ test('the four photos tile the whole sheet — every pixel of paper is used', ()
     const photos = mix.map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
     const { cells, page } = resolveGrid(LAYOUTS.grid, photos);
     assert.equal(cells.length, 4);
-    assert.ok(cells.every((c) => c.fit === 'cover'), 'cells cover-fit so they fill the paper');
 
-    // the cells partition the page: areas sum to the whole sheet, nothing spills
-    const area = cells.reduce((s, c) => s + c.w * c.h, 0);
-    assert.ok(Math.abs(area - page.w * page.h) / (page.w * page.h) < 0.001, 'cells must fill 100% of the sheet');
     for (const c of cells) {
+      assert.equal(c.fit, 'contain', 'contain-fit is what guarantees no crop');
+      // cell matches its photo, so contain fills it exactly — no crop, no bars
+      const p = photos[c.photo].bitmap;
+      const photoAspect = p.width / p.height;
+      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.03, 'cell is shaped to its photo');
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
     }
+
+    // fill is well above what fixed portrait cells managed (~50%), the point of
+    // rotating the sheet and shaping cells to the photos.
+    const coverage = cells.reduce((s, c) => s + c.w * c.h, 0) / (page.w * page.h);
+    assert.ok(coverage > 0.7, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should be higher`);
   }
 });
 

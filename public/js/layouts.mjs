@@ -164,73 +164,89 @@ export function autoLayout(spec, photos) {
   };
 }
 
-/**
- * Full-bleed collage templates. Each tiles the whole sheet edge to edge with no
- * gaps or margins, so the four photos cover every bit of paper. Photos cover-fit
- * (crop to fill) — that is the price of filling a rectangle with mixed shapes,
- * and filling the paper is the priority. Cells are fractions of the page.
- * Photo 0 leads (the hero, where a template has one).
- */
-const TEMPLATES = [
-  // one big hero on top, three across the bottom
-  { id: 'hero-top', cells: [
-    { x: 0, y: 0, w: 1, h: 0.64, p: 0 },
-    { x: 0, y: 0.64, w: 1 / 3, h: 0.36, p: 1 },
-    { x: 1 / 3, y: 0.64, w: 1 / 3, h: 0.36, p: 2 },
-    { x: 2 / 3, y: 0.64, w: 1 / 3, h: 0.36, p: 3 },
-  ] },
-  // one big hero on the left, three stacked on the right
-  { id: 'hero-left', cells: [
-    { x: 0, y: 0, w: 0.64, h: 1, p: 0 },
-    { x: 0.64, y: 0, w: 0.36, h: 1 / 3, p: 1 },
-    { x: 0.64, y: 1 / 3, w: 0.36, h: 1 / 3, p: 2 },
-    { x: 0.64, y: 2 / 3, w: 0.36, h: 1 / 3, p: 3 },
-  ] },
-];
-
-/** How much of a photo survives a cover-fit into a cell (1 = no crop). */
-function keptFraction(photoAspect, cellAspect) {
-  return Math.min(photoAspect, cellAspect) / Math.max(photoAspect, cellAspect);
-}
-
-/** Lay a template onto a sheet, returning real cells and how well it fits. */
-function placeTemplate(template, page, aspects, heroIndex) {
-  // photo 0 in the template maps to the chosen hero; the rest keep their order.
-  const order = [heroIndex, ...aspects.map((_, i) => i).filter((i) => i !== heroIndex)];
-  const cells = template.cells.map((c) => {
-    const photo = order[c.p];
-    const cell = { x: c.x * page.w, y: c.y * page.h, w: c.w * page.w, h: c.h * page.h, photo, fit: 'cover' };
-    cell.kept = keptFraction(aspects[photo], cell.w / cell.h);
-    // Weight the hero: keeping the star intact matters more than a corner tile.
-    cell.weight = photo === heroIndex ? 2 : 1;
-    return cell;
-  });
-  const score = cells.reduce((s, c) => s + c.kept * c.weight, 0) / cells.reduce((s, c) => s + c.weight, 0);
-  return { cells: cells.map(({ kept, weight, ...c }) => c), score };
-}
-
 const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
+const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+
 /**
- * Choose the template and sheet orientation that fill the paper with the least
- * cropping. Every option already covers 100% of the sheet; the winner is the one
- * that keeps the most of the photos (the hero counted double).
+ * Compose a hero photo plus three supporting ones so that NOTHING is cropped and
+ * the paper is filled as much as the photo shapes allow. Every cell is sized to
+ * its photo's aspect ratio, so a contain-fit fills it exactly — no crop, no
+ * letterbox bars. The hero (photo 0) spans a full edge; the other three share
+ * the opposite strip, each shaped to itself so the strip fills with no gaps.
+ *
+ * `arrange` is 'top' (hero across the top, three in a row below) or 'left'
+ * (hero down the left, three stacked on the right). Borderless: no padding, the
+ * photos reach the paper edges.
+ */
+function composeHero(page, aspects, heroIndex, arrange) {
+  const W = page.w;
+  const H = page.h;
+  const heroA = aspects[heroIndex];
+  const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
+  const oa = others.map((i) => aspects[i]);
+
+  const cells = [];
+  if (arrange === 'top') {
+    const heroH = W / heroA;                 // hero fills the width, natural height
+    const stripH = W / sum(oa);              // three in a row, each aspect-matched, fills width
+    const blockH = heroH + stripH;
+    const s = Math.min(1, H / blockH);
+    const drawnW = W * s;
+    const offX = (W - drawnW) / 2;
+    let y = (H - blockH * s) / 2;
+
+    cells.push({ x: offX, y, w: drawnW, h: heroH * s, photo: heroIndex, fit: 'contain' });
+    y += heroH * s;
+    let x = offX;
+    others.forEach((idx) => {
+      const w = aspects[idx] * stripH * s;
+      cells.push({ x, y, w, h: stripH * s, photo: idx, fit: 'contain' });
+      x += w;
+    });
+  } else {
+    const heroW = H * heroA;                 // hero fills the height, natural width
+    const stripW = H / sum(oa.map((a) => 1 / a)); // three stacked, each aspect-matched, fills height
+    const blockW = heroW + stripW;
+    const s = Math.min(1, W / blockW);
+    const drawnH = H * s;
+    const offY = (H - drawnH) / 2;
+    let x = (W - blockW * s) / 2;
+
+    cells.push({ x, y: offY, w: heroW * s, h: drawnH, photo: heroIndex, fit: 'contain' });
+    x += heroW * s;
+    let y = offY;
+    others.forEach((idx) => {
+      const h = (stripW / aspects[idx]) * s;
+      cells.push({ x, y, w: stripW * s, h, photo: idx, fit: 'contain' });
+      y += h;
+    });
+  }
+
+  const used = cells.reduce((acc, c) => acc + c.w * c.h, 0);
+  return { cells, coverage: used / (W * H) };
+}
+
+/**
+ * Pick the sheet orientation and hero placement that fill the most paper while
+ * never cropping. Photo 0 is the hero unless another index is passed.
  */
 export function resolveGrid(base, photos, heroIndex = 0) {
   const aspects = photos.map(photoAspect);
   let best = null;
   for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
     const page = { w: paper.w, h: paper.h };
-    for (const template of TEMPLATES) {
-      const placed = placeTemplate(template, page, aspects, heroIndex);
-      if (!best || placed.score > best.score) {
-        best = { ...placed, page, media: paper.media, paper: paper.paper };
+    for (const arrange of ['top', 'left']) {
+      const laid = composeHero(page, aspects, heroIndex, arrange);
+      if (!best || laid.coverage > best.coverage) {
+        best = { ...laid, page, media: paper.media, paper: paper.paper };
       }
     }
   }
   return { cells: best.cells, captions: [], page: best.page, media: best.media, paper: best.paper };
 }
+
 
 
 function filmstripLayout() {

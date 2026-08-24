@@ -15,18 +15,25 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.16.1 — 2026-08-24
+
+**Fill as much as possible — without ever cropping.**
+
+- 1.16.0 filled the sheet by cropping. Reverted: nothing is cropped, full stop.
+  Each cell is shaped to its photo so a contain-fit fills it with no crop and no
+  bars, and the layout — hero placement plus sheet orientation — is chosen to
+  cover the most paper. In practice ~78–82% of the sheet, up from the ~50–65%
+  the earlier no-crop grid managed, and the rest is unavoidable: photo shapes
+  cannot tile a rectangle exactly without cutting them.
+- Still a hero (photo 0, big), still no caption.
+
 ## 1.16.0 — 2026-08-24
 
-**The photos now fill the whole sheet, edge to edge.**
+**The photos fill the whole sheet, edge to edge.** *(Superseded by 1.16.1 —
+this filled by cropping, which was not wanted.)*
 
 - The four photos cover every pixel of the paper — no white margins, no caption
-  band. Filling the sheet is the priority, so photos crop to fill (cover-fit)
-  instead of leaving the letterbox bars the no-crop layout produced.
-- Still a hero: photo 0 is the big one (full width on top, or full height on the
-  left), with the other three tiled beside it. The booth picks the hero
-  placement and sheet orientation that crop the photos the least while filling
-  100%.
-- The caption is gone for now, as requested.
+  band, but photos crop to fill.
 
 ## 1.15.0 — 2026-08-24
 
