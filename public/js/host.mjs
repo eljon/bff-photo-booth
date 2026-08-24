@@ -123,7 +123,7 @@ async function loadPrinters() {
     option.value = '';
     select.appendChild(option);
     $('printerHint').textContent = data.remote
-      ? 'Start the agent on the Mac with the printer:  RELAY_URL=… BOOTH_TOKEN=… npm run agent'
+      ? 'Start the booth agent on the Mac that has the printer:  npm run agent'
       : 'Add a printer in System Settings ▸ Printers & Scanners, then reload this page.';
     return;
   }
@@ -265,7 +265,7 @@ function bind() {
       $('signin').classList.add('hidden');
       start();
     } catch {
-      askForToken('That token was not accepted. Check the value you started the booth with.');
+      askForToken('That password was not accepted. Copy the whole line from the Terminal window where you started the booth.');
     }
   });
   $('tokenInput').addEventListener('keydown', (event) => {

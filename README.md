@@ -77,6 +77,9 @@ printer's network — exactly what we are trying to avoid — and gives you no
 queue, no approval, no copy limits. A cloud print service uploads every guest's
 photos to a third party.
 
+**Never used a terminal?** Read **[docs/START-HERE.md](docs/START-HERE.md)** —
+the same setup, explained step by step with nothing assumed.
+
 ## Quick start
 
 ```bash
