@@ -427,10 +427,12 @@ function centrePaper() {
  *  object moving away from the surface. Screen-space values are divided by scale
  *  because the shadow rides the same transform that enlarges the paper. */
 function paperShadow(scale) {
-  const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom
-  const dy = (4 + lift * 48) / scale;    // drops further as it rises
-  const blur = (10 + lift * 84) / scale; // bigger and more diffused
-  const alpha = 0.32 - lift * 0.14;      // softer as it spreads out
+  const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom (scale 3)
+  // Tunable knobs (screen-space; divided by scale since the shadow rides the
+  // paper's transform). base + lift*growth → value at rest … value fully lifted:
+  const dy = (12 + lift * 84) / scale;    // vertical offset:  12 → 96 px
+  const blur = (26 + lift * 140) / scale; // blur (size):      26 → 166 px
+  const alpha = 0.55 + lift * 0.35;       // opacity/intensity: 0.55 → 0.90
   return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
 }
 

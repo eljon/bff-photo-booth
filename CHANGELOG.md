@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.3 — 2026-08-25
+
+**A bigger, darker lift shadow on the pinched print.**
+
+- Increased the pinch-zoom shadow's offset, blur, and opacity so it reads much
+  more clearly. Screen-space values (in `paperShadow()`): offset 12→96 px, blur
+  26→166 px, opacity 0.55→0.90 from rest to full zoom.
+
 ## 1.31.2 — 2026-08-25
 
 **Vertical scroll is only blocked over the pictures.**
