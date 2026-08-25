@@ -107,11 +107,11 @@ test('end to end: guest prints, the Mac agent picks it up and reports the queue'
 
   const { status, data } = await printAsGuest(booth, { copies: 2 });
   assert.equal(status, 200);
-  assert.ok(['pending', 'claimed', 'queued'].includes(data.job.status), `unexpected status ${data.job.status}`);
+  assert.ok(['pending', 'claimed', 'printing', 'done'].includes(data.job.status), `unexpected status ${data.job.status}`);
 
   const finished = await until(async () => {
     const job = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
-    return job.job.status === 'queued' ? job.job : null;
+    return job.job.status === 'done' ? job.job : null;
   });
   assert.match(finished.cupsJobId, /^dry-run-/);
   assert.equal(finished.copies, 2);
@@ -148,7 +148,7 @@ test('a held print only reaches the Mac after the host approves it', async (t) =
 
   const finished = await until(async () => {
     const job = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
-    return job.job.status === 'queued' ? job.job : null;
+    return job.job.status === 'done' ? job.job : null;
   });
   assert.match(finished.cupsJobId, /^dry-run-/);
 });

@@ -117,7 +117,9 @@ try {
 /** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
 const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
-const PRINT_MS = 30 * 1000; // assumed time one print takes — drives the queue ETA
+const PRINT_MS = 30 * 1000; // seed estimate of one print's time; refined from real runs
+const MAX_PRINT_MS = 5 * 60 * 1000; // a print stuck longer than this is treated as done
+const DRY_PRINT_MS = Number(process.env.DRY_PRINT_MS) || PRINT_MS; // simulated print time (dry run)
 const hits = new Map(); // ip -> print timestamps
 const agentWaiters = new Set(); // long-poll resolvers waiting for work
 
@@ -360,111 +362,150 @@ function notifyAgents() {
   agentWaiters.clear();
 }
 
-/**
- * Move a job towards the printer. In booth mode that means calling `lp` right
- * here; in relay mode it means making the job claimable by the Mac's agent.
- */
-async function sendToQueue(job) {
-  const cfg = config.load();
+// The server owns the print queue. Jobs wait here as 'pending' and are dispatched
+// to the printer one at a time; the next is released only once the printer reports
+// the current one finished — so a guest's position reflects the real printer, not
+// a stopwatch. Statuses: awaiting-approval → pending → printing (booth) / claimed
+// (relay agent) → done | failed | rejected.
+let avgPrintMs = PRINT_MS;   // rolling estimate, learned from real print durations
+let dispatching = false;     // guard so we never dispatch two jobs at once
+let printerWatch = null;     // interval polling CUPS until the current print finishes
 
-  if (MODE === 'relay') {
-    job.status = 'pending';
-    job.error = null;
-    notifyAgents();
-    return job;
-  }
+const ACTIVE = new Set(['awaiting-approval', 'pending', 'printing', 'claimed']);
+const ON_PRINTER = new Set(['printing', 'claimed']); // the job actually at the printer
 
-  job.status = 'printing';
+const jobStartedAt = (job) => job.printedAt || job.claimedAt || 0;
 
+/** Learn from a finished print so future ETAs track this printer's real speed. */
+function recordDuration(ms) {
+  if (ms > 3000 && ms < MAX_PRINT_MS) avgPrintMs = Math.round(avgPrintMs * 0.6 + ms * 0.4);
+}
+
+/** Mark the job on the printer finished, learn its duration, release the next. */
+function completeJob(job) {
+  if (!ON_PRINTER.has(job.status)) return;
+  job.status = 'done';
+  job.doneAt = Date.now();
+  recordDuration(job.doneAt - (jobStartedAt(job) || job.doneAt));
+  console.log(`  ✓ finished job ${job.id.slice(0, 8)}${job.cupsJobId ? ` (CUPS ${job.cupsJobId})` : ''}`);
+  pumpPrinter();
+}
+
+/** Send one job to the local printer and mark it printing (booth mode). */
+async function dispatchToPrinter(job) {
   if (DRY_RUN) {
-    job.status = 'queued';
-    job.cupsJobId = `dry-run-${job.id.slice(0, 6)}`;
+    job.status = 'printing';
     job.printedAt = Date.now();
-    return job;
+    job.cupsJobId = `dry-run-${job.id.slice(0, 6)}`;
+    const timer = setTimeout(() => completeJob(job), DRY_PRINT_MS);
+    if (timer.unref) timer.unref();
+    return;
   }
 
+  const cfg = config.load();
   const { name, error } = await resolvePrinter(job.printer);
   if (!name) {
     job.status = 'failed';
     job.error = error;
-    return job;
+    console.error(`  ✗ print failed for job ${job.id.slice(0, 8)}: ${error}`);
+    return;
   }
 
   const options = { 'print-quality': '5' };
   if (cfg.fitToPage) options['fit-to-page'] = 'true';
 
-  const result = await cups.print(job.file, {
-    printer: name,
-    copies: job.copies,
-    media: job.media || cfg.media,
-    options,
-  });
-
+  const result = await cups.print(job.file, { printer: name, copies: job.copies, media: job.media || cfg.media, options });
   if (!result.ok) {
     job.status = 'failed';
     job.error = result.error;
     console.error(`  ✗ print failed for job ${job.id.slice(0, 8)} on ${name}: ${result.error}`);
-  } else {
-    job.status = 'queued';
-    job.printer = name;
-    job.cupsJobId = result.jobId;
-    job.printedAt = Date.now();
-    console.log(`  → queued job ${job.id.slice(0, 8)} on ${name}${result.jobId ? ` (CUPS ${result.jobId})` : ''}`);
+    return;
   }
-  return job;
+  job.status = 'printing';
+  job.printer = name;
+  job.cupsJobId = result.jobId;
+  job.printedAt = Date.now();
+  job.seenActive = false;
+  console.log(`  → printing job ${job.id.slice(0, 8)} on ${name}${result.jobId ? ` (CUPS ${result.jobId})` : ''}`);
+  startPrinterWatch();
+}
+
+/**
+ * Advance the queue: if the printer is free, dispatch the oldest waiting job.
+ * Called on submit, on approval, and whenever a print finishes. In relay mode the
+ * Mac's agent pulls jobs one at a time, so here we just wake it.
+ */
+async function pumpPrinter() {
+  if (MODE === 'relay') { notifyAgents(); return; }
+  if (dispatching) return;
+  if ([...jobs.values()].some((j) => j.status === 'printing')) return; // one at a time
+  const next = [...jobs.values()]
+    .filter((j) => j.status === 'pending')
+    .sort((a, b) => a.createdAt - b.createdAt)[0];
+  if (!next) return;
+
+  dispatching = true;
+  try {
+    await dispatchToPrinter(next);
+  } finally {
+    dispatching = false;
+  }
+  if (next.status === 'failed') await pumpPrinter(); // that one couldn't go — try the next
+}
+
+/** Poll CUPS until the job on the printer leaves the active list, then advance. */
+function startPrinterWatch() {
+  if (printerWatch || DRY_RUN) return;
+  printerWatch = setInterval(async () => {
+    const job = [...jobs.values()].find((j) => j.status === 'printing');
+    if (!job) { clearInterval(printerWatch); printerWatch = null; return; }
+    if (Date.now() - (job.printedAt || 0) > MAX_PRINT_MS) { completeJob(job); return; } // never wait forever
+    try {
+      const active = await cups.listJobs(); // lpstat -o — jobs not yet finished
+      const present = Boolean(job.cupsJobId) && active.some((j) => j.id === job.cupsJobId);
+      if (present) {
+        job.seenActive = true;
+      } else if (job.seenActive || Date.now() - (job.printedAt || 0) > 8000) {
+        // Gone from the active list → CUPS finished it. Only trust the absence
+        // once we've seen it there, or after a grace period, so a just-submitted
+        // job is never called "done" before CUPS registers it.
+        completeJob(job);
+      }
+    } catch { /* transient lpstat hiccup — try again next tick */ }
+  }, 2000);
+  if (printerWatch.unref) printerWatch.unref();
 }
 
 function imageUrl(job) {
   return `/prints/${path.basename(job.file)}?t=${job.token}`;
 }
 
-// A job still occupies the printer while it is waiting to print or physically
-// printing. A 'queued' job has been handed to the printer and prints for about
-// PRINT_MS; after that it has dropped off the line. Anything failed or rejected
-// never counts.
-function jobOccupying(job, now) {
-  switch (job.status) {
-    case 'awaiting-approval':
-    case 'pending':
-    case 'claimed':
-    case 'printing':
-      return true;
-    case 'queued':
-      return now - (job.printedAt || job.createdAt) < PRINT_MS;
-    default:
-      return false;
-  }
-}
-
-// A virtual FIFO schedule of the printer: one print at a time, PRINT_MS each.
-// Returns the occupying jobs (oldest first) and a map of job id → epoch ms when
-// that job finishes printing. A job already handed to the printer runs from when
-// it started; one still waiting starts as soon as the printer is next free.
+// The FIFO schedule over the jobs actually in the queue right now — the one on the
+// printer plus everything waiting behind it (real state, not a stopwatch). Returns
+// those jobs oldest-first and a map of job id → epoch ms it will finish printing.
+// The job on the printer is anchored to when it really started (so its remaining
+// time counts down for real); each waiting job takes one avgPrintMs slot after.
 function printSchedule(now) {
   const active = [...jobs.values()]
-    .filter((job) => jobOccupying(job, now))
+    .filter((job) => ACTIVE.has(job.status))
     .sort((a, b) => a.createdAt - b.createdAt);
   const finishAt = new Map();
   let free = now;
-  active.forEach((job, i) => {
-    // Only the job at the head of the line is actually on the printer, so it is
-    // anchored to when it started (accounting for time already elapsed). Every
-    // other job — even ones already handed to CUPS — physically prints in turn,
-    // starting when the printer next frees up.
-    const onPrinter = i === 0 && (job.status === 'queued' || job.status === 'printing') && job.printedAt;
-    const start = onPrinter ? job.printedAt : Math.max(free, now);
-    const end = start + PRINT_MS;
-    free = Math.max(free, end);
+  for (const job of active) {
+    const end = ON_PRINTER.has(job.status) && jobStartedAt(job)
+      ? Math.max(jobStartedAt(job) + avgPrintMs, now) // on the printer: real elapsed counted
+      : Math.max(free, now) + avgPrintMs; // waits for the printer, then its slot
     finishAt.set(job.id, end);
-  });
+    free = Math.max(free, end);
+  }
   return { active, finishAt };
 }
 
-// The guest-facing queue standing of one job: its place in line (1 = next) and
-// roughly how long until it prints. null once the job is done, failed, rejected,
-// or has finished its print window.
+// The guest-facing queue standing of one job: its real place in line (1 = on the
+// printer / next) and how long until it prints, from the learned print speed. null
+// once the job is done, failed, or rejected.
 function queueInfo(job, now = Date.now()) {
-  if (!jobOccupying(job, now)) return null;
+  if (!ACTIVE.has(job.status)) return null;
   const { active, finishAt } = printSchedule(now);
   const idx = active.findIndex((j) => j.id === job.id);
   if (idx < 0) return null;
@@ -475,6 +516,7 @@ function queueInfo(job, now = Date.now()) {
     total: active.length,
     etaSeconds: Math.max(0, Math.round((readyAt - now) / 1000)),
     readyAt,
+    printing: ON_PRINTER.has(job.status),
   };
 }
 
@@ -494,7 +536,9 @@ function publicJob(job) {
   };
 }
 
-/** Oldest job an agent may take, requeueing anything a dead agent claimed. */
+/** Oldest job an agent may take, requeueing anything a dead agent claimed. Only
+ *  one job is ever in flight — nothing new is handed out while one is claimed, so
+ *  the Mac prints one at a time and the queue drains in order. */
 function nextClaimableJob() {
   const now = Date.now();
   const ordered = [...jobs.values()].sort((a, b) => a.createdAt - b.createdAt);
@@ -503,9 +547,9 @@ function nextClaimableJob() {
       job.status = 'pending';
       job.error = null;
     }
-    if (job.status === 'pending') return job;
   }
-  return null;
+  if (ordered.some((job) => job.status === 'claimed')) return null; // one in flight already
+  return ordered.find((job) => job.status === 'pending') || null;
 }
 
 // ---------------------------------------------------------------- agent API
@@ -580,14 +624,14 @@ async function handleAgentApi(req, res, url) {
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
 
     if (body.ok) {
-      job.status = 'queued';
       job.cupsJobId = body.cupsJobId ? String(body.cupsJobId).slice(0, 120) : null;
       job.printer = body.printer ? String(body.printer).slice(0, 128) : job.printer;
-      job.printedAt = Date.now();
       job.error = null;
+      completeJob(job); // marks done, learns the duration, and releases the next job
     } else {
       job.status = 'failed';
       job.error = String(body.error || 'The booth printer refused the job.').slice(0, 300);
+      notifyAgents(); // let the agent pick up the next one
     }
     return sendJson(res, 200, { ok: true, job: publicJob(job) });
   }
@@ -753,7 +797,7 @@ async function handleApi(req, res, url) {
     jobs.set(id, job);
     while (jobs.size > MAX_JOB_HISTORY) jobs.delete(jobs.keys().next().value);
 
-    if (!cfg.requireApproval) await sendToQueue(job);
+    if (!cfg.requireApproval) await pumpPrinter();
 
     const status = job.status === 'failed' ? 502 : 200;
     return sendJson(res, status, { ok: job.status !== 'failed', job: publicJob(job) });
@@ -764,7 +808,12 @@ async function handleApi(req, res, url) {
     const { id } = await readJson(req);
     const job = jobs.get(id);
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
-    await sendToQueue(job);
+    if (ACTIVE.has(job.status) && job.status !== 'awaiting-approval') {
+      return sendJson(res, 200, { ok: true, job: publicJob(job) }); // already queued
+    }
+    job.status = 'pending'; // release it into the queue
+    job.error = null;
+    await pumpPrinter();
     return sendJson(res, job.status === 'failed' ? 502 : 200, { ok: job.status !== 'failed', job: publicJob(job) });
   }
 

@@ -965,11 +965,22 @@ function showJob(job) {
       busy: true,
     });
   }
-  if (WAITING.includes(job.status)) {
+  if (job.status === 'pending') {
     return showResult({
-      emoji: '📡',
-      title: 'Sending it to the booth',
-      body: 'The printer is picking up your photos now.',
+      emoji: '⏳',
+      title: 'In the queue',
+      body: 'Your print is lined up — hang tight.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (job.status === 'printing' || job.status === 'claimed') {
+    return showResult({
+      emoji: '🖨️',
+      title: session.dryRun ? 'Printing (dry run)' : 'Printing now!',
+      body: session.dryRun
+        ? 'Dry-run mode — nothing is sent to a real printer.'
+        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} coming out now. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
       image: job.image,
       busy: true,
     });
@@ -990,12 +1001,13 @@ function showJob(job) {
       image: job.image,
     });
   }
+  // 'done' (or the legacy 'queued'): the print has finished.
   return showResult({
     emoji: '🎉',
-    title: session.dryRun ? 'Saved (dry run)' : 'Printing now!',
+    title: session.dryRun ? 'Saved (dry run)' : 'All done!',
     body: session.dryRun
       ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
-      : `${job.copies} ${job.copies === 1 ? 'copy' : 'copies'} on the way${job.cupsJobId ? ` · job ${job.cupsJobId}` : ''}. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
+      : `Your ${job.copies === 1 ? 'print is' : 'prints are'} ready — ${session.remote ? 'collect it from the booth.' : 'grab it from the tray.'}`,
     image: job.image,
   });
 }
@@ -1018,10 +1030,6 @@ async function trackJob(job) {
   }
 }
 
-// Statuses where a live queue standing (position + ETA) makes sense: the print
-// is on its way to the printer, not awaiting the host, failed, or rejected.
-const QUEUEABLE = ['pending', 'claimed', 'printing', 'queued'];
-
 function clearQueueTimers() {
   if (queuePoll) { clearInterval(queuePoll); queuePoll = null; }
   if (queueTick) { clearInterval(queueTick); queueTick = null; }
@@ -1035,10 +1043,10 @@ function etaText(seconds) {
   return `in about ${mins} minute${mins === 1 ? '' : 's'}`;
 }
 
-/** True while the job is still meaningfully waiting to print (worth a countdown). */
+/** True while the job is waiting behind others (worth the numbered queue screen).
+ *  Once it reaches the printer ('printing'), we switch to the "Printing now" flow. */
 function stillWaiting(job) {
-  const q = job.queue;
-  return Boolean(q && QUEUEABLE.includes(job.status) && q.readyAt && q.readyAt - Date.now() > 5000);
+  return job.status === 'pending' && Boolean(job.queue);
 }
 
 /** "You're number X in the queue. Ready in about Y." — recomputed live from

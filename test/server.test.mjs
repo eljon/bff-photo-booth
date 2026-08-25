@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { startServer, makePng } from './helpers.mjs';
+import { startServer, makePng, until } from './helpers.mjs';
 
 test('serves the guest app and its session settings', async (t) => {
   const booth = await startServer();
@@ -30,7 +30,7 @@ test('accepts a composed print and writes it to the prints folder', async (t) =>
 
   assert.equal(response.status, 200);
   assert.equal(data.ok, true);
-  assert.equal(data.job.status, 'queued');
+  assert.equal(data.job.status, 'printing'); // first job goes straight onto the printer
   assert.equal(data.job.copies, 2);
   assert.equal(data.job.layout, 'strip');
   assert.equal(data.job.guest, 'Sam');
@@ -58,7 +58,10 @@ test('reports a live queue position and ETA for each print', async (t) => {
   const b = await submit();
   const c = await submit();
 
-  // Each print lines up behind the ones before it, 30s apart.
+  // The first is on the printer; the rest wait behind it, one 30s slot apart.
+  assert.equal(a.job.status, 'printing');
+  assert.equal(b.job.status, 'pending');
+  assert.equal(c.job.status, 'pending');
   assert.equal(a.job.queue.position, 1);
   assert.equal(b.job.queue.position, 2);
   assert.equal(c.job.queue.position, 3);
@@ -130,7 +133,33 @@ test('holds prints for the host when approval is required', async (t) => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ id: queued.job.id }),
   })).json();
-  assert.equal(approved.job.status, 'queued');
+  assert.equal(approved.job.status, 'printing'); // released to the printer on approval
+});
+
+test('holds jobs in the server and releases the next only when the print finishes', async (t) => {
+  const booth = await startServer({ DRY_PRINT_MS: '250' }); // each print "takes" 250ms
+  t.after(() => booth.close());
+
+  const submit = () => fetch(`${booth.base}/api/print?layout=grid`, {
+    method: 'POST',
+    headers: { 'content-type': 'image/png' },
+    body: makePng(),
+  }).then((r) => r.json());
+  const poll = (id) => fetch(`${booth.base}/api/job?id=${id}`).then((r) => r.json()).then((d) => d.job);
+
+  const a = await submit();
+  const b = await submit();
+  assert.equal(a.job.status, 'printing'); // a is on the printer
+  assert.equal(b.job.status, 'pending');  // b waits — NOT sent to the printer yet
+  assert.equal(b.job.queue.position, 2);
+
+  // Once a finishes, b is released and moves onto the printer (position 1).
+  const bPrinting = await until(async () => {
+    const j = await poll(b.job.id);
+    return j.status === 'printing' ? j : null;
+  });
+  assert.equal(bPrinting.queue.position, 1);
+  assert.equal((await poll(a.job.id)).status, 'done'); // a really completed
 });
 
 test('refuses prints when the host switches printing off', async (t) => {

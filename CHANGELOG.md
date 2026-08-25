@@ -15,6 +15,28 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.34.0 — 2026-08-25
+
+**A real print queue, held by the server — one job at a time.**
+
+- The booth no longer dumps every print straight into CUPS. Jobs now wait in the
+  server as `pending` and are dispatched to the printer **one at a time**; the
+  next is released only once the printer reports the current job actually
+  finished. So a guest's "You're number X in the queue" is now the *real*
+  position — the job at #1 is genuinely on the printer — not an estimate from the
+  time since the last print.
+- The server detects completion for real by polling CUPS (`lpstat -o`): when the
+  current job leaves the active list, it's done and the next goes out. A stuck job
+  is force-completed after 5 minutes so the line never wedges.
+- ETAs are learned: the booth measures how long real prints take and averages
+  them, so the "ready in about Y" estimate tracks this printer's actual speed
+  (seeded at 30s). The guest screen updates live — position from the real queue,
+  countdown every second — and flips to "Printing now!" the moment the job
+  reaches the printer, then "All done!" when it finishes.
+- Only ever one job sits in CUPS, so a paper jam or pause no longer strands a
+  pile of jobs in the printer's own spool — and the "couldn't queue while busy"
+  class of failure is gone entirely.
+
 ## 1.33.2 — 2026-08-25
 
 **Fix: couldn't queue a job while the printer was busy ("unknown printer").**
