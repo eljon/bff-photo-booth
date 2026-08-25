@@ -712,6 +712,18 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { dryRun: false, agentOnline: true, cupsAvailable, printers, default: cfg.printer || fallback, error });
   }
 
+  // The page sizes a printer really supports, so the host can pick the exact
+  // borderless size the driver exposes (its name varies by driver, so we read it
+  // rather than guess). Booth mode only — a relay printer lives on the Mac.
+  if (url.pathname === '/api/media' && req.method === 'GET') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    if (MODE === 'relay' || DRY_RUN) return sendJson(res, 200, { printer: null, options: [], error: null });
+    const requested = (url.searchParams.get('printer') || '').slice(0, 128) || null;
+    const { name } = await resolvePrinter(requested);
+    const { options, error } = name ? await cups.mediaOptions(name) : { options: [], error: 'no printer' };
+    return sendJson(res, 200, { printer: name, options, error });
+  }
+
   if (url.pathname === '/api/queue' && req.method === 'GET') {
     if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const cupsJobs = MODE === 'relay' || DRY_RUN ? [] : await cups.listJobs();

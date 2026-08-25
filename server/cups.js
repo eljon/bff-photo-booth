@@ -119,6 +119,39 @@ async function print(file, { printer, copies = 1, media, options = {} } = {}) {
   return { ok: true, jobId: m ? m[1] : null, stdout: res.stdout.trim(), args };
 }
 
+/** Does a CUPS media/PageSize id name a borderless (full-bleed) size? Drivers spell
+ *  it many ways: 4x6.FullBleed, 4x6.bl, om_borderless…, w288h432.fb, "borderless". */
+function isBorderlessMedia(id) {
+  return /border|frameless|full.?bleed|\bfb\b|(?:^|[._-])bl(?:$|[._-])/i.test(String(id || ''));
+}
+
+/**
+ * Parse `lpoptions -p PRINTER -l` output for the PageSize choices the driver
+ * exposes. Each option line is "Keyword/Label: a b *default c" — the "*" marks the
+ * current default, and each token is a machine id we can pass straight to `lp`.
+ */
+function parseMediaOptions(stdout) {
+  for (const line of (stdout || '').split('\n')) {
+    const m = line.match(/^PageSize\/[^:]*:\s*(.+)$/);
+    if (!m) continue;
+    return m[1]
+      .trim()
+      .split(/\s+/)
+      .map((tok) => ({ id: tok.replace(/^\*/, ''), isDefault: tok.startsWith('*') }))
+      .filter((o) => o.id)
+      .map((o) => ({ ...o, borderless: isBorderlessMedia(o.id) }));
+  }
+  return [];
+}
+
+/** The page sizes a printer supports, borderless variants flagged. */
+async function mediaOptions(printer) {
+  if (!printer) return { options: [], error: 'no printer' };
+  const res = await run('lpoptions', ['-p', printer, '-l']);
+  if (!res.ok && !res.stdout) return { options: [], error: (res.stderr || res.error || 'lpoptions failed').trim() };
+  return { options: parseMediaOptions(res.stdout), error: null };
+}
+
 /**
  * Options for `lp`. Borderless fills the sheet edge-to-edge via the standard IPP
  * `print-scaling=fill` — the portable CUPS way to drop the printer's white margin
@@ -137,4 +170,7 @@ async function cancel(jobId) {
   return { ok: res.ok, error: res.ok ? null : (res.stderr || res.error || '').trim() };
 }
 
-module.exports = { available, listPrinters, parsePrinters, listJobs, print, buildPrintOptions, cancel, run };
+module.exports = {
+  available, listPrinters, parsePrinters, listJobs, print,
+  buildPrintOptions, mediaOptions, parseMediaOptions, isBorderlessMedia, cancel, run,
+};

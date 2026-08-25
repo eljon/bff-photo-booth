@@ -33,6 +33,28 @@ test('borderless prints fill the sheet; otherwise fit-to-page applies', () => {
   assert.equal(plain['fit-to-page'], undefined);
 });
 
+test('flags borderless page sizes across the many driver spellings', () => {
+  for (const id of ['4x6.FullBleed', '4x6.bl', 'om_borderless-4x6_4x6in', 'w288h432.fb', '4x6 Borderless', 'Frameless_4x6']) {
+    assert.equal(cups.isBorderlessMedia(id), true, `${id} should be borderless`);
+  }
+  for (const id of ['4x6', 'Custom.4x6in', 'Letter', 'A4', 'w288h432']) {
+    assert.equal(cups.isBorderlessMedia(id), false, `${id} should NOT be borderless`);
+  }
+});
+
+test('reads a printer\'s page sizes from lpoptions output, marking default + borderless', () => {
+  const out = [
+    'PageSize/Media Size: Letter Legal A4 4x6 *4x6.FullBleed 5x7',
+    'ColorModel/Color Mode: *RGB Gray',
+  ].join('\n');
+  const opts = cups.parseMediaOptions(out);
+  assert.deepEqual(opts.map((o) => o.id), ['Letter', 'Legal', 'A4', '4x6', '4x6.FullBleed', '5x7']);
+  const fb = opts.find((o) => o.id === '4x6.FullBleed');
+  assert.equal(fb.isDefault, true);
+  assert.equal(fb.borderless, true);
+  assert.equal(opts.find((o) => o.id === '4x6').borderless, false);
+});
+
 test('parses idle, printing, and disabled printers together', () => {
   const out = [
     'printer A is idle.  enabled since Sun Aug 24 10:00:00 2025',

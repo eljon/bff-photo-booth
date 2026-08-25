@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.35.2 — 2026-08-25
+
+**Borderless for real: pick the printer's own borderless size.**
+
+- `print-scaling=fill` alone doesn't drop a printer's hardware margins — borderless
+  needs a full-bleed *page size*, and its name differs by driver. The host's Paper
+  dropdown now lists the sizes the selected printer actually reports (read from
+  `lpoptions`), with borderless variants flagged " — borderless". Pick the
+  borderless 4×6 your printer offers (e.g. `4x6.FullBleed`) and, with the
+  Borderless toggle on, prints go edge-to-edge.
+- When a saved size is no longer offered, the host auto-selects a borderless 4×6
+  if the driver has one. Dry-run/relay booths keep the built-in size list.
+
 ## 1.35.1 — 2026-08-25
 
 **Keep the booth up: a stray error can't take the guest app offline.**

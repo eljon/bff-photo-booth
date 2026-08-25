@@ -151,6 +151,37 @@ async function loadPrinters() {
       : `Default destination: ${data.default || 'none'}.`;
 }
 
+/** Populate the Paper dropdown with the page sizes the selected printer actually
+ *  supports, so a borderless (full-bleed) size can be chosen by name. Falls back to
+ *  the static list when the driver list is unavailable (dry run, relay, no printer). */
+async function loadMedia() {
+  const printer = $('printerPick').value || '';
+  let options = [];
+  try {
+    options = (await (await api(`/api/media?printer=${encodeURIComponent(printer)}`)).json()).options || [];
+  } catch {
+    return;
+  }
+  if (!options.length) return; // keep the curated static list
+
+  const want = config.media;
+  const sel = $('mediaPick');
+  sel.innerHTML = '';
+  for (const option of options) {
+    const el = document.createElement('option');
+    el.value = option.id;
+    el.textContent = option.id + (option.borderless ? ' — borderless' : '') + (option.isDefault ? ' (default)' : '');
+    sel.appendChild(el);
+  }
+  if ([...sel.options].some((o) => o.value === want)) {
+    sel.value = want; // keep the saved choice if the driver still offers it
+  } else {
+    // Prefer a borderless 4×6, else the driver's default, so borderless works out of the box.
+    const bl = options.find((o) => o.borderless && /4.?x.?6|6.?x.?4|kg|postcard|10.?15|15.?10/i.test(o.id));
+    sel.value = (bl || options.find((o) => o.isDefault) || options[0]).id;
+  }
+}
+
 function jobCard(job, actions) {
   const card = document.createElement('div');
   card.className = 'job';
@@ -302,8 +333,11 @@ function bind() {
     });
     await loadConfig();
     await loadPrinters();
+    await loadMedia();
     toast('Saved.');
   });
+
+  $('printerPick').addEventListener('change', () => { loadMedia(); });
 }
 
 function start() {
@@ -316,6 +350,7 @@ bind();
 try {
   await loadConfig();
   await loadPrinters();
+  await loadMedia();
   start();
 } catch {
   askForToken();
