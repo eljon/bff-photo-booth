@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.30.3 — 2026-08-25
+
+**Pinch-zoom the print and it casts a lifting shadow.**
+
+- As you pinch the paper larger, it now drops a shadow that grows, softens, and
+  fades the further it rises from its resting spot in the deck — the way a real
+  object's shadow spreads as it moves off the surface. At rest the shadow is
+  small and tight; zoomed in it is large and diffuse. It eases away when the
+  paper springs back.
+
 ## 1.30.2 — 2026-08-25
 
 **Coverflow bounces at the ends, like an iOS list.**

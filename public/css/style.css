@@ -144,7 +144,7 @@ body {
    without disturbing the card's coverflow position. */
 .cf-paper {
   transform-origin: center center;
-  will-change: transform;
+  will-change: transform, filter;
 }
 /* While a pinch is zooming the paper, let it spill past the deck and above the
    label, and drop the reflections so the focus is the enlarged print. */

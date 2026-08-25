@@ -421,14 +421,29 @@ function centrePaper() {
   return card ? card.querySelector('.cf-paper') : null;
 }
 
+/** The drop shadow for a paper lifted to `scale` off its resting spot: the
+ *  further it rises, the bigger, softer, and fainter the shadow — like a real
+ *  object moving away from the surface. Screen-space values are divided by scale
+ *  because the shadow rides the same transform that enlarges the paper. */
+function paperShadow(scale) {
+  const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom
+  const dy = (4 + lift * 48) / scale;    // drops further as it rises
+  const blur = (10 + lift * 84) / scale; // bigger and more diffused
+  const alpha = 0.32 - lift * 0.14;      // softer as it spreads out
+  return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
+}
+
 /** Drop the peek: spring the paper back to its resting size and tidy up. */
 function endPeek(paper) {
   const cf = $('coverflow');
-  paper.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)';
+  const ease = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+  paper.style.transition = `transform 0.28s ${ease}, filter 0.28s ${ease}`;
   paper.style.transform = '';
+  paper.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
   clearTimeout(manip && manip.timer);
   const done = () => {
     paper.style.transition = '';
+    paper.style.filter = '';
     cf.classList.remove('cf-peeking');
   };
   // Give the spring time to land, then remove the "peeking" chrome.
@@ -461,6 +476,7 @@ function bindCoverflow() {
     if (!paper) return;
     const [a, b] = [...pointers.values()];
     paper.style.transition = ''; // follow the fingers with no lag
+    paper.style.filter = paperShadow(1); // a grounded shadow to start
     cf.classList.add('cf-peeking'); // let the enlarged paper spill past the deck
     manip = {
       paper,
@@ -485,6 +501,7 @@ function bindCoverflow() {
     const tx = midX - manip.baseMidX;
     const ty = midY - manip.baseMidY;
     manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
+    manip.paper.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
   };
 
   const endManip = () => {
