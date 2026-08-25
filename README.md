@@ -157,14 +157,13 @@ shell), and each phone is limited to 30 prints per 10 minutes.
 2. **Pick 4 photos** — the button sits on the preview itself. One tap opens the
    camera roll and takes all four in a single selection.
 3. **Swipe to choose a design.** Once all four are in, the preview becomes a
-   coverflow: each photo can be the big hero (placed on top or on the side,
+   large coverflow: each photo can be the big hero (placed on top or on the side,
    whichever fits it), plus an even 2 × 2 with no hero. Flick or tap a side card
-   — the centred design is what saves, prints, and shares.
-4. Tap any photo below to **crop** (drag to move, pinch or slide to zoom),
-   **rotate**, **replace**, **remove** or reorder.
-5. **Print** → an upload bar, then live status until the printer takes it.
+   — the centred design is what saves, prints, and shares. **Swap all 4 photos**
+   re-picks the set.
+4. **Print** → an upload bar, then live status until the printer takes it.
    **Save** opens the share sheet, where *Save Image* puts it in the Photos app.
-6. **Facebook** hands the photo to the installed Facebook app (where the guest is
+5. **Facebook** hands the photo to the installed Facebook app (where the guest is
    already signed in) via the phone's share sheet — tapping Facebook there opens
    the app's post screen with the photo attached and `#bff2026` pre-filled, and
    the guest types their own words first. (A website can't jump straight into the

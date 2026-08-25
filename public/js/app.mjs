@@ -161,12 +161,10 @@ function renderAll() {
   } else {
     const layout = resolveLayout(state);
     composePage($('preview'), state, previewScale(layout));
-    $('paperNote').textContent = layout.paper;
   }
   $('printBtn').disabled = !full || !session.printingEnabled;
   $('saveBtn').disabled = !full;
   $('fbBtn').disabled = !full;
-  renderSlots();
   warmPrint();
 }
 
@@ -198,17 +196,9 @@ function updatePickButton() {
   const full = missing === 0;
   const button = $('addAll');
   const label = $('pickLabel');
-  const hint = $('pickHint');
 
-  if (missing === 4) {
-    label.textContent = 'Pick 4 photos';
-    hint.textContent = 'One tap opens your camera roll — select all four there, then hit Done.';
-  } else if (missing > 0) {
-    label.textContent = `Add ${missing} more`;
-    hint.textContent = 'Pick them all at once — they drop into the empty slots in order.';
-  } else {
-    hint.textContent = 'Swipe the designs to pick a look. Then save or print.';
-  }
+  if (missing === 4) label.textContent = 'Pick 4 photos';
+  else if (missing > 0) label.textContent = `Add ${missing} more`;
 
   button.classList.toggle('btn-primary', missing > 0);
   button.classList.toggle('btn-ghost', missing === 0);
@@ -219,11 +209,6 @@ function updatePickButton() {
   $('coverflow').classList.toggle('hidden', !full);
   $('cfLabel').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
-
-  // Nothing to tap yet — no empty grid, no crop hint, just the one button.
-  const empty = missing === 4;
-  $('slots').classList.toggle('hidden', empty);
-  $('editHint').classList.toggle('hidden', empty);
 }
 
 // ---------------------------------------------------------------- coverflow
@@ -272,7 +257,7 @@ function positionCards() {
   });
 }
 
-/** The centred card changed — update the label, paper note, and warmed print. */
+/** The centred card changed — update the label and the warmed print. */
 function setCurrent(index) {
   const i = clampPos(index);
   if (i === cfIndex || !cfDesigns[i]) return;
@@ -281,7 +266,6 @@ function setCurrent(index) {
   state.designKey = d.key;
   $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
   $('cfCount').textContent = `${i + 1} / ${cfDesigns.length}`;
-  $('paperNote').textContent = d.paper;
   lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
   printGeneration += 1;
   // Never warm mid-gesture: exportPrint is a heavy 300 DPI render that would
@@ -334,9 +318,9 @@ function rebuildCoverflow() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
-  // sheet fits by width, a portrait sheet by height.
-  const boxH = Math.min(window.innerHeight * 0.4, 340);
-  const boxW = Math.min(window.innerWidth * 0.66, 320);
+  // sheet fits by width, a portrait sheet by height. Big box → big photos.
+  const boxH = Math.min(window.innerHeight * 0.52, 500);
+  const boxW = Math.min(window.innerWidth * 0.86, 420);
 
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');
@@ -959,7 +943,6 @@ async function loadSession() {
   $('boothName').textContent = session.boothName;
   document.title = session.boothName;
   $('version').textContent = session.version ? `v${session.version}` : '';
-  if (session.message) $('boothMessage').textContent = session.message;
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
   if (session.keyRequired && !accessKey) {

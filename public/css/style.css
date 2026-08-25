@@ -77,8 +77,8 @@ body {
 .coverflow {
   position: relative;
   width: 100%;
-  height: 46vh;
-  max-height: 420px;
+  height: 58vh;
+  max-height: 540px;
   display: flex;
   align-items: center;
   justify-content: center;

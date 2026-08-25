@@ -16,7 +16,6 @@
 <div class="app">
   <header class="topbar">
     <h1 id="boothName">Photo Booth</h1>
-    <p id="boothMessage">Pick 4 photos. Take it home.</p>
   </header>
 
   <section class="stage" aria-label="Print preview">
@@ -34,16 +33,10 @@
     </div>
 
     <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
-    <p class="paper-note"><span id="paperNote">4×6 print</span></p>
   </section>
 
   <section class="pick">
-    <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done. The first one becomes the big photo.</p>
-
     <button class="btn btn-ghost wide hidden" id="swapAll" type="button">Swap all 4 photos</button>
-
-    <div class="slots hidden" id="slots"></div>
-    <p class="hint hidden" id="editHint">Swipe the designs above to choose one. Tap any photo below to crop or reorder it.</p>
     <p class="hint problem hidden" id="printProblem"></p>
   </section>
 

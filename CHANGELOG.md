@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.25.0 — 2026-08-25
+
+**Bigger photos: stripped the chrome around the coverflow.**
+
+- Removed the welcome tagline, the paper-size line ("4×6 portrait"), the
+  "one tap opens your camera roll" hint, and the thumbnail editor row at the
+  bottom — clearing the space around the photo.
+- Enlarged the coverflow with that space so portrait and landscape designs both
+  render noticeably bigger. "Swap all 4 photos" re-picks the set.
+
 ## 1.24.0 — 2026-08-25
 
 **Coverflow: a smooth, cover-flow-style hand-off — no more pop.**
