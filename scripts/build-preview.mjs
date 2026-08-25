@@ -27,6 +27,9 @@ const OUT = outIdx >= 0 ? args[outIdx + 1] : path.join(ROOT, '_site', 'index.htm
 
 const read = (rel) => readFile(path.join(PUB, rel), 'utf8');
 
+// Show the real app version on the preview (the footer reads session.version).
+const { version: VERSION } = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
+
 // Strip cross-module imports and the `export ` keyword so all four files share a
 // single module scope when concatenated. Dependencies must come first.
 function strip(src) {
@@ -49,7 +52,7 @@ for (const f of moduleFiles) modules.push(`\n/* ===== ${f} ===== */\n` + strip(a
 // designs, the reflections, save, Facebook share) runs entirely client-side.
 const shim = `
 const __PREVIEW_SESSION = {
-  version: 'preview', boothName: 'BFF Photo Booth',
+  version: ${JSON.stringify(VERSION)}, boothName: 'BFF Photo Booth',
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
   printingEnabled: false, requireApproval: false, keyRequired: false,

@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.30.1 — 2026-08-25
+
+**The Pages preview shows the real version number.**
+
+- The preview footer read "vpreview"; the build now injects the actual
+  `package.json` version into the offline session shim, so the live preview
+  shows the version it was built from (e.g. `v1.30.1`).
+
 ## 1.30.0 — 2026-08-25
 
 **Pinch zooms the whole print, to look at it up close.**
