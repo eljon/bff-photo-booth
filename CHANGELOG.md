@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.21.1 — 2026-08-25
+
+**Coverflow: the centre photo stays on top through the swipe.**
+
+- The card at centre keeps the top layer for the whole swipe and only hands it
+  off once the next card snaps to centre. Previously the incoming card jumped in
+  front at the halfway point — a visible pop mid-swipe.
+
 ## 1.21.0 — 2026-08-25
 
 **Share on Facebook.**

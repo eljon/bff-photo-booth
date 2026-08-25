@@ -235,6 +235,7 @@ let cfDesigns = [];
 let cfPos = 0;      // continuous centre position
 let cfIndex = -1;   // the design currently under the centre (drives label + print)
 let cfTarget = 0;   // the card the glide is easing to
+let cfTopIndex = 0; // the card that owns the top layer — the last one settled at centre
 let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
 
@@ -262,7 +263,10 @@ function positionCards() {
     card.style.transform =
       `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
     card.style.opacity = abs > 2.5 ? '0' : String(Math.max(0.28, 1 - abs * 0.28));
-    card.style.zIndex = String(100 - Math.round(abs * 10));
+    // The card that was last settled at centre stays on the top layer for the
+    // whole swipe, so it slides out over the deck; the incoming card only takes
+    // the top once it has snapped to centre — no mid-swipe pop.
+    card.style.zIndex = i === cfTopIndex ? '1000' : String(100 - Math.round(abs * 10));
     card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
   });
 }
@@ -292,6 +296,7 @@ function glideStep() {
   positionCards();
   if (Math.abs(cfTarget - cfPos) < 0.003) {
     cfPos = cfTarget;
+    cfTopIndex = cfTarget; // snapped to centre — hand the top layer to this card
     positionCards();
     setCurrent(cfPos);
     cfRaf = null;
@@ -346,6 +351,7 @@ function rebuildCoverflow() {
   });
 
   cfPos = idx;
+  cfTopIndex = idx; // the shown card owns the top layer
   cfIndex = -1; // force the label to refresh
   setCurrent(idx);
   positionCards();
