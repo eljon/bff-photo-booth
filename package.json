@@ -1,6 +1,6 @@
 {
   "name": "bff-photo-booth",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "private": true,
   "description": "Mobile-first self-shoot photo booth: guests build a 4-photo strip on their phone, it prints from the MacBook running this server.",
   "license": "MIT",
@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server/index.js",
     "guest": "node server/guest.js",
+    "preview": "node scripts/build-preview.mjs --out _site/index.html",
     "tunnel": "node server/index.js --tunnel",
     "relay": "MODE=relay node server/index.js",
     "agent": "node server/agent.js",

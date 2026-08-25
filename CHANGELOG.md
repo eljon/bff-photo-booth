@@ -15,6 +15,23 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.28.0 — 2026-08-25
+
+**Live guest-app preview on GitHub Pages — see the latest, no terminal.**
+
+- A GitHub Actions workflow builds a single self-contained HTML preview of the
+  guest app from the latest source on every push and publishes it to GitHub
+  Pages. Open the newest guest experience — pick photos, the coverflow of
+  designs, the reflections, save/share — from any phone at a stable URL, with no
+  `npm start`, no booth, and nothing to install.
+
+      https://eljon.github.io/bff-photo-booth/
+
+- `scripts/build-preview.mjs` inlines the guest CSS and the four ES modules into
+  one page and shims `/api/*` so it runs offline in save/share mode (printing
+  needs the booth Mac). `npm run preview` builds it locally into `_site/`.
+  Pass `--body` for the claude.ai artifact variant.
+
 ## 1.27.0 — 2026-08-25
 
 **Guest-only booth: `npm run guest`, self-updating, optional host printing.**
