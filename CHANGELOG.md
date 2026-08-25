@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.23.1 — 2026-08-25
+
+**Coverflow: the front photo holds until the next is dead-centre.**
+
+- Tightened the layer hand-off. The incoming card used to take the top layer at
+  ~88% of the way in; now the current photo stays in front until the incoming is
+  right at the centre (where the glide settles), so nothing pops forward early.
+
 ## 1.23.0 — 2026-08-25
 
 **Facebook share goes to the Facebook app, not facebook.com.**

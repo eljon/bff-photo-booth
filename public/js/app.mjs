@@ -252,12 +252,13 @@ function cfSpacing() {
 function positionCards() {
   const cards = [...$('cfTrack').children];
   const spacing = cfSpacing();
-  // The top layer belongs to the last card that reached (nearly) the centre, and
-  // it keeps it until the next card is almost centred — so the current photo
-  // stays on top through the whole swipe and the hand-off happens off-centre,
-  // invisibly. Derived from position (not a settle event) so nothing can clobber it.
+  // The top layer belongs to the card at the centre, and it keeps it until the
+  // NEXT card is right at the centre — not merely near it. So the current photo
+  // stays in front through the whole swipe and the hand-off happens only when the
+  // incoming card is dead-centre (the glide settles exactly on it). Derived from
+  // position, not a settle event, so nothing can clobber it.
   const nearest = Math.round(cfPos);
-  if (Math.abs(cfPos - nearest) < 0.12) cfTopIndex = nearest;
+  if (Math.abs(cfPos - nearest) < 0.02) cfTopIndex = nearest;
   cards.forEach((card, i) => {
     const offset = i - cfPos;
     const abs = Math.abs(offset);
