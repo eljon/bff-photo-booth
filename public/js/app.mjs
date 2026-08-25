@@ -335,9 +335,28 @@ function rebuildCoverflow() {
     const canvas = document.createElement('canvas');
     const dispScale = Math.min(boxH / design.page.h, boxW / design.page.w);
     composePage(canvas, state, dispScale * dpr, design);
-    canvas.style.width = `${Math.round(design.page.w * dispScale)}px`;
-    canvas.style.height = `${Math.round(design.page.h * dispScale)}px`;
+    const w = Math.round(design.page.w * dispScale);
+    const h = Math.round(design.page.h * dispScale);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
     card.appendChild(canvas);
+
+    // Frosted-glass reflection: a vertically-flipped copy of the card, drawn once
+    // here. The CSS blurs and fades it so it reads as a soft, hazy reflection
+    // rather than a crisp mirror. Flipping in the bitmap (not via a CSS transform)
+    // keeps it sitting cleanly below the card in the 3D stack.
+    const mirror = document.createElement('canvas');
+    mirror.className = 'cf-mirror';
+    mirror.width = canvas.width;
+    mirror.height = canvas.height;
+    const mctx = mirror.getContext('2d');
+    mctx.translate(0, mirror.height);
+    mctx.scale(1, -1);
+    mctx.drawImage(canvas, 0, 0);
+    mirror.style.width = `${w}px`;
+    mirror.style.height = `${h}px`;
+    card.appendChild(mirror);
+
     track.appendChild(card);
   });
 

@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.26.5 — 2026-08-25
+
+**Coverflow reflections now read as frosted glass, not a glossy mirror.**
+
+- The reflection was a crisp mirror (`-webkit-box-reflect`), which can't be
+  blurred — so it always looked glossy. Replaced it with a real reflection
+  element: a vertically-flipped copy of each card sitting just below it, blurred
+  (3.5px), faint (22% opacity), and masked to fade out within ~38% of the card
+  height. The result is a soft, short, diffused haze — a frosted-glass surface
+  instead of a hard mirror. It is a child of the card, so it still tilts and
+  recedes in 3D, and it never intercepts taps.
+
 ## 1.26.4 — 2026-08-25
 
 **Bring back the welcome line and the design label.**
