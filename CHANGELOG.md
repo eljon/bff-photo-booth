@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.20.2 — 2026-08-25
+
+**Coverflow: small flicks are responsive now.**
+
+- A flick is detected by release speed, not by how far the finger travelled, so a
+  quick little flick reliably moves and snaps to the next design. A slow drag
+  still settles to the nearest card, and pausing before lifting cancels the flick.
+
 ## 1.20.1 — 2026-08-25
 
 **Coverflow polish: subtler settle, no card border.**

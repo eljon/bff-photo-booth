@@ -384,24 +384,36 @@ function bindCoverflow() {
     if (!dragging || event.pointerId !== pid) return;
     dragging = false;
 
-    if (moved < 6) {
+    // Release speed in card-units per frame. If the finger paused before lifting,
+    // it is not a flick — ignore the now-stale speed.
+    const idle = event.timeStamp - lastT;
+    const v = idle > 60 ? 0 : velMs * 16;
+    const from = Math.round(cfPos);
+    // A quick flick counts even when the finger barely travelled — that is what
+    // makes a small flick feel responsive.
+    const isFlick = Math.abs(v) > 0.012;
+
+    if (!isFlick && moved < 6) {
       // A tap: jump to the card under the finger, or settle to the nearest.
       const card = event.target.closest('.cf-card');
       const i = card ? [...$('cfTrack').children].indexOf(card) : -1;
-      glideTo(i >= 0 ? i : Math.round(cfPos));
+      glideTo(i >= 0 ? i : from);
       return;
     }
 
-    // A drag/flick: the release speed picks the target card (more speed → further),
-    // then it eases there. Even a gentle flick advances at least one card; a hard
-    // one at most two, so it never flies across the whole deck.
-    const from = Math.round(cfPos);
-    const v = Math.max(-0.9, Math.min(0.9, velMs * 16)); // per-frame estimate, capped
-    let target = Math.round(cfPos + v * 4);
-    if (v > 0.04 && target <= from) target = from + 1;
-    if (v < -0.04 && target >= from) target = from - 1;
-    target = Math.max(from - 2, Math.min(from + 2, target));
-    glideTo(target);
+    if (isFlick) {
+      // The release speed picks the target (faster → further); a small flick still
+      // always advances one, a hard one at most two, so it never flies across.
+      const capped = Math.max(-0.9, Math.min(0.9, v));
+      let target = Math.round(cfPos + capped * 5);
+      if (v > 0 && target <= from) target = from + 1;
+      if (v < 0 && target >= from) target = from - 1;
+      target = Math.max(from - 2, Math.min(from + 2, target));
+      glideTo(target);
+    } else {
+      // A slow drag: settle to whichever card is nearest.
+      glideTo(from);
+    }
   };
   cf.addEventListener('pointerup', end);
   cf.addEventListener('pointercancel', end);
