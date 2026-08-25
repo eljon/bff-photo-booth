@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.35.1 — 2026-08-25
+
+**Keep the booth up: a stray error can't take the guest app offline.**
+
+- The queue's "release the next print" step was fire-and-forget; if it ever
+  rejected (a flaky `lpstat`, a printer vanishing mid-job), Node's default is to
+  crash the process — which would take the whole guest app offline until someone
+  restarted the booth. It's now caught and logged.
+- Added process-level guards (`unhandledRejection` / `uncaughtException`) so any
+  stray error is logged and the booth keeps serving, rather than exiting
+  mid-party.
+
 ## 1.35.0 — 2026-08-25
 
 **Borderless 4×6 — on by default.**

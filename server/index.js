@@ -388,7 +388,8 @@ function completeJob(job) {
   job.doneAt = Date.now();
   recordDuration(job.doneAt - (jobStartedAt(job) || job.doneAt));
   console.log(`  ✓ finished job ${job.id.slice(0, 8)}${job.cupsJobId ? ` (CUPS ${job.cupsJobId})` : ''}`);
-  pumpPrinter();
+  // Fire-and-forget: releasing the next job must never crash the booth if it trips.
+  pumpPrinter().catch((err) => console.error('  ⚠ could not release the next print:', err.message));
 }
 
 /** Send one job to the local printer and mark it printing (booth mode). */
@@ -1022,6 +1023,16 @@ server.listen(PORT, HOST, async () => {
         : '  Could not reach the guest link from this Mac. That is usually local DNS catching up;\n  try it on a phone, and give it a minute before worrying.');
     });
   }
+});
+
+// A booth runs unattended through a whole party. A stray error — a flaky lpstat,
+// a printer that vanishes mid-job — must never take the guest app offline, so log
+// it and keep serving rather than letting Node exit on an unhandled rejection.
+process.on('unhandledRejection', (err) => {
+  console.error('  ⚠ unhandled rejection (booth kept running):', err && err.message ? err.message : err);
+});
+process.on('uncaughtException', (err) => {
+  console.error('  ⚠ uncaught exception (booth kept running):', err && err.stack ? err.stack : err);
 });
 
 process.on('SIGINT', () => {
