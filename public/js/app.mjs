@@ -207,6 +207,7 @@ function updatePickButton() {
   // full: the coverflow of designs takes over the stage.
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
+  $('cfLabel').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
 }
 
@@ -269,6 +270,8 @@ function setCurrent(index) {
   cfIndex = i;
   const d = cfDesigns[i];
   state.designKey = d.key;
+  $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
+  $('cfCount').textContent = `${i + 1} / ${cfDesigns.length}`;
   lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
   printGeneration += 1;
   // Never warm mid-gesture: exportPrint is a heavy 300 DPI render that would
@@ -946,6 +949,7 @@ async function loadSession() {
 
   $('boothName').textContent = session.boothName;
   document.title = session.boothName;
+  if (session.message) $('boothMessage').textContent = session.message;
   $('version').textContent = session.version ? `v${session.version}` : '';
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 

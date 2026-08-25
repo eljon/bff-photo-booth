@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.26.4 — 2026-08-25
+
+**Bring back the welcome line and the design label.**
+
+- Restored the welcome tagline under the booth name ("Pick 4 photos. Take it
+  home.", or the booth's configured message) and the "Big #x · … · n / 5" label
+  under the coverflow, both dropped in 1.25.0/1.25.1. The label updates as you
+  swipe between designs.
+
 ## 1.26.3 — 2026-08-25
 
 **Coverflow: every card sits on the same glass line, whatever its shape.**
