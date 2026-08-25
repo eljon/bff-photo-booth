@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.26.1 — 2026-08-25
+
+**Coverflow: narrower landscape card so its side photos show.**
+
+- A landscape (6×4) centre card was wide enough to hide its neighbours. Tightened
+  the width cap (boxW 0.66→0.55 of the screen, cap 340→300) so a landscape design
+  is narrower and the cards beside it are clearly visible. Portrait is unchanged
+  (it is limited by height, not width).
+
 ## 1.26.0 — 2026-08-25
 
 **Coverflow reflections — the cards slide on dark glossy glass.**

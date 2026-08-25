@@ -320,7 +320,8 @@ function rebuildCoverflow() {
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
   const boxH = Math.min(window.innerHeight * 0.37, 350);
-  const boxW = Math.min(window.innerWidth * 0.66, 340);
+  // boxW caps a landscape card's width — keep it tighter so its side photos show.
+  const boxW = Math.min(window.innerWidth * 0.55, 300);
 
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');
