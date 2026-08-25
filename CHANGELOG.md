@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.26.2 — 2026-08-25
+
+**Coverflow: the reflection now touches the card — cards sit on the glass.**
+
+- The mirror had a gap under each card, so the cards looked to float above the
+  glass instead of resting on it. Two causes, both fixed: the card's drop shadow
+  sat under the card and darkened the top of the mirror into a fake gap (removed
+  it — the reflection itself grounds the card), and the `-webkit-box-reflect`
+  fade gradient was mapping upside-down, pushing its opaque part away from the
+  card and leaving the near edge transparent. Flipped the gradient (opaque at the
+  bottom) and set the reflection offset to 0 so the mirror meets the card's bottom
+  edge exactly. Verified in both portrait and landscape.
+
 ## 1.26.1 — 2026-08-25
 
 **Coverflow: narrower landscape card so its side photos show.**

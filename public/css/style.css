@@ -99,14 +99,13 @@ body {
 }
 
 /* Position is driven every frame by JS, so no CSS transition here — it would lag
-   behind and fight the animation. No border or matte: just the photo itself with
-   a soft drop shadow for depth. */
+   behind and fight the animation. No drop shadow: it would sit under the card and
+   darken the top of the reflection, opening a fake gap; the mirror grounds it. */
 .cf-card {
   position: absolute;
   top: 50%;
   left: 50%;
   border-radius: 6px;
-  box-shadow: 0 18px 38px -18px #000;
   will-change: transform, opacity;
   cursor: pointer;
 }
@@ -117,10 +116,10 @@ body {
   display: block;
   border-radius: 6px;
   background: #fff;
-  /* Mirror the photo below itself, faded — the cards look like they slide on
-     dark glossy glass (classic Cover Flow). It transforms with the card, so the
-     reflection tilts and recedes in 3D along with it. */
-  -webkit-box-reflect: below 3px linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.16) 22%, rgba(0, 0, 0, 0) 46%);
+  /* Mirror the photo directly below itself (0 offset → it touches the bottom
+     edge, so the card reads as sitting on glass), faded down — classic Cover
+     Flow. It transforms with the card, tilting and receding in 3D along with it. */
+  -webkit-box-reflect: below 0 linear-gradient(to bottom, rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, 0.3) 78%, rgba(0, 0, 0, 0.66) 100%);
 }
 .cf-label {
   text-align: center;
