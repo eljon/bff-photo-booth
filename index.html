@@ -150,6 +150,20 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
   mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
 }
+/* The paper: a pinch scales/rotates/moves this (a view only), around its centre,
+   without disturbing the card's coverflow position. */
+.cf-paper {
+  transform-origin: center center;
+  will-change: transform;
+}
+/* While a pinch is zooming the paper, let it spill past the deck and above the
+   label, and drop the reflections so the focus is the enlarged print. */
+.coverflow.cf-peeking {
+  overflow: visible;
+  position: relative;
+  z-index: 5;
+}
+.coverflow.cf-peeking .cf-mirror { opacity: 0; }
 .cf-label {
   text-align: center;
   margin: 12px 0 2px;
@@ -473,7 +487,7 @@ body {
     </div>
 
     <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
-    <p class="cf-hint hidden" id="cfHint">Pinch a photo to zoom · drag to move · twist to rotate</p>
+    <p class="cf-hint hidden" id="cfHint">Pinch to zoom in on the print · drag to move · twist to rotate</p>
   </section>
 
   <section class="pick">
@@ -1407,12 +1421,6 @@ function paintCard(card, design) {
   mctx.drawImage(face, 0, 0);
 }
 
-/** Repaint every card from current state — after an edit changes a shared photo. */
-function repaintDeck() {
-  const cards = [...$('cfTrack').children];
-  cards.forEach((card, i) => { if (cfDesigns[i]) paintCard(card, cfDesigns[i]); });
-}
-
 /** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative
  *  to the card so the side photos always peek out beside the centre one. */
 function cfSpacing() {
@@ -1523,12 +1531,16 @@ function rebuildCoverflow() {
     const h = Math.round(design.page.h * dispScale);
     card.dataset.scale = String(dispScale);
 
-    // The design itself (the "face")…
+    // The design itself (the "face"), wrapped in a paper element that a pinch
+    // zooms (a view transform, independent of the card's coverflow position)…
+    const paper = document.createElement('div');
+    paper.className = 'cf-paper';
     const face = document.createElement('canvas');
     face.className = 'cf-face';
     face.style.width = `${w}px`;
     face.style.height = `${h}px`;
-    card.appendChild(face);
+    paper.appendChild(face);
+    card.appendChild(paper);
 
     // …and its frosted-glass reflection: a vertically-flipped copy just below,
     // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
@@ -1550,56 +1562,27 @@ function rebuildCoverflow() {
   positionCards();
 }
 
-// ------------------------------------------------ direct photo manipulation
+// -------------------------------------------------- pinch-to-zoom the paper
 
-/** Map a client point onto the centred card's page coordinates (that card is
- *  un-rotated and unscaled, so the mapping is a plain rect scale). */
-function pageFromClient(card, clientX, clientY, design) {
-  const rect = card.querySelector('canvas.cf-face').getBoundingClientRect();
-  if (!rect.width || !rect.height) return null;
-  return {
-    x: ((clientX - rect.left) / rect.width) * design.page.w,
-    y: ((clientY - rect.top) / rect.height) * design.page.h,
-    pxPerPage: rect.width / design.page.w, // client px per page unit
+/** The `.cf-paper` wrapper of the centred card — the thing a pinch zooms. */
+function centrePaper() {
+  const card = $('cfTrack').children[clampPos(Math.round(cfPos))];
+  return card ? card.querySelector('.cf-paper') : null;
+}
+
+/** Drop the peek: spring the paper back to its resting size and tidy up. */
+function endPeek(paper) {
+  const cf = $('coverflow');
+  paper.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)';
+  paper.style.transform = '';
+  clearTimeout(manip && manip.timer);
+  const done = () => {
+    paper.style.transition = '';
+    cf.classList.remove('cf-peeking');
   };
-}
-
-/** The design cell (and its photo) under a page point — or the biggest filled
- *  cell as a sensible default when the fingers land on a gap. */
-function cellAt(design, x, y) {
-  const hit = design.cells.find((c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h && state.photos[c.photo]);
-  if (hit) return hit;
-  return design.cells
-    .filter((c) => state.photos[c.photo])
-    .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
-}
-
-/** Outline the photo being manipulated on the centred face, as live feedback. */
-function drawEditHighlight(card, cell) {
-  const face = card.querySelector('canvas.cf-face');
-  const s = Number(card.dataset.scale) * DPR;
-  const ctx = face.getContext('2d');
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const x = cell.x * s;
-  const y = cell.y * s;
-  const w = cell.w * s;
-  const h = cell.h * s;
-  ctx.lineWidth = Math.max(2, 3 * DPR);
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 6 * DPR;
-  ctx.strokeRect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth);
-  ctx.restore();
-}
-
-/** Re-render the centred card (and its mirror) mid-gesture, with the outline. */
-function renderCentre() {
-  const i = clampPos(Math.round(cfPos));
-  const card = $('cfTrack').children[i];
-  if (!card || !cfDesigns[i]) return;
-  paintCard(card, cfDesigns[i]);
-  if (manip) drawEditHighlight(card, manip.cell);
+  // Give the spring time to land, then remove the "peeking" chrome.
+  const timer = setTimeout(done, 320);
+  paper.addEventListener('transitionend', () => { clearTimeout(timer); done(); }, { once: true });
 }
 
 function bindCoverflow() {
@@ -1613,38 +1596,31 @@ function bindCoverflow() {
   let lastT = 0;
   let velMs = 0; // smoothed velocity in card-units per millisecond
 
-  // Two fingers on the centred card grab the photo under them and pan/zoom/rotate
-  // it directly. One finger still browses the deck, so there is no gesture clash.
+  // Two fingers on the centred card zoom the whole print (the "paper") so you can
+  // look at it up close — pinch to zoom, drag to move, twist to rotate. It is a
+  // view only: the print itself never changes, and it springs back on release.
+  // One finger still browses the deck, so there is no gesture clash.
   const beginManip = () => {
-    dragging = false; // a browse never becomes a manipulation half-way
+    dragging = false; // a browse never becomes a peek half-way
     swipeId = null;
     stopSpring();
-    cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before editing
+    cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before zooming
     positionCards();
-    const i = clampPos(Math.round(cfPos));
-    const design = cfDesigns[i];
-    const card = $('cfTrack').children[i];
-    if (!design || !card) return;
+    const paper = centrePaper();
+    if (!paper) return;
     const [a, b] = [...pointers.values()];
-    const midX = (a.clientX + b.clientX) / 2;
-    const midY = (a.clientY + b.clientY) / 2;
-    const p = pageFromClient(card, midX, midY, design);
-    if (!p) return;
-    const cell = cellAt(design, p.x, p.y);
-    if (!cell || !state.photos[cell.photo]) return;
+    paper.style.transition = ''; // follow the fingers with no lag
+    cf.classList.add('cf-peeking'); // let the enlarged paper spill past the deck
     manip = {
-      photo: cell.photo,
-      cell,
-      pxPerPage: p.pxPerPage,
+      paper,
       baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
       baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
-      baseMidX: midX,
-      baseMidY: midY,
-      t0: { ...state.photos[cell.photo].transform },
+      baseMidX: (a.clientX + b.clientX) / 2,
+      baseMidY: (a.clientY + b.clientY) / 2,
+      timer: null,
     };
     cfBusy = true;
     clearTimeout(warmTimer);
-    renderCentre();
   };
 
   const updateManip = () => {
@@ -1653,26 +1629,18 @@ function bindCoverflow() {
     const ang = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX);
     const midX = (a.clientX + b.clientX) / 2;
     const midY = (a.clientY + b.clientY) / 2;
-    const { t0, cell, pxPerPage } = manip;
-    const dxPage = (midX - manip.baseMidX) / pxPerPage;
-    const dyPage = (midY - manip.baseMidY) / pxPerPage;
-    const next = {
-      zoom: t0.zoom * (dist / manip.baseDist),
-      rot: t0.rot + ((ang - manip.baseAng) * 180) / Math.PI,
-      dx: t0.dx + dxPage / cell.w,
-      dy: t0.dy + dyPage / cell.h,
-    };
-    state.photos[manip.photo].transform = clampTransform(next, cell.w, cell.h, state.photos[manip.photo].bitmap, cell.fit);
-    renderCentre();
+    const scale = Math.min(3, Math.max(1, dist / manip.baseDist));
+    const rot = ((ang - manip.baseAng) * 180) / Math.PI;
+    const tx = midX - manip.baseMidX;
+    const ty = midY - manip.baseMidY;
+    manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
   };
 
   const endManip = () => {
+    const { paper } = manip;
+    endPeek(paper);
     manip = null;
-    repaintDeck(); // the edited photo is shared — refresh the whole deck, no outline
     cfBusy = false;
-    lastPrintBlob = null; // the crop changed — re-warm Save/Print
-    printGeneration += 1;
-    warmPrint();
   };
 
   cf.addEventListener('pointerdown', (event) => {

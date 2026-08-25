@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.30.0 — 2026-08-25
+
+**Pinch zooms the whole print, to look at it up close.**
+
+- Put two fingers on the centred design and pinch to zoom in on the print (the
+  "paper"), drag to move it, twist to rotate — so you can inspect the finished
+  result. It is a view only: the print itself is unchanged, and it springs back
+  to size when you lift your fingers. One finger still swipes to browse designs.
+- This replaces the earlier per-photo pinch (which cropped an individual photo);
+  the gesture now acts on the whole paper, as intended.
+
 ## 1.29.1 — 2026-08-25
 
 **Fix: the Pages preview showed the README, not the app.**
