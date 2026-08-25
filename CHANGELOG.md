@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.5 — 2026-08-25
+
+**Bolder lift shadow; swipe works from the side pictures again.**
+
+- The size-relative shadow now ramps up fast off zero (a sqrt curve) so it is
+  already bold at a small pinch — much more visible — while still vanishing at
+  rest and fading with the print on release. Screen-space: 0→92 px offset,
+  0→120 px blur, 0→0.95 opacity, front-loaded across the zoom.
+- Fixed a swipe regression from the scroll change: a swipe that started on a side
+  picture did nothing, because cards past the nearest neighbour had
+  pointer-events off. Every VISIBLE card now takes touches, so a swipe can start
+  on any side picture; only the hidden off-stage cards ignore them, leaving the
+  empty margins and the reflection free to scroll.
+
 ## 1.31.4 — 2026-08-25
 
 **The lift shadow tracks the print's size and fades out smoothly.**

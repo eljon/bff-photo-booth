@@ -277,9 +277,11 @@ function positionCards() {
     card.style.transform =
       `translate(-50%, -100%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
     // Fully opaque — no see-through — so the front card cleanly covers the rest.
-    // Cards well off the stage are hidden outright.
+    // Cards well off the stage are hidden outright. Every VISIBLE card takes
+    // touches, so a swipe can start on any side picture (only the hidden,
+    // off-stage cards ignore them, leaving the empty margins free to scroll).
     card.style.opacity = abs > 2.6 ? '0' : '1';
-    card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
+    card.style.pointerEvents = abs > 2.6 ? 'none' : 'auto';
   });
 }
 
@@ -432,9 +434,12 @@ function centrePaper() {
 function paperShadow(scale) {
   const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom (scale 3)
   if (lift <= 0.001) return 'none';
-  const dy = (lift * 96) / scale;    // vertical offset:  0 → 96 px
-  const blur = (lift * 166) / scale; // blur (size):      0 → 166 px
-  const alpha = lift * 0.9;          // opacity/intensity: 0 → 0.90
+  // sqrt ramps the shadow up fast off zero, so it is already bold at a small
+  // pinch, yet still vanishes exactly at rest. Tunable screen-space knobs:
+  const t = Math.sqrt(lift);
+  const dy = (t * 92) / scale;        // vertical offset:  0 → 92 px
+  const blur = (t * 120) / scale;     // blur (size):      0 → 120 px
+  const alpha = t * 0.95;             // opacity/intensity: 0 → 0.95
   return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
 }
 
