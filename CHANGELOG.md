@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.0 — 2026-08-25
+
+**Intro sweep when the designs first appear.**
+
+- The first time the coverflow shows, it now animates: the deck slides
+  right-to-left until the rightmost design is centred, holds a beat, then slides
+  back to settle on the middle design — a quick showcase of the picker. It plays
+  once, and any touch cancels it and hands control straight to you.
+
 ## 1.31.7 — 2026-08-25
 
 **Reflection sits behind the print, never over it.**

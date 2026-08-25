@@ -226,6 +226,8 @@ let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
 let manip = null;   // a two-finger direct-manipulation of one photo in flight
 let peekRaf = null; // the spring-back animation after a pinch is released
+let introRaf = null; // the one-time intro sweep when the deck first appears
+let cfIntroDone = false;
 
 const DPR = Math.min(2, window.devicePixelRatio || 1);
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
@@ -359,9 +361,62 @@ function stopSpring() {
   }
 }
 
+function stopIntro() {
+  if (introRaf != null) {
+    cancelAnimationFrame(introRaf);
+    introRaf = null;
+    cfBusy = false;
+  }
+}
+
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/**
+ * One-time intro: the deck slides right-to-left all the way until the rightmost
+ * design is centred, holds a beat, then slides back to settle on the middle one —
+ * a quick showcase of the coverflow. Interruptible: any touch cancels it.
+ */
+function runIntro(startAt) {
+  const last = cfDesigns.length - 1;
+  const middle = Math.floor(cfDesigns.length / 2);
+  // The sweep: start → rightmost → (hold) → middle. Each leg eases on its own.
+  const legs = [
+    { to: last, dur: 900, ease: easeInOutCubic },
+    { to: last, dur: 180, ease: (t) => t },   // a beat at the far end
+    { to: middle, dur: 680, ease: (t) => 1 - Math.pow(1 - t, 3) },
+  ];
+  let li = 0;
+  let from = startAt;
+  let start = null;
+  cfBusy = true;
+  clearTimeout(warmTimer);
+  cfPos = startAt;
+  setCurrent(Math.round(clampPos(cfPos)));
+  positionCards();
+  const step = (ts) => {
+    if (start === null) start = ts;
+    const leg = legs[li];
+    const k = leg.dur > 0 ? Math.min(1, (ts - start) / leg.dur) : 1;
+    cfPos = from + (leg.to - from) * leg.ease(k);
+    setCurrent(Math.round(clampPos(cfPos)));
+    positionCards();
+    if (k < 1) { introRaf = requestAnimationFrame(step); return; }
+    li += 1;
+    if (li < legs.length) { from = leg.to; start = null; introRaf = requestAnimationFrame(step); return; }
+    cfPos = middle;
+    setCurrent(middle);
+    positionCards();
+    introRaf = null;
+    cfBusy = false;
+    warmPrint();
+  };
+  introRaf = requestAnimationFrame(step);
+}
+
 /** Rebuild the cards from the current photos, keeping the guest's chosen design. */
 function rebuildCoverflow() {
   stopSpring();
+  stopIntro();
   cfBusy = false; // a rebuild is not a gesture — let it warm the print normally
   const base = LAYOUTS[state.layoutId];
   cfDesigns = designVariants(base, state.photos);
@@ -413,8 +468,16 @@ function rebuildCoverflow() {
 
   cfPos = idx;
   cfIndex = -1; // force the label to refresh
-  setCurrent(idx);
-  positionCards();
+
+  // First time the deck appears, sweep through it (right-to-left to the last
+  // design, then back to the middle) as an intro. After that, just place it.
+  if (!cfIntroDone && cfDesigns.length > 1) {
+    cfIntroDone = true;
+    runIntro(0);
+  } else {
+    setCurrent(idx);
+    positionCards();
+  }
 }
 
 // -------------------------------------------------- pinch-to-zoom the paper
@@ -542,6 +605,7 @@ function bindCoverflow() {
 
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
+    stopIntro(); // a touch takes over from the intro sweep
     // The deck engages for any touch in here (so a swipe works starting on ANY
     // picture, centre or side). Scroll vs. gesture is decided by touch-action, not
     // by the target: the picture cards are touch-action:none (locked), while the
