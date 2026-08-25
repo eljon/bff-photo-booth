@@ -18,6 +18,7 @@
  */
 
 const http = require('node:http');
+const https = require('node:https');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const os = require('node:os');
@@ -38,6 +39,34 @@ const BOOTH_TOKEN = process.env.BOOTH_TOKEN || null;
 const TUNNEL_ARG = process.argv.find((arg) => arg.startsWith('--tunnel')) || '';
 const NO_TUNNEL = process.argv.includes('--no-tunnel');
 const TUNNEL_KINDS = ['ssh', 'tailscale', 'ngrok', 'named', 'cloudflared'];
+
+// Guest-only: serve the guest app on a machine that is not the printer. No host
+// screen, no host-control APIs, and printing is off unless --print-host points
+// at a booth that can print. Usually launched via `npm run guest`, which also
+// updates to the latest code first. See server/guest.js.
+const GUEST_ONLY = process.argv.includes('--guest-only') || process.env.GUEST_ONLY === '1';
+
+// Optional upstream booth (or relay) that owns a printer. When set in guest-only
+// mode, print traffic is proxied there so guests can still print. Ignored outside
+// guest-only mode — a full booth prints locally.
+const PRINT_HOST_ARG = process.argv.find((arg) => arg.startsWith('--print-host=')) || '';
+const PRINT_HOST_RAW = (PRINT_HOST_ARG.split('=')[1] || process.env.PRINT_HOST || '').trim();
+let PRINT_HOST = null;
+if (GUEST_ONLY && PRINT_HOST_RAW) {
+  try {
+    const parsed = new URL(PRINT_HOST_RAW);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('scheme');
+    PRINT_HOST = parsed.origin; // drop any path/query — we join our own paths onto it
+  } catch {
+    console.error(`  --print-host must be an http(s) URL; got "${PRINT_HOST_RAW}". Starting without host printing.`);
+  }
+}
+
+// Host controls do not exist on a guest-only booth; the guest app never calls
+// these, so a 404 keeps them off a public tunnel with no operator behind it.
+const GUEST_ONLY_BLOCKED = new Set(['/api/queue', '/api/config', '/api/approve', '/api/reject', '/api/cancel']);
+// Print traffic a guest-only booth forwards to --print-host, when one is set.
+const PROXIED_API = new Set(['/api/printers', '/api/print', '/api/job']);
 
 // A tunnel chosen once is remembered, so the command to start the booth stops
 // changing depending on what you picked weeks ago.
@@ -117,6 +146,49 @@ function sendJson(res, status, payload) {
     'cache-control': 'no-store',
   });
   res.end(body);
+}
+
+/**
+ * Whether this instance can actually put ink on paper. A full booth follows its
+ * config; a guest-only booth can only print when it has an upstream --print-host
+ * to forward to, otherwise guests save/share to their phones.
+ */
+function printingEnabledEffective(cfg) {
+  return GUEST_ONLY ? Boolean(PRINT_HOST) : cfg.printingEnabled;
+}
+
+/**
+ * Guest-only: forward a print-path request straight to the upstream booth that
+ * owns the printer. Streams the body through untouched (a 4x6 PNG, a job poll,
+ * an image fetch), so there is no CORS and the guest key in the query still
+ * authorises upstream. The upstream's job/image URLs are same-origin to the
+ * guest because /prints/* is proxied too.
+ */
+function proxyToPrintHost(req, res, url) {
+  let target;
+  try {
+    target = new URL(url.pathname + url.search, PRINT_HOST);
+  } catch {
+    return sendJson(res, 502, { ok: false, error: 'The booth host address is not usable.' });
+  }
+  const lib = target.protocol === 'https:' ? https : http;
+  const headers = { ...req.headers, host: target.host };
+  delete headers.connection;
+
+  const proxyReq = lib.request(target, { method: req.method, headers }, (upstream) => {
+    res.writeHead(upstream.statusCode || 502, upstream.headers);
+    upstream.pipe(res);
+  });
+  proxyReq.setTimeout(30_000, () => proxyReq.destroy(new Error('the booth host did not answer in time')));
+  proxyReq.on('error', (err) => {
+    if (!res.headersSent) {
+      sendJson(res, 502, { ok: false, error: `Cannot reach the booth printer right now — save to your phone instead. (${err.message})` });
+    } else {
+      res.destroy();
+    }
+  });
+  req.pipe(proxyReq);
+  return undefined;
 }
 
 function clientIp(req) {
@@ -464,6 +536,15 @@ async function handleAgentApi(req, res, url) {
 async function handleApi(req, res, url) {
   if (url.pathname.startsWith('/api/agent/')) return handleAgentApi(req, res, url);
 
+  if (GUEST_ONLY) {
+    if (GUEST_ONLY_BLOCKED.has(url.pathname)) {
+      return sendJson(res, 404, { ok: false, error: 'This is a guest-only booth — host controls live on the printing Mac.' });
+    }
+    if (PRINT_HOST && PROXIED_API.has(url.pathname)) {
+      return proxyToPrintHost(req, res, url);
+    }
+  }
+
   const cfg = config.load();
 
   // Cheap unauthenticated probe for platform health checks and uptime pings.
@@ -472,9 +553,9 @@ async function handleApi(req, res, url) {
       ok: true,
       version: build.version,
       commit: build.commit,
-      mode: MODE,
+      mode: GUEST_ONLY ? 'guest-only' : MODE,
       agentOnline: MODE === 'relay' ? agentOnline() : true,
-      printingEnabled: cfg.printingEnabled,
+      printingEnabled: printingEnabledEffective(cfg),
       uptimeSeconds: Math.round(process.uptime()),
     });
   }
@@ -487,10 +568,10 @@ async function handleApi(req, res, url) {
       maxCopies: cfg.maxCopies,
       defaultCopies: cfg.copies,
       shareHashtag: cfg.shareHashtag, // Facebook caption; client defaults to #bff2026
-      printingEnabled: cfg.printingEnabled,
-      requireApproval: cfg.requireApproval,
+      printingEnabled: printingEnabledEffective(cfg),
+      requireApproval: GUEST_ONLY ? false : cfg.requireApproval,
       keyRequired: guestKeyRequired(),
-      remote: MODE === 'relay',
+      remote: MODE === 'relay' || Boolean(PRINT_HOST),
       dryRun: DRY_RUN,
     });
   }
@@ -552,7 +633,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === '/api/print' && req.method === 'POST') {
-    if (!cfg.printingEnabled) {
+    if (!printingEnabledEffective(cfg)) {
       return sendJson(res, 503, { ok: false, error: 'Printing is switched off for this booth — save the photo to your phone instead.' });
     }
     if (!guestAuthorised(req, url)) {
@@ -674,6 +755,19 @@ async function serveStatic(req, res, url) {
   if (rel === '/') rel = '/index.html';
   if (rel === '/host') rel = '/host.html';
 
+  // A guest-only booth has no host screen, and its prints live on the upstream
+  // print host (proxied) rather than on this disk.
+  if (GUEST_ONLY) {
+    if (rel === '/host.html') {
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('No host screen on a guest-only booth.');
+      return;
+    }
+    if (PRINT_HOST && rel.startsWith('/prints/')) {
+      proxyToPrintHost(req, res, url);
+      return;
+    }
+  }
+
   const fromPrints = rel.startsWith('/prints/');
   const root = fromPrints ? PRINTS_DIR : PUBLIC_DIR;
   const relative = fromPrints ? rel.slice('/prints/'.length) : rel.slice(1);
@@ -719,7 +813,8 @@ function banner() {
   const cfg = config.load();
   const { public: publicUrl, lan } = addresses();
   const key = guestKeyRequired() ? `/?k=${cfg.accessKey}` : '';
-  const title = `${cfg.boothName}${MODE === 'relay' ? ' · relay' : ''}`;
+  const shape = GUEST_ONLY ? ' · guest-only' : MODE === 'relay' ? ' · relay' : '';
+  const title = `${cfg.boothName}${shape}`;
 
   console.log('');
   console.log(`  ${title}  v${build.label}`);
@@ -732,8 +827,8 @@ function banner() {
     for (const url of lan) console.log(`  On this Wi-Fi only:   ${url}${key}`);
   }
   // Always the local address: this screen is for whoever is at the Mac, and
-  // localhost never waits on DNS or a tunnel.
-  console.log(`  Host screen:          http://localhost:${activePort()}/host`);
+  // localhost never waits on DNS or a tunnel. A guest-only booth has none.
+  if (!GUEST_ONLY) console.log(`  Host screen:          http://localhost:${activePort()}/host`);
 
   if (!publicUrl && tunnelFailed) {
     console.log('');
@@ -749,7 +844,14 @@ function banner() {
   if (MODE === 'relay') console.log('  Waiting for the booth Mac to connect (npm run agent).');
   if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved but never sent to a printer.');
 
-  if (isExposed() && !BOOTH_TOKEN) {
+  if (GUEST_ONLY) {
+    console.log(PRINT_HOST
+      ? `  Guest-only booth — prints go to the booth host at ${PRINT_HOST}`
+      : '  Guest-only booth — no printer here, so guests save/share to their phones.');
+    console.log('  Pass --print-host=<booth url> to send prints to a booth Mac.');
+  }
+
+  if (!GUEST_ONLY && isExposed() && !BOOTH_TOKEN) {
     console.log('  Host screen is open to anyone with that link. Set BOOTH_TOKEN to require a password.');
   }
   if (publicUrl && WANT_TUNNEL && !tunnel.isPersistent()) {
@@ -790,7 +892,7 @@ server.listen(PORT, HOST, async () => {
   // The host screen is for whoever is sitting at this Mac, so open it on
   // localhost. Going through the tunnel would mean waiting on DNS that this
   // machine may not see for a minute even while phones resolve it fine.
-  const shouldOpen = MODE !== 'relay' && !NO_OPEN && (FORCE_OPEN || isExposed());
+  const shouldOpen = MODE !== 'relay' && !GUEST_ONLY && !NO_OPEN && (FORCE_OPEN || isExposed());
   if (shouldOpen) {
     const hostUrl = `http://localhost:${activePort()}/host`;
     const opened = await openInBrowser(hostUrl);

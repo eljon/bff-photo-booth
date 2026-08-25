@@ -99,6 +99,7 @@ Then pick your shape:
 ```bash
 npm start                     # same Wi-Fi as the Mac
 npm run tunnel                # guests anywhere, temporary link
+npm run guest                 # guest app only, self-updating (see below)
 BOOTH_TOKEN=… npm run relay   # on the public host  ─┐ guests anywhere,
 RELAY_URL=… BOOTH_TOKEN=… npm run agent   # on the Mac ┘ permanent link
 ```
@@ -127,6 +128,46 @@ RELAY_URL=https://booth.example.com BOOTH_TOKEN=<same token> npm run agent
 The agent prints what it can reach and nothing else: a printer name coming back
 from the relay is checked against the Mac's own live printer list before it is
 ever passed to `lp`.
+
+### Guest-only booth
+
+`npm run guest` runs **just the guest app**, and updates itself to the latest
+code first — so you launch the newest guest experience without running `git
+pull` yourself. It is meant for a machine that is **not** the printer: a spare
+laptop, an always-on mini PC, whatever you want serving guests.
+
+```bash
+caffeinate -dims npm run guest -- --tunnel=tailscale
+```
+
+What it does, in order:
+
+1. **Updates first (best-effort).** Fast-forwards to the latest commit; if that
+   is not possible — offline, local changes, no upstream — it says so and starts
+   what is on disk. A party is never blocked on a fetch. (`GUEST_NO_UPDATE=1`
+   skips the update.)
+2. **Serves the guest app only.** No host screen (`/host` is gone), no host
+   controls, and it never opens a control window. Extra flags such as
+   `--tunnel=tailscale` pass straight through.
+
+By itself a guest-only booth has **no printer**, so guests save/share to their
+phones — exactly the download-only experience. To let it **print through a real
+booth**, point it at one with `--print-host`:
+
+```bash
+# the printing Mac, reachable at its own tunnel/relay URL:
+caffeinate -dims npm start -- --tunnel=tailscale        # note its https URL
+
+# the guest-only machine forwards prints to that booth:
+caffeinate -dims npm run guest -- --tunnel=tailscale \
+  --print-host=https://booth-mac.tailXXXX.ts.net
+```
+
+With `--print-host` set, the guest-only booth transparently forwards the print
+(and the printer list, the job status, and the finished image) to that booth, so
+guests print for real. No CORS, no extra deploy — the booth Mac keeps doing the
+printing exactly as it does for its own guests. If it is unreachable, guests just
+save to their phones and nothing errors out.
 
 ## Who is allowed to do what
 

@@ -15,6 +15,30 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.27.0 — 2026-08-25
+
+**Guest-only booth: `npm run guest`, self-updating, optional host printing.**
+
+- New `npm run guest` runs just the guest app on a machine that is not the
+  printer, and updates to the latest code first — so you launch the newest guest
+  app without running `git pull` yourself. The update is best-effort: offline, a
+  dirty tree, or no upstream just starts what is on disk (a party is never
+  blocked). `GUEST_NO_UPDATE=1` skips it.
+
+  ```bash
+  caffeinate -dims npm run guest -- --tunnel=tailscale
+  ```
+
+- Guest-only mode (`--guest-only` / `GUEST_ONLY=1`) serves the guest app only:
+  no host screen (`/host` is gone), host-control APIs return 404, and it never
+  opens a control window. Extra flags like `--tunnel=tailscale` pass through.
+
+- By itself a guest-only booth has no printer, so guests save/share to their
+  phones. Point it at a real booth with `--print-host=<url>` and it transparently
+  forwards the print, the printer list, the job status, and the finished image to
+  that booth — guests print for real, no CORS and nothing extra to deploy. If the
+  host is unreachable, guests just save to their phones and nothing errors out.
+
 ## 1.26.5 — 2026-08-25
 
 **Coverflow reflections now read as frosted glass, not a glossy mirror.**
