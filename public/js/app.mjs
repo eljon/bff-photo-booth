@@ -207,7 +207,6 @@ function updatePickButton() {
   // full: the coverflow of designs takes over the stage.
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
-  $('cfLabel').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
 }
 
@@ -264,8 +263,6 @@ function setCurrent(index) {
   cfIndex = i;
   const d = cfDesigns[i];
   state.designKey = d.key;
-  $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
-  $('cfCount').textContent = `${i + 1} / ${cfDesigns.length}`;
   lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
   printGeneration += 1;
   // Never warm mid-gesture: exportPrint is a heavy 300 DPI render that would
@@ -319,8 +316,8 @@ function rebuildCoverflow() {
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
-  const boxH = Math.min(window.innerHeight * 0.52, 500);
-  const boxW = Math.min(window.innerWidth * 0.86, 420);
+  const boxH = Math.min(window.innerHeight * 0.56, 540);
+  const boxW = Math.min(window.innerWidth * 0.88, 440);
 
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');

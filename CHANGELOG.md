@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.25.1 — 2026-08-25
+
+**Remove the design label line; photos a touch bigger.**
+
+- Removed the "Big #x · … · n / 5" label under the deck. The coverflow grew into
+  the reclaimed space, so portrait and landscape designs render a little larger still.
+
 ## 1.25.0 — 2026-08-25
 
 **Bigger photos: stripped the chrome around the coverflow.**
