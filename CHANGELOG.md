@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.11 — 2026-08-25
+
+**Simpler intro: one swipe to the centre.**
+
+- The intro no longer sweeps all the way to the rightmost design and bounces
+  back. It now does a single coverflow swipe in from the right and eases to a
+  settle on the middle design — shorter and calmer.
+
 ## 1.32.10 — 2026-08-25
 
 **Tap a side picture to bring it to the centre.**
