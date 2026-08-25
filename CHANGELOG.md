@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.7 — 2026-08-25
+
+**Killed the pause at the far end of the intro.**
+
+- The sweep used an ease-out into the rightmost, which decelerated to a near
+  standstill at the edge — a visible hang before the slingshot back. The sweep
+  now keeps its momentum all the way to the edge (a power ease that's still
+  moving at the end) and reverses on contact, so it flows straight back to the
+  middle with no dwell.
+
 ## 1.32.6 — 2026-08-25
 
 **Removed the "Pinch to zoom" hint line under the coverflow.**
