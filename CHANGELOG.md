@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.1 — 2026-08-25
+
+**Pinch: the reflection now behaves like a real mirror on the glass.**
+
+- Zooming the print no longer drags its reflection along rigidly. The reflection
+  stays on the glass and shows the mirror image of the transformed print — same
+  horizontal move and scale, but the vertical move and rotation are negated. So
+  lifting the print makes its reflection recede (a gap opens), and tilting it
+  tilts the reflection the opposite way, exactly as glass would. Verified the
+  reflection transform is the mirror of the paper's (tx same, ty negated, rot
+  negated, scale same).
+
 ## 1.31.0 — 2026-08-25
 
 **Roll back to any version by putting it in the URL.**

@@ -391,18 +391,18 @@ function rebuildCoverflow() {
     face.style.width = `${w}px`;
     face.style.height = `${h}px`;
     paper.appendChild(face);
+    card.appendChild(paper);
 
-    // …and its frosted-glass reflection: a vertically-flipped copy just below,
-    // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
-    // a crisp mirror. It lives INSIDE the paper, so a pinch zooms the reflection
-    // right along with the print. Flipping in the bitmap (not via a CSS transform)
-    // keeps it sitting cleanly below the card.
+    // …and its frosted-glass reflection: a vertically-flipped copy on the glass
+    // just below, blurred and faded by CSS so it reads as a soft, hazy reflection.
+    // It is a sibling of the paper (it lives on the glass, not on the paper), so a
+    // pinch does not drag it along — instead it takes the MIRROR of the paper's
+    // transform, receding and tilting the way a real reflection does.
     const mirror = document.createElement('canvas');
     mirror.className = 'cf-mirror';
     mirror.style.width = `${w}px`;
     mirror.style.height = `${h}px`;
-    paper.appendChild(mirror);
-    card.appendChild(paper);
+    card.appendChild(mirror);
 
     paintCard(card, design);
     track.appendChild(card);
@@ -434,17 +434,20 @@ function paperShadow(scale) {
   return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
 }
 
-/** Drop the peek: spring the paper back to its resting size and tidy up. The
- *  shadow rides the face (not the paper) so it never darkens the reflection. */
-function endPeek(paper, face) {
+/** Drop the peek: spring the paper (and its reflection) back to rest and tidy up.
+ *  The shadow rides the face (not the paper) so it never darkens the reflection. */
+function endPeek(paper, face, mirror) {
   const ease = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
   paper.style.transition = `transform 0.28s ${ease}`;
   paper.style.transform = '';
+  mirror.style.transition = `transform 0.28s ${ease}`;
+  mirror.style.transform = '';
   face.style.transition = `filter 0.28s ${ease}`;
   face.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
   clearTimeout(manip && manip.timer);
   const done = () => {
     paper.style.transition = '';
+    mirror.style.transition = '';
     face.style.transition = '';
     face.style.filter = '';
   };
@@ -477,13 +480,16 @@ function bindCoverflow() {
     const paper = centrePaper();
     if (!paper) return;
     const face = paper.querySelector('canvas.cf-face');
+    const mirror = paper.parentElement.querySelector('canvas.cf-mirror');
     const [a, b] = [...pointers.values()];
     paper.style.transition = ''; // follow the fingers with no lag
+    mirror.style.transition = '';
     face.style.transition = '';
     face.style.filter = paperShadow(1); // a grounded shadow to start
     manip = {
       paper,
       face,
+      mirror,
       baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
       baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
       baseMidX: (a.clientX + b.clientX) / 2,
@@ -506,11 +512,16 @@ function bindCoverflow() {
     const ty = midY - manip.baseMidY;
     manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
     manip.face.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
+    // The reflection lives on the glass and shows the MIRROR of the paper's move:
+    // same horizontal shift and scale, but the vertical shift and the rotation are
+    // negated (a mirror across the glass), pivoting about the reflection's centre.
+    // So lifting the paper makes the reflection recede, opening a gap — as on glass.
+    manip.mirror.style.transform = `translate(${tx}px, ${-ty}px) rotate(${-rot}deg) scale(${scale})`;
   };
 
   const endManip = () => {
-    const { paper, face } = manip;
-    endPeek(paper, face);
+    const { paper, face, mirror } = manip;
+    endPeek(paper, face, mirror);
     manip = null;
     cfBusy = false;
   };

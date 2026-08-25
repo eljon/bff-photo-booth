@@ -137,6 +137,8 @@ body {
   pointer-events: none;
   opacity: 0.22;
   filter: blur(3.5px);
+  transform-origin: center center; /* a pinch mirrors the paper's transform about here */
+  will-change: transform;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
   mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
 }
@@ -145,7 +147,6 @@ body {
    and its reflection, so a pinch zooms them together; the container keeps its
    overflow clipping, so the deck's clean left/right edges stay put. */
 .cf-paper {
-  position: relative;
   transform-origin: center center;
   will-change: transform;
 }
