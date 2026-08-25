@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.1 — 2026-08-25
+
+**Intro plays on every completion and slides in from off-screen.**
+
+- The intro sweep now runs every time the photos are completed (initial pick and
+  "Swap all 4 photos"), not just the first time.
+- The deck now starts fully off the right edge of the screen and slides in until
+  the rightmost design is centred, holds a beat, then settles on the middle — so
+  the cards visibly enter from outside the viewport.
+
 ## 1.32.0 — 2026-08-25
 
 **Intro sweep when the designs first appear.**
