@@ -19,6 +19,20 @@ test('recognises a printer while it is mid-print (not just idle)', () => {
   assert.equal(fallback, 'Canon_G4010_series');
 });
 
+test('borderless prints fill the sheet; otherwise fit-to-page applies', () => {
+  const borderless = cups.buildPrintOptions({ borderless: true, fitToPage: true });
+  assert.equal(borderless['print-scaling'], 'fill');
+  assert.equal(borderless['fit-to-page'], undefined); // borderless wins over fit-to-page
+
+  const bordered = cups.buildPrintOptions({ borderless: false, fitToPage: true });
+  assert.equal(bordered['fit-to-page'], 'true');
+  assert.equal(bordered['print-scaling'], undefined);
+
+  const plain = cups.buildPrintOptions({ borderless: false, fitToPage: false });
+  assert.equal(plain['print-scaling'], undefined);
+  assert.equal(plain['fit-to-page'], undefined);
+});
+
 test('parses idle, printing, and disabled printers together', () => {
   const out = [
     'printer A is idle.  enabled since Sun Aug 24 10:00:00 2025',

@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.35.0 — 2026-08-25
+
+**Borderless 4×6 — on by default.**
+
+- Prints now go out borderless: the sheet is filled edge-to-edge with no white
+  margin, using CUPS' standard `print-scaling=fill`. It's the default, and there's
+  a **Borderless** toggle on the host screen to turn it off.
+- When borderless is off, the old "scale to fit" behaviour (shrink into the
+  printable area, leaving a border) applies as before. Borderless takes
+  precedence over fit-to-page when both are on.
+- Applies in both booth and relay (agent) printing.
+
 ## 1.34.0 — 2026-08-25
 
 **A real print queue, held by the server — one job at a time.**

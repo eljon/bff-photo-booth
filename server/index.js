@@ -411,8 +411,7 @@ async function dispatchToPrinter(job) {
     return;
   }
 
-  const options = { 'print-quality': '5' };
-  if (cfg.fitToPage) options['fit-to-page'] = 'true';
+  const options = cups.buildPrintOptions({ borderless: cfg.borderless, fitToPage: cfg.fitToPage });
 
   const result = await cups.print(job.file, { printer: name, copies: job.copies, media: job.media || cfg.media, options });
   if (!result.ok) {
@@ -591,6 +590,7 @@ async function handleAgentApi(req, res, url) {
         copies: job.copies,
         printer: job.printer || cfg.printer,
         media: job.media || cfg.media,
+        borderless: cfg.borderless,
         fitToPage: cfg.fitToPage,
         layout: job.layout,
         image: imageUrl(job),

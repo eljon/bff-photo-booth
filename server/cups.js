@@ -119,9 +119,22 @@ async function print(file, { printer, copies = 1, media, options = {} } = {}) {
   return { ok: true, jobId: m ? m[1] : null, stdout: res.stdout.trim(), args };
 }
 
+/**
+ * Options for `lp`. Borderless fills the sheet edge-to-edge via the standard IPP
+ * `print-scaling=fill` — the portable CUPS way to drop the printer's white margin
+ * (the image slightly over-runs the page). It takes precedence over fit-to-page,
+ * which instead shrinks the image into the printable area, leaving a border.
+ */
+function buildPrintOptions({ borderless = false, fitToPage = false } = {}) {
+  const options = { 'print-quality': '5' };
+  if (borderless) options['print-scaling'] = 'fill';
+  else if (fitToPage) options['fit-to-page'] = 'true';
+  return options;
+}
+
 async function cancel(jobId) {
   const res = await run('cancel', ['--', String(jobId)]);
   return { ok: res.ok, error: res.ok ? null : (res.stderr || res.error || '').trim() };
 }
 
-module.exports = { available, listPrinters, parsePrinters, listJobs, print, cancel, run };
+module.exports = { available, listPrinters, parsePrinters, listJobs, print, buildPrintOptions, cancel, run };

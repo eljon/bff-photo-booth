@@ -103,6 +103,7 @@ async function loadConfig() {
   paintQr(urls[0]);
 
   $('mediaPick').value = config.media;
+  $('borderless').checked = config.borderless;
   $('fitToPage').checked = config.fitToPage;
   $('printingEnabled').checked = config.printingEnabled;
   $('requireApproval').checked = config.requireApproval;
@@ -291,6 +292,7 @@ function bind() {
     await post('/api/config', {
       printer: $('printerPick').value || null,
       media: $('mediaPick').value,
+      borderless: $('borderless').checked,
       fitToPage: $('fitToPage').checked,
       printingEnabled: $('printingEnabled').checked,
       requireApproval: $('requireApproval').checked,

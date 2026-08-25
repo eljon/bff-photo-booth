@@ -102,8 +102,7 @@ async function printJob(job) {
     return { ok: false, error: wanted ? `this Mac has no printer called "${wanted}"` : 'no printer is set up on this Mac' };
   }
 
-  const options = { 'print-quality': '5' };
-  if (job.fitToPage) options['fit-to-page'] = 'true';
+  const options = cups.buildPrintOptions({ borderless: job.borderless, fitToPage: job.fitToPage });
 
   const result = await cups.print(file, {
     printer: match.name,
