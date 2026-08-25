@@ -156,7 +156,8 @@ function renderAll() {
   updatePickButton();
   if (full) {
     // The coverflow of designs is the preview now — it draws the selected print.
-    rebuildCoverflow();
+    // Never rebuild mid-gesture (a stray resize must not reset an active swipe).
+    if (!cfBusy) rebuildCoverflow();
   } else {
     const layout = resolveLayout(state);
     composePage($('preview'), state, previewScale(layout));
@@ -251,6 +252,12 @@ function cfSpacing() {
 function positionCards() {
   const cards = [...$('cfTrack').children];
   const spacing = cfSpacing();
+  // The top layer belongs to the last card that reached (nearly) the centre, and
+  // it keeps it until the next card is almost centred — so the current photo
+  // stays on top through the whole swipe and the hand-off happens off-centre,
+  // invisibly. Derived from position (not a settle event) so nothing can clobber it.
+  const nearest = Math.round(cfPos);
+  if (Math.abs(cfPos - nearest) < 0.12) cfTopIndex = nearest;
   cards.forEach((card, i) => {
     const offset = i - cfPos;
     const abs = Math.abs(offset);
@@ -262,10 +269,12 @@ function positionCards() {
     const depth = -abs * 70;
     card.style.transform =
       `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
-    card.style.opacity = abs > 2.5 ? '0' : String(Math.max(0.28, 1 - abs * 0.28));
-    // The card that was last settled at centre stays on the top layer for the
-    // whole swipe, so it slides out over the deck; the incoming card only takes
-    // the top once it has snapped to centre — no mid-swipe pop.
+    // Cards are fully opaque — no see-through — so the top card cleanly covers
+    // the ones behind it. Only cards well off the stage are hidden outright.
+    card.style.opacity = abs > 2.6 ? '0' : '1';
+    // The top layer belongs to the current centre card (see cfTopIndex above),
+    // so it stays in front through the whole swipe; the incoming card takes over
+    // only once it is almost centred.
     card.style.zIndex = i === cfTopIndex ? '1000' : String(100 - Math.round(abs * 10));
     card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
   });
@@ -296,8 +305,7 @@ function glideStep() {
   positionCards();
   if (Math.abs(cfTarget - cfPos) < 0.003) {
     cfPos = cfTarget;
-    cfTopIndex = cfTarget; // snapped to centre — hand the top layer to this card
-    positionCards();
+    positionCards(); // cfTopIndex follows cfPos in positionCards
     setCurrent(cfPos);
     cfRaf = null;
     cfBusy = false;

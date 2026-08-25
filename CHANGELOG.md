@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.22.1 — 2026-08-25
+
+**Coverflow layering, properly fixed.**
+
+- Cards are now fully opaque — no see-through — so the top card cleanly covers
+  the ones behind it and it is obvious which photo is in front.
+- The top layer is derived from position (the last card to reach the centre) and
+  held until the next card is almost centred, so it can't be knocked to the wrong
+  card. A stray `resize` mid-swipe no longer rebuilds the deck and reshuffles the
+  layering — rebuilds are skipped while a swipe or glide is in flight.
+
 ## 1.22.0 — 2026-08-25
 
 **Facebook: straight to the share dialog, no OS share sheet.**
