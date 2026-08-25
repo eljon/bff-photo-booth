@@ -403,11 +403,13 @@ async function sendToQueue(job) {
   if (!result.ok) {
     job.status = 'failed';
     job.error = result.error;
+    console.error(`  ✗ print failed for job ${job.id.slice(0, 8)} on ${name}: ${result.error}`);
   } else {
     job.status = 'queued';
     job.printer = name;
     job.cupsJobId = result.jobId;
     job.printedAt = Date.now();
+    console.log(`  → queued job ${job.id.slice(0, 8)} on ${name}${result.jobId ? ` (CUPS ${result.jobId})` : ''}`);
   }
   return job;
 }

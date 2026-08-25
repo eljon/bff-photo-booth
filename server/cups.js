@@ -9,13 +9,19 @@
 const { execFile } = require('node:child_process');
 
 const EXEC_TIMEOUT_MS = 10_000;
+// Submitting a print can block far longer than a status query: on the first job
+// after the printer has slept, `lp` waits for the USB/backend to wake it before
+// it returns the request id. A short timeout kills that wait and makes us report
+// a failure for a job CUPS actually queued — so give printing a generous window.
+const PRINT_TIMEOUT_MS = 60_000;
 
-function run(cmd, args) {
+function run(cmd, args, timeout = EXEC_TIMEOUT_MS) {
   return new Promise((resolve) => {
-    execFile(cmd, args, { timeout: EXEC_TIMEOUT_MS }, (err, stdout, stderr) => {
+    execFile(cmd, args, { timeout }, (err, stdout, stderr) => {
       resolve({
         ok: !err,
         code: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
+        killed: Boolean(err && (err.killed || err.signal)),
         stdout: (stdout || '').toString(),
         stderr: (stderr || '').toString(),
         error: err ? err.message : null,
@@ -87,9 +93,12 @@ async function print(file, { printer, copies = 1, media, options = {} } = {}) {
   }
   args.push('--', file);
 
-  const res = await run('lp', args);
+  const res = await run('lp', args, PRINT_TIMEOUT_MS);
   if (!res.ok) {
-    return { ok: false, jobId: null, error: (res.stderr || res.error || 'lp failed').trim(), args };
+    const error = res.killed
+      ? `The printer did not respond within ${Math.round(PRINT_TIMEOUT_MS / 1000)}s. It may still print — check the tray.`
+      : (res.stderr || res.error || 'lp failed').trim();
+    return { ok: false, jobId: null, error, killed: res.killed, args };
   }
   // "request id is Canon_SELPHY_CP1500-42 (1 file(s))"
   const m = res.stdout.match(/request id is (\S+)/i);

@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.33.1 — 2026-08-25
+
+**Don't cry "failed" on a slow printer that actually took the job.**
+
+- A print was marked failed whenever `lp` didn't return within 10 seconds. On the
+  first job after a photo printer wakes from idle, `lp` can block longer than that
+  while the USB backend spins the printer up — so the booth reported a failure for
+  a job CUPS had already queued (and often printed). Printing now gets its own 60s
+  window, separate from the quick status queries, so a slow-but-successful submit
+  isn't killed early.
+- If a submit really does time out, the guest is told it may still print ("check
+  the tray") instead of a flat failure, and the booth now logs every print
+  outcome (queued with its CUPS id, or the real error) so failures are
+  diagnosable on the host.
+
 ## 1.33.0 — 2026-08-25
 
 **Live queue position after you print.**
