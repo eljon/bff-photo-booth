@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.23.0 — 2026-08-25
+
+**Facebook share goes to the Facebook app, not facebook.com.**
+
+- The button now hands the photo to the installed Facebook app (where the guest
+  is already signed in) through the phone's share sheet — tapping Facebook there
+  opens the app's own post screen with the photo attached and `#bff2026`
+  pre-filled. A website has no way to jump *straight* into the app's composer
+  (Apple/Facebook don't expose one), so the share sheet is the door to the app.
+- Reverted the previous facebook.com/sharer flow and removed the public share
+  links it needed (`/api/share`, `/s/<id>`). Nothing is hosted publicly anymore.
+- Desktop, where there's no app to share to, still falls back to Facebook's web
+  share for the booth link.
+
 ## 1.22.1 — 2026-08-25
 
 **Coverflow layering, properly fixed.**

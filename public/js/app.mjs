@@ -869,7 +869,7 @@ async function buildPrintBlob() {
 
 const DEFAULT_HASHTAG = '#bff2026';
 
-/** A web-sized JPEG of the print — small and quick to upload for the share link. */
+/** A web-sized JPEG of the print — small and quick to hand off to the app. */
 async function buildShareBlob() {
   const layout = resolveLayout(state);
   const scale = Math.min(1, 1200 / Math.max(layout.page.w, layout.page.h));
@@ -878,26 +878,13 @@ async function buildShareBlob() {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
 }
 
-/** Park the photo on the booth so Facebook can show it, and get back its id. */
-async function uploadShare(blob) {
-  const headers = { 'content-type': blob.type || 'image/jpeg' };
-  if (accessKey) headers['x-booth-key'] = accessKey;
-  const res = await fetch(`/api/share?origin=${encodeURIComponent(location.origin)}`, {
-    method: 'POST',
-    headers,
-    body: blob,
-  });
-  if (!res.ok) throw new Error('share upload failed');
-  const data = await res.json();
-  if (!data || !data.id) throw new Error('share upload failed');
-  return data.id;
-}
-
 /**
- * Go straight to Facebook — no OS share sheet. The photo is parked on the booth
- * so it has a public link; that link (which carries the photo as its preview and
- * the #bff2026 hashtag) is handed to Facebook's share dialog, where the guest can
- * type their own words in front of the hashtag before posting.
+ * Hand the photo to the Facebook app, where the guest is already signed in. The
+ * share sheet is the only door a website has to the installed app — Apple and
+ * Facebook don't expose a link that jumps straight into the app's composer — so
+ * tapping Facebook there opens the app's own post screen with the photo attached
+ * and #bff2026 pre-filled (the guest types their own words in front). On a desktop
+ * with no app to share to, it falls back to Facebook's web share for the link.
  */
 async function shareToFacebook() {
   if (filledCount() < 4) {
@@ -905,27 +892,23 @@ async function shareToFacebook() {
     return;
   }
   const caption = session.shareHashtag || DEFAULT_HASHTAG;
-  // Open the Facebook tab now, on the tap, so the browser does not block it as a
-  // popup while we render and upload.
-  const win = window.open('', '_blank');
-  if (win) {
+  const blob = await buildShareBlob();
+  if (!blob) return;
+  const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
-      win.document.write('<!doctype html><meta charset="utf-8"><title>Facebook</title><body style="margin:0;background:#15111b;color:#fff;font:16px/1.5 -apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">Opening Facebook…</body>');
-    } catch { /* cross-origin once it navigates — fine */ }
+      await navigator.share({ files: [file], text: caption });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // guest backed out — leave it
+      // any other error → fall through to the desktop link share
+    }
   }
 
-  try {
-    const blob = await buildShareBlob();
-    if (!blob) throw new Error('render');
-    const id = await uploadShare(blob);
-    const pageUrl = `${location.origin}/s/${id}`;
-    const share = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}&hashtag=${encodeURIComponent(caption)}`;
-    if (win) win.location.href = share;
-    else window.open(share, '_blank', 'noopener,noreferrer'); // popup was blocked — try again now
-  } catch {
-    if (win) win.close();
-    toast('Could not reach Facebook — save the photo and post it yourself.', 3200);
-  }
+  // Desktop / no app share available: open Facebook's web share for the booth link.
+  const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.origin)}&hashtag=${encodeURIComponent(caption)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 /**

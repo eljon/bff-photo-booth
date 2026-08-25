@@ -164,11 +164,12 @@ shell), and each phone is limited to 30 prints per 10 minutes.
    **rotate**, **replace**, **remove** or reorder.
 5. **Print** → an upload bar, then live status until the printer takes it.
    **Save** opens the share sheet, where *Save Image* puts it in the Photos app.
-6. **Facebook** goes straight to Facebook's share dialog (no OS share sheet) with
-   the photo in the preview and the `#bff2026` hashtag pre-filled — the guest can
-   type their own words first. The photo is briefly hosted at a short-lived public
-   link (`/s/<id>`, expires in two hours) so Facebook can render it, so this needs
-   the booth reachable over the internet (the tunnel link guests already use).
+6. **Facebook** hands the photo to the installed Facebook app (where the guest is
+   already signed in) via the phone's share sheet — tapping Facebook there opens
+   the app's post screen with the photo attached and `#bff2026` pre-filled, and
+   the guest types their own words first. (A website can't jump straight into the
+   app's composer; the share sheet is the only door to the app.) Desktop, with no
+   app to share to, falls back to Facebook's web share for the booth link.
 
 No filters, no caption box — just the design coverflow, Save and Print. Every
 design fills the 4 × 6 (or 6 × 4) sheet edge to edge and crops nothing.
