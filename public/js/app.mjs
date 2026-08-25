@@ -208,6 +208,7 @@ function updatePickButton() {
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
   $('cfLabel').classList.toggle('hidden', !full);
+  $('cfHint').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
 }
 
@@ -223,8 +224,32 @@ let cfIndex = -1;   // the design currently under the centre (drives label + pri
 let cfTarget = 0;   // the card the glide is easing to
 let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
+let manip = null;   // a two-finger direct-manipulation of one photo in flight
 
+const DPR = Math.min(2, window.devicePixelRatio || 1);
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
+
+/** Paint a card's face (the design) and its frosted mirror from current state. */
+function paintCard(card, design) {
+  const face = card.querySelector('canvas.cf-face');
+  const mirror = card.querySelector('canvas.cf-mirror');
+  const dispScale = Number(card.dataset.scale);
+  composePage(face, state, dispScale * DPR, design);
+  mirror.width = face.width;
+  mirror.height = face.height;
+  const mctx = mirror.getContext('2d');
+  mctx.setTransform(1, 0, 0, 1, 0, 0);
+  mctx.clearRect(0, 0, mirror.width, mirror.height);
+  mctx.translate(0, mirror.height);
+  mctx.scale(1, -1);
+  mctx.drawImage(face, 0, 0);
+}
+
+/** Repaint every card from current state — after an edit changes a shared photo. */
+function repaintDeck() {
+  const cards = [...$('cfTrack').children];
+  cards.forEach((card, i) => { if (cfDesigns[i]) paintCard(card, cfDesigns[i]); });
+}
 
 /** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative
  *  to the card so the side photos always peek out beside the centre one. */
@@ -321,7 +346,6 @@ function rebuildCoverflow() {
 
   const track = $('cfTrack');
   track.innerHTML = '';
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
@@ -332,31 +356,29 @@ function rebuildCoverflow() {
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');
     card.className = 'cf-card';
-    const canvas = document.createElement('canvas');
     const dispScale = Math.min(boxH / design.page.h, boxW / design.page.w);
-    composePage(canvas, state, dispScale * dpr, design);
     const w = Math.round(design.page.w * dispScale);
     const h = Math.round(design.page.h * dispScale);
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    card.appendChild(canvas);
+    card.dataset.scale = String(dispScale);
 
-    // Frosted-glass reflection: a vertically-flipped copy of the card, drawn once
-    // here. The CSS blurs and fades it so it reads as a soft, hazy reflection
-    // rather than a crisp mirror. Flipping in the bitmap (not via a CSS transform)
-    // keeps it sitting cleanly below the card in the 3D stack.
+    // The design itself (the "face")…
+    const face = document.createElement('canvas');
+    face.className = 'cf-face';
+    face.style.width = `${w}px`;
+    face.style.height = `${h}px`;
+    card.appendChild(face);
+
+    // …and its frosted-glass reflection: a vertically-flipped copy just below,
+    // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
+    // a crisp mirror. Flipping in the bitmap (not via a CSS transform) keeps it
+    // sitting cleanly below the card in the 3D stack.
     const mirror = document.createElement('canvas');
     mirror.className = 'cf-mirror';
-    mirror.width = canvas.width;
-    mirror.height = canvas.height;
-    const mctx = mirror.getContext('2d');
-    mctx.translate(0, mirror.height);
-    mctx.scale(1, -1);
-    mctx.drawImage(canvas, 0, 0);
     mirror.style.width = `${w}px`;
     mirror.style.height = `${h}px`;
     card.appendChild(mirror);
 
+    paintCard(card, design);
     track.appendChild(card);
   });
 
@@ -366,33 +388,158 @@ function rebuildCoverflow() {
   positionCards();
 }
 
+// ------------------------------------------------ direct photo manipulation
+
+/** Map a client point onto the centred card's page coordinates (that card is
+ *  un-rotated and unscaled, so the mapping is a plain rect scale). */
+function pageFromClient(card, clientX, clientY, design) {
+  const rect = card.querySelector('canvas.cf-face').getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  return {
+    x: ((clientX - rect.left) / rect.width) * design.page.w,
+    y: ((clientY - rect.top) / rect.height) * design.page.h,
+    pxPerPage: rect.width / design.page.w, // client px per page unit
+  };
+}
+
+/** The design cell (and its photo) under a page point — or the biggest filled
+ *  cell as a sensible default when the fingers land on a gap. */
+function cellAt(design, x, y) {
+  const hit = design.cells.find((c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h && state.photos[c.photo]);
+  if (hit) return hit;
+  return design.cells
+    .filter((c) => state.photos[c.photo])
+    .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
+}
+
+/** Outline the photo being manipulated on the centred face, as live feedback. */
+function drawEditHighlight(card, cell) {
+  const face = card.querySelector('canvas.cf-face');
+  const s = Number(card.dataset.scale) * DPR;
+  const ctx = face.getContext('2d');
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const x = cell.x * s;
+  const y = cell.y * s;
+  const w = cell.w * s;
+  const h = cell.h * s;
+  ctx.lineWidth = Math.max(2, 3 * DPR);
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 6 * DPR;
+  ctx.strokeRect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth);
+  ctx.restore();
+}
+
+/** Re-render the centred card (and its mirror) mid-gesture, with the outline. */
+function renderCentre() {
+  const i = clampPos(Math.round(cfPos));
+  const card = $('cfTrack').children[i];
+  if (!card || !cfDesigns[i]) return;
+  paintCard(card, cfDesigns[i]);
+  if (manip) drawEditHighlight(card, manip.cell);
+}
+
 function bindCoverflow() {
   const cf = $('coverflow');
+  const pointers = new Map();
+  let swipeId = null;    // the pointer driving a one-finger browse
   let dragging = false;
-  let pid = null;
   let startX = 0;
   let startPos = 0;
   let moved = 0;
   let lastT = 0;
   let velMs = 0; // smoothed velocity in card-units per millisecond
 
+  // Two fingers on the centred card grab the photo under them and pan/zoom/rotate
+  // it directly. One finger still browses the deck, so there is no gesture clash.
+  const beginManip = () => {
+    dragging = false; // a browse never becomes a manipulation half-way
+    swipeId = null;
+    stopSpring();
+    cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before editing
+    positionCards();
+    const i = clampPos(Math.round(cfPos));
+    const design = cfDesigns[i];
+    const card = $('cfTrack').children[i];
+    if (!design || !card) return;
+    const [a, b] = [...pointers.values()];
+    const midX = (a.clientX + b.clientX) / 2;
+    const midY = (a.clientY + b.clientY) / 2;
+    const p = pageFromClient(card, midX, midY, design);
+    if (!p) return;
+    const cell = cellAt(design, p.x, p.y);
+    if (!cell || !state.photos[cell.photo]) return;
+    manip = {
+      photo: cell.photo,
+      cell,
+      pxPerPage: p.pxPerPage,
+      baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
+      baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
+      baseMidX: midX,
+      baseMidY: midY,
+      t0: { ...state.photos[cell.photo].transform },
+    };
+    cfBusy = true;
+    clearTimeout(warmTimer);
+    renderCentre();
+  };
+
+  const updateManip = () => {
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const ang = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX);
+    const midX = (a.clientX + b.clientX) / 2;
+    const midY = (a.clientY + b.clientY) / 2;
+    const { t0, cell, pxPerPage } = manip;
+    const dxPage = (midX - manip.baseMidX) / pxPerPage;
+    const dyPage = (midY - manip.baseMidY) / pxPerPage;
+    const next = {
+      zoom: t0.zoom * (dist / manip.baseDist),
+      rot: t0.rot + ((ang - manip.baseAng) * 180) / Math.PI,
+      dx: t0.dx + dxPage / cell.w,
+      dy: t0.dy + dyPage / cell.h,
+    };
+    state.photos[manip.photo].transform = clampTransform(next, cell.w, cell.h, state.photos[manip.photo].bitmap, cell.fit);
+    renderCentre();
+  };
+
+  const endManip = () => {
+    manip = null;
+    repaintDeck(); // the edited photo is shared — refresh the whole deck, no outline
+    cfBusy = false;
+    lastPrintBlob = null; // the crop changed — re-warm Save/Print
+    printGeneration += 1;
+    warmPrint();
+  };
+
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
+    pointers.set(event.pointerId, event);
+    try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
+
+    if (pointers.size >= 2) { beginManip(); return; }
+
+    // First finger: a possible browse (or a tap).
+    swipeId = event.pointerId;
     dragging = true;
-    pid = event.pointerId;
     startX = event.clientX;
     startPos = cfPos;
     moved = 0;
     lastT = event.timeStamp;
     velMs = 0;
     cfBusy = true;
-    clearTimeout(warmTimer); // cancel any warm queued before the swipe began
+    clearTimeout(warmTimer); // cancel any warm queued before the gesture began
     stopSpring(); // grab it wherever it is — like catching a spinning wheel
-    try { cf.setPointerCapture(pid); } catch { /* fine */ }
   });
 
   cf.addEventListener('pointermove', (event) => {
-    if (!dragging || event.pointerId !== pid) return;
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, event);
+
+    if (manip) { if (pointers.size >= 2) updateManip(); return; }
+    if (!dragging || event.pointerId !== swipeId) return;
+
     const dx = event.clientX - startX;
     moved = Math.max(moved, Math.abs(dx));
     const newPos = clampPos(startPos - dx / cfSpacing());
@@ -405,8 +552,16 @@ function bindCoverflow() {
   });
 
   const end = (event) => {
-    if (!dragging || event.pointerId !== pid) return;
+    if (!pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+
+    if (manip) {
+      if (pointers.size < 2) endManip();
+      return;
+    }
+    if (!dragging || event.pointerId !== swipeId) return;
     dragging = false;
+    swipeId = null;
 
     // Release speed in card-units per frame. If the finger paused before lifting,
     // it is not a flick — ignore the now-stale speed.

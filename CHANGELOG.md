@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.29.0 — 2026-08-25
+
+**Pinch, drag, and twist a photo to adjust it — right on the design.**
+
+- Put two fingers on any photo in the centred design and manipulate it directly:
+  pinch to zoom, drag to move, twist to rotate. It updates live, and because a
+  photo is shared across the designs, the change follows it everywhere. One
+  finger still swipes to browse designs, so the two gestures never clash, and it
+  only ever moves the photo — never the page.
+- The renderer now keeps a photo covering its cell at *any* rotation, so a tilted
+  crop never leaves a blank corner. Pan is clamped in the photo's own rotated
+  frame, so the reachable range is correct at every angle. Verified across
+  thousands of angle/zoom/pan combinations. At the default (no zoom, no rotate) a
+  photo still fills its aspect-shaped cell exactly — nothing crops until you ask.
+
 ## 1.28.0 — 2026-08-25
 
 **Live guest-app preview on GitHub Pages — see the latest, no terminal.**

@@ -4,21 +4,52 @@ import { FILTERS, supportsCtxFilter, applyPixelFilter } from './filters.mjs';
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**
- * Keep a crop inside its cell: however the guest pans, the photo still covers
- * the frame, so a print can never come out with a sliver of blank paper.
+ * The smallest scale at which the photo, rotated by `rot`, still fully covers
+ * the cell — so a rotated crop never leaves a blank corner. A rotated rectangle
+ * of source size (W×H)·scale covers a cell (cellW×cellH) when, along each of the
+ * photo's own axes, its half-extent clears the cell's rotated footprint:
+ *   W·scale/2 ≥ (cellW·|cos| + cellH·|sin|)/2, and the same for H with axes swapped.
+ * For an unrotated `contain` cell (the layout shapes each cell to its photo) that
+ * reduces to the exact fit, so nothing crops until the guest zooms or rotates.
+ */
+function coverBase(cellW, cellH, W, H, rot, fit) {
+  if (fit === 'contain' && rot % 360 === 0) return Math.min(cellW / W, cellH / H);
+  const rad = (rot * Math.PI) / 180;
+  const c = Math.abs(Math.cos(rad));
+  const s = Math.abs(Math.sin(rad));
+  return Math.max((cellW * c + cellH * s) / W, (cellW * s + cellH * c) / H);
+}
+
+/**
+ * Keep a crop inside its cell: however the guest zooms, pans, or rotates, the
+ * photo still covers the frame, so a print can never come out with a sliver of
+ * blank paper. Pan is clamped in the photo's own (rotated) frame, then mapped
+ * back to page axes, so the reachable range is correct at any angle.
  */
 export function clampTransform(transform, cellW, cellH, bitmap, fit = 'cover') {
   const t = { zoom: 1, dx: 0, dy: 0, rot: 0, ...transform };
   t.zoom = Math.min(4, Math.max(1, t.zoom));
-  const swap = Math.abs(t.rot % 180) === 90;
-  const fw = swap ? bitmap.height : bitmap.width;
-  const fh = swap ? bitmap.width : bitmap.height;
-  const base = fit === 'contain' ? Math.min(cellW / fw, cellH / fh) : Math.max(cellW / fw, cellH / fh);
-  const scale = base * t.zoom;
-  const slackX = Math.max(0, (fw * scale - cellW) / 2) / cellW;
-  const slackY = Math.max(0, (fh * scale - cellH) / 2) / cellH;
-  t.dx = Math.min(slackX, Math.max(-slackX, t.dx));
-  t.dy = Math.min(slackY, Math.max(-slackY, t.dy));
+  const rad = (t.rot * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const scale = coverBase(cellW, cellH, bitmap.width, bitmap.height, t.rot, fit) * t.zoom;
+
+  // Half the cell's footprint measured along the photo's own axes.
+  const needX = (cellW * Math.abs(cos) + cellH * Math.abs(sin)) / 2;
+  const needY = (cellW * Math.abs(sin) + cellH * Math.abs(cos)) / 2;
+  const slackX = Math.max(0, (bitmap.width * scale) / 2 - needX);
+  const slackY = Math.max(0, (bitmap.height * scale) / 2 - needY);
+
+  // Pan is stored as page-frame fractions of the cell. Rotate it into the photo
+  // frame to clamp against the slack, then rotate it back.
+  const px = t.dx * cellW;
+  const py = t.dy * cellH;
+  let lx = px * cos + py * sin;
+  let ly = -px * sin + py * cos;
+  lx = Math.min(slackX, Math.max(-slackX, lx));
+  ly = Math.min(slackY, Math.max(-slackY, ly));
+  t.dx = cellW ? (lx * cos - ly * sin) / cellW : 0;
+  t.dy = cellH ? (lx * sin + ly * cos) / cellH : 0;
   return t;
 }
 
@@ -27,15 +58,9 @@ function drawPhoto(ctx, cell, photo, filterId) {
   const { bitmap } = photo;
   const fit = cell.fit || 'cover';
   const t = clampTransform(photo.transform, cell.w, cell.h, bitmap, fit);
-  const swap = Math.abs(t.rot % 180) === 90;
   const nw = bitmap.width;
   const nh = bitmap.height;
-  const footprintW = swap ? nh : nw;
-  const footprintH = swap ? nw : nh;
-  const fitScale = fit === 'contain'
-    ? Math.min(cell.w / footprintW, cell.h / footprintH)
-    : Math.max(cell.w / footprintW, cell.h / footprintH);
-  const scale = fitScale * t.zoom;
+  const scale = coverBase(cell.w, cell.h, nw, nh, t.rot, fit) * t.zoom;
 
   ctx.save();
   ctx.beginPath();
