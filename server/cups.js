@@ -153,15 +153,28 @@ async function mediaOptions(printer) {
 }
 
 /**
- * Options for `lp`. Borderless fills the sheet edge-to-edge via the standard IPP
- * `print-scaling=fill` — the portable CUPS way to drop the printer's white margin
- * (the image slightly over-runs the page). It takes precedence over fit-to-page,
+ * Options for `lp`. Borderless asks the printer to go edge-to-edge in the two ways
+ * CUPS supports, so it works whichever kind of queue this is:
+ *   • Driverless / AirPrint (common for Canon on macOS): borderless means ZERO
+ *     media margins — `media-*-margin=0` (hundredths of a mm) builds a media-col
+ *     with no margins, the standard IPP borderless request.
+ *   • Classic PPD driver: it uses the borderless PageSize the host picked (passed
+ *     as the media size), and ignores the margin hints.
+ * `print-scaling=fill` then makes the image cover the whole sheet (a slight
+ * over-run) so no white edge shows. All of this takes precedence over fit-to-page,
  * which instead shrinks the image into the printable area, leaving a border.
  */
 function buildPrintOptions({ borderless = false, fitToPage = false } = {}) {
   const options = { 'print-quality': '5' };
-  if (borderless) options['print-scaling'] = 'fill';
-  else if (fitToPage) options['fit-to-page'] = 'true';
+  if (borderless) {
+    options['print-scaling'] = 'fill';
+    options['media-left-margin'] = '0';
+    options['media-right-margin'] = '0';
+    options['media-top-margin'] = '0';
+    options['media-bottom-margin'] = '0';
+  } else if (fitToPage) {
+    options['fit-to-page'] = 'true';
+  }
   return options;
 }
 

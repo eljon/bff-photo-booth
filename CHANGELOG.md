@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.36.1 — 2026-08-25
+
+**Borderless via zero media margins (works on AirPrint/driverless queues).**
+
+- `print-scaling=fill` alone doesn't drop a printer's hardware margins. Borderless
+  now also sends zero IPP media margins (`media-left/right/top/bottom-margin=0`),
+  which is how driverless / AirPrint queues — the usual setup for a Canon on
+  macOS — are told to print edge-to-edge. Classic PPD drivers ignore the margins
+  and use the borderless page size instead, so both kinds of queue are covered.
+
 ## 1.36.0 — 2026-08-25
 
 **Sharper prints: render at 600 DPI, not 300.**

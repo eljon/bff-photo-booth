@@ -22,6 +22,11 @@ test('recognises a printer while it is mid-print (not just idle)', () => {
 test('borderless prints fill the sheet; otherwise fit-to-page applies', () => {
   const borderless = cups.buildPrintOptions({ borderless: true, fitToPage: true });
   assert.equal(borderless['print-scaling'], 'fill');
+  // Zero media margins = the IPP borderless request (works on driverless/AirPrint queues).
+  assert.equal(borderless['media-left-margin'], '0');
+  assert.equal(borderless['media-right-margin'], '0');
+  assert.equal(borderless['media-top-margin'], '0');
+  assert.equal(borderless['media-bottom-margin'], '0');
   assert.equal(borderless['fit-to-page'], undefined); // borderless wins over fit-to-page
 
   const bordered = cups.buildPrintOptions({ borderless: false, fitToPage: true });
