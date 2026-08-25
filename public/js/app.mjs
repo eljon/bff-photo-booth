@@ -225,6 +225,7 @@ let cfTarget = 0;   // the card the glide is easing to
 let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
 let manip = null;   // a two-finger direct-manipulation of one photo in flight
+let peekRaf = null; // the spring-back animation after a pinch is released
 
 const DPR = Math.min(2, window.devicePixelRatio || 1);
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
@@ -422,40 +423,47 @@ function centrePaper() {
   return card ? card.querySelector('.cf-paper') : null;
 }
 
-/** The drop shadow for a paper lifted to `scale` off its resting spot: the
- *  further it rises, the bigger, softer, and fainter the shadow — like a real
- *  object moving away from the surface. Screen-space values are divided by scale
- *  because the shadow rides the same transform that enlarges the paper. */
+/** The drop shadow for a paper lifted to `scale` off its resting spot. It is tied
+ *  DIRECTLY to size: zero at rest (the paper is on the glass), growing bigger,
+ *  softer and darker as it rises. Because it is zero at scale 1, it fades to
+ *  nothing exactly as the paper returns to size — no pop. Screen-space values are
+ *  divided by scale since the shadow rides the same transform that enlarges the
+ *  paper. Tunable: base(at rest) + lift*growth → value fully lifted. */
 function paperShadow(scale) {
   const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom (scale 3)
-  // Tunable knobs (screen-space; divided by scale since the shadow rides the
-  // paper's transform). base + lift*growth → value at rest … value fully lifted:
-  const dy = (12 + lift * 84) / scale;    // vertical offset:  12 → 96 px
-  const blur = (26 + lift * 140) / scale; // blur (size):      26 → 166 px
-  const alpha = 0.55 + lift * 0.35;       // opacity/intensity: 0.55 → 0.90
+  if (lift <= 0.001) return 'none';
+  const dy = (lift * 96) / scale;    // vertical offset:  0 → 96 px
+  const blur = (lift * 166) / scale; // blur (size):      0 → 166 px
+  const alpha = lift * 0.9;          // opacity/intensity: 0 → 0.90
   return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
 }
 
-/** Drop the peek: spring the paper (and its reflection) back to rest and tidy up.
- *  The shadow rides the face (not the paper) so it never darkens the reflection. */
-function endPeek(paper, face, mirror) {
-  const ease = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
-  paper.style.transition = `transform 0.28s ${ease}`;
-  paper.style.transform = '';
-  mirror.style.transition = `transform 0.28s ${ease}`;
-  mirror.style.transform = '';
-  face.style.transition = `filter 0.28s ${ease}`;
-  face.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
-  clearTimeout(manip && manip.timer);
-  const done = () => {
-    paper.style.transition = '';
-    mirror.style.transition = '';
-    face.style.transition = '';
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+/** Drop the peek: spring the paper, its reflection, AND the shadow back to rest
+ *  together, in one JS animation, so the shadow tracks the paper's actual size
+ *  the whole way down and shrinks to nothing as it lands — never snapping off. */
+function endPeek(state) {
+  const { paper, face, mirror, tx, ty, rot, scale } = state;
+  const DUR = 300;
+  let start = null;
+  const step = (ts) => {
+    if (start === null) start = ts;
+    const e = easeOutCubic(Math.min(1, (ts - start) / DUR));
+    const s = scale + (1 - scale) * e;
+    const cx = tx * (1 - e);
+    const cy = ty * (1 - e);
+    const cr = rot * (1 - e);
+    paper.style.transform = `translate(${cx}px, ${cy}px) rotate(${cr}deg) scale(${s})`;
+    mirror.style.transform = `translate(${cx}px, ${-cy}px) rotate(${-cr}deg) scale(${s})`;
+    face.style.filter = paperShadow(s);
+    if (e < 1) { peekRaf = requestAnimationFrame(step); return; }
+    paper.style.transform = '';
+    mirror.style.transform = '';
     face.style.filter = '';
+    peekRaf = null;
   };
-  // Give the spring time to land, then clean up the inline styles.
-  const timer = setTimeout(done, 320);
-  paper.addEventListener('transitionend', () => { clearTimeout(timer); done(); }, { once: true });
+  peekRaf = requestAnimationFrame(step);
 }
 
 function bindCoverflow() {
@@ -477,6 +485,7 @@ function bindCoverflow() {
     dragging = false; // a browse never becomes a peek half-way
     swipeId = null;
     stopSpring();
+    if (peekRaf) { cancelAnimationFrame(peekRaf); peekRaf = null; } // grab a springing paper
     cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before zooming
     positionCards();
     const paper = centrePaper();
@@ -484,10 +493,6 @@ function bindCoverflow() {
     const face = paper.querySelector('canvas.cf-face');
     const mirror = paper.parentElement.querySelector('canvas.cf-mirror');
     const [a, b] = [...pointers.values()];
-    paper.style.transition = ''; // follow the fingers with no lag
-    mirror.style.transition = '';
-    face.style.transition = '';
-    face.style.filter = paperShadow(1); // a grounded shadow to start
     manip = {
       paper,
       face,
@@ -496,7 +501,7 @@ function bindCoverflow() {
       baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
       baseMidX: (a.clientX + b.clientX) / 2,
       baseMidY: (a.clientY + b.clientY) / 2,
-      timer: null,
+      tx: 0, ty: 0, rot: 0, scale: 1, // the live transform, tracked for spring-back
     };
     cfBusy = true;
     clearTimeout(warmTimer);
@@ -512,8 +517,9 @@ function bindCoverflow() {
     const rot = ((ang - manip.baseAng) * 180) / Math.PI;
     const tx = midX - manip.baseMidX;
     const ty = midY - manip.baseMidY;
+    manip.tx = tx; manip.ty = ty; manip.rot = rot; manip.scale = scale;
     manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
-    manip.face.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
+    manip.face.style.filter = paperShadow(scale); // shadow grows directly with the size
     // The reflection lives on the glass and shows the MIRROR of the paper's move:
     // same horizontal shift and scale, but the vertical shift and the rotation are
     // negated (a mirror across the glass), pivoting about the reflection's centre.
@@ -522,8 +528,7 @@ function bindCoverflow() {
   };
 
   const endManip = () => {
-    const { paper, face, mirror } = manip;
-    endPeek(paper, face, mirror);
+    endPeek(manip); // manip carries paper/face/mirror and the live tx/ty/rot/scale
     manip = null;
     cfBusy = false;
   };

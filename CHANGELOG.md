@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.4 — 2026-08-25
+
+**The lift shadow tracks the print's size and fades out smoothly.**
+
+- The pinch shadow is now zero at rest and grows straight from the print's size,
+  so it no longer popped off when the print snapped back. On release the paper,
+  its reflection, and the shadow spring back together in one JS animation, with
+  the shadow tracking the actual size the whole way down and reaching nothing
+  exactly as the print lands. Screen-space values scale 0→96 px offset, 0→166 px
+  blur, 0→0.90 opacity across the zoom range.
+
 ## 1.31.3 — 2026-08-25
 
 **A bigger, darker lift shadow on the pinched print.**
