@@ -95,16 +95,15 @@ body {
   transform-style: preserve-3d;
 }
 
-/* Position is driven every frame by JS (a spring), so no CSS transition here —
-   it would lag behind and fight the animation. */
+/* Position is driven every frame by JS, so no CSS transition here — it would lag
+   behind and fight the animation. No border or matte: just the photo itself with
+   a soft drop shadow for depth. */
 .cf-card {
   position: absolute;
   top: 50%;
   left: 50%;
-  padding: 8px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #ffffff12, #ffffff06);
-  box-shadow: 0 18px 40px -18px #000, 0 0 0 1px var(--line);
+  border-radius: 6px;
+  box-shadow: 0 18px 38px -18px #000;
   will-change: transform, opacity;
   cursor: pointer;
 }
@@ -113,7 +112,7 @@ body {
    width while the height stayed, squishing every card toward square. */
 .cf-card canvas {
   display: block;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #fff;
 }
 .cf-label {

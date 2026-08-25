@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.20.1 — 2026-08-25
+
+**Coverflow polish: subtler settle, no card border.**
+
+- Reduced the bounce — the glide now eases to its card monotonically (decelerates
+  in, never overshoots), so it settles cleanly instead of springing back.
+- Removed the card border entirely (the dark hairline ring and the matte frame).
+  Each design is now just the photo with a soft drop shadow for depth.
+
 ## 1.20.0 — 2026-08-25
 
 **Coverflow now flicks and glides like an iOS picker.**

@@ -226,14 +226,14 @@ function updatePickButton() {
 
 // ---------------------------------------------------------------- coverflow
 
-// The coverflow scrolls on a continuous position (cfPos, in card units) driven
-// by a spring, so a flick glides and settles the way an iOS picker does. cfIndex
+// The coverflow scrolls on a continuous position (cfPos, in card units). A flick
+// picks a target card from the release speed, then cfPos eases to it — a smooth,
+// decelerating glide with no overshoot, so it settles without bouncing. cfIndex
 // is the settled selection that Save/Print use.
 let cfDesigns = [];
 let cfPos = 0;      // continuous centre position
 let cfIndex = -1;   // the design currently under the centre (drives label + print)
-let cfVel = 0;      // velocity in card-units per frame, carried into the settle
-let cfTarget = 0;   // where the spring is pulling to
+let cfTarget = 0;   // the card the glide is easing to
 let cfRaf = null;
 
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
@@ -280,29 +280,26 @@ function setCurrent(index) {
   warmPrint();
 }
 
-/** Spring one frame toward cfTarget, carrying cfVel, until it comes to rest. */
-function springStep() {
-  const STIFFNESS = 0.14;
-  const DAMPING = 0.78;
-  cfVel = (cfVel + (cfTarget - cfPos) * STIFFNESS) * DAMPING;
-  cfPos += cfVel;
+/** Ease one frame toward cfTarget. Monotonic — it decelerates in, never past. */
+function glideStep() {
+  const EASE = 0.28; // fraction of the remaining gap closed per frame
+  cfPos += (cfTarget - cfPos) * EASE;
   setCurrent(Math.round(cfPos));
   positionCards();
-  if (Math.abs(cfTarget - cfPos) < 0.001 && Math.abs(cfVel) < 0.001) {
+  if (Math.abs(cfTarget - cfPos) < 0.003) {
     cfPos = cfTarget;
-    cfVel = 0;
     positionCards();
     setCurrent(cfPos);
     cfRaf = null;
     return;
   }
-  cfRaf = requestAnimationFrame(springStep);
+  cfRaf = requestAnimationFrame(glideStep);
 }
 
-/** Glide to a card index, letting whatever momentum cfVel holds carry into it. */
+/** Glide to a card index with a smooth, settling ease. */
 function glideTo(index) {
   cfTarget = clampPos(Math.round(index));
-  if (cfRaf == null) cfRaf = requestAnimationFrame(springStep);
+  if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
 }
 
 function stopSpring() {
@@ -310,7 +307,6 @@ function stopSpring() {
     cancelAnimationFrame(cfRaf);
     cfRaf = null;
   }
-  cfVel = 0;
 }
 
 /** Rebuild the cards from the current photos, keeping the guest's chosen design. */
@@ -396,14 +392,14 @@ function bindCoverflow() {
       return;
     }
 
-    // A drag/flick: turn the release speed into momentum and let it glide. Even a
-    // gentle flick carries at least one card in its direction; a hard one at most
-    // two, so it never flies across the whole deck.
+    // A drag/flick: the release speed picks the target card (more speed → further),
+    // then it eases there. Even a gentle flick advances at least one card; a hard
+    // one at most two, so it never flies across the whole deck.
     const from = Math.round(cfPos);
-    cfVel = Math.max(-0.9, Math.min(0.9, velMs * 16)); // per-frame, capped
-    let target = Math.round(cfPos + cfVel * 4);
-    if (cfVel > 0.04 && target <= from) target = from + 1;
-    if (cfVel < -0.04 && target >= from) target = from - 1;
+    const v = Math.max(-0.9, Math.min(0.9, velMs * 16)); // per-frame estimate, capped
+    let target = Math.round(cfPos + v * 4);
+    if (v > 0.04 && target <= from) target = from + 1;
+    if (v < -0.04 && target >= from) target = from - 1;
     target = Math.max(from - 2, Math.min(from + 2, target));
     glideTo(target);
   };
