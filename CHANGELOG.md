@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.20.3 — 2026-08-25
+
+**Fix: no more stutter mid-swipe on the coverflow.**
+
+- The print was being pre-rendered (a heavy 300 DPI pass) as the centred design
+  changed during a swipe, which briefly froze the main thread and made the deck
+  hitch. That render is now held until the swipe settles, so swiping stays smooth.
+
 ## 1.20.2 — 2026-08-25
 
 **Coverflow: small flicks are responsive now.**

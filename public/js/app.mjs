@@ -235,6 +235,7 @@ let cfPos = 0;      // continuous centre position
 let cfIndex = -1;   // the design currently under the centre (drives label + print)
 let cfTarget = 0;   // the card the glide is easing to
 let cfRaf = null;
+let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
 
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
 
@@ -277,7 +278,9 @@ function setCurrent(index) {
   $('paperNote').textContent = d.paper;
   lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
   printGeneration += 1;
-  warmPrint();
+  // Never warm mid-gesture: exportPrint is a heavy 300 DPI render that would
+  // block the main thread and make the swipe stutter. It runs once we settle.
+  if (!cfBusy) warmPrint();
 }
 
 /** Ease one frame toward cfTarget. Monotonic — it decelerates in, never past. */
@@ -291,6 +294,8 @@ function glideStep() {
     positionCards();
     setCurrent(cfPos);
     cfRaf = null;
+    cfBusy = false;
+    warmPrint(); // settled — now it is safe to render the print ahead of time
     return;
   }
   cfRaf = requestAnimationFrame(glideStep);
@@ -312,6 +317,7 @@ function stopSpring() {
 /** Rebuild the cards from the current photos, keeping the guest's chosen design. */
 function rebuildCoverflow() {
   stopSpring();
+  cfBusy = false; // a rebuild is not a gesture — let it warm the print normally
   const base = LAYOUTS[state.layoutId];
   cfDesigns = designVariants(base, state.photos);
   let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
@@ -363,6 +369,8 @@ function bindCoverflow() {
     moved = 0;
     lastT = event.timeStamp;
     velMs = 0;
+    cfBusy = true;
+    clearTimeout(warmTimer); // cancel any warm queued before the swipe began
     stopSpring(); // grab it wherever it is — like catching a spinning wheel
     try { cf.setPointerCapture(pid); } catch { /* fine */ }
   });
