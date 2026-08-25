@@ -103,9 +103,15 @@ body {
    darken the top of the reflection, opening a fake gap; the mirror grounds it. */
 .cf-card {
   position: absolute;
-  top: 50%;
+  /* Baseline is a fixed fraction of the container, so every card's bottom edge
+     lands on the same line — the "glass". A portrait card is taller than a
+     landscape one, but both rest on this line, so their reflections line up. */
+  top: 68%;
   left: 50%;
   border-radius: 6px;
+  /* Scale and rotate pivot about the bottom-centre, so shrinking a side card or
+     tilting it keeps its bottom edge pinned to the glass line. */
+  transform-origin: 50% 100%;
   will-change: transform, opacity;
   cursor: pointer;
 }

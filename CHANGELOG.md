@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.26.3 — 2026-08-25
+
+**Coverflow: every card sits on the same glass line, whatever its shape.**
+
+- A landscape card is shorter than a portrait one, and each card was anchored by
+  a fraction of its own height around its centre — so a landscape card's bottom
+  edge landed higher than a portrait card's, and its reflection floated up with
+  it, breaking the "all resting on one sheet of glass" illusion. Now every card
+  is anchored by its bottom edge to a single baseline (`top: 68%` +
+  `translateY(-100%)`), and scale/rotate pivot about that bottom edge
+  (`transform-origin: 50% 100%`), so a card's bottom stays pinned to the glass as
+  it shrinks and tilts. The centred card's bottom is identical whether it is
+  portrait or landscape; reflections all begin from the same line.
+
 ## 1.26.2 — 2026-08-25
 
 **Coverflow: the reflection now touches the card — cards sit on the glass.**

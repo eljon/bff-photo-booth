@@ -248,10 +248,13 @@ function positionCards() {
     // centre, the further forward it sits, so it rises to the front smoothly as it
     // reaches the middle instead of popping via a z-index swap.
     const depth = -abs * 130;
-    // Anchor the card above the vertical centre (−70% not −50%) so its mirror
-    // reflection has room to fall into the space below it without being clipped.
+    // translateY(-100%) lifts the card fully above its `top` anchor, so its
+    // bottom edge sits exactly on the baseline (the glass line) — the same line
+    // for every card regardless of height, so landscape and portrait bottoms
+    // align and the reflection reads as a single sheet of glass. The reflection
+    // falls into the space below the baseline.
     card.style.transform =
-      `translate(-50%, -70%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
+      `translate(-50%, -100%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
     // Fully opaque — no see-through — so the front card cleanly covers the rest.
     // Cards well off the stage are hidden outright.
     card.style.opacity = abs > 2.6 ? '0' : '1';
