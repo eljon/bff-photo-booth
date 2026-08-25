@@ -434,13 +434,15 @@ function centrePaper() {
 function paperShadow(scale) {
   const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom (scale 3)
   if (lift <= 0.001) return 'none';
-  // sqrt ramps the shadow up fast off zero, so it is already bold at a small
-  // pinch, yet still vanishes exactly at rest. Tunable screen-space knobs:
+  // sqrt ramps the shadow up fast off zero — bold even at a small pinch, yet
+  // still nothing at rest. Two stacked layers make it dramatic: a tight, near-
+  // black CORE right under the print for a hard, defined edge, plus a big soft
+  // HALO for spread. All screen-space, divided by scale (the shadow rides the
+  // paper's transform). Tunable:  value = t * growth.
   const t = Math.sqrt(lift);
-  const dy = (t * 92) / scale;        // vertical offset:  0 → 92 px
-  const blur = (t * 120) / scale;     // blur (size):      0 → 120 px
-  const alpha = t * 0.95;             // opacity/intensity: 0 → 0.95
-  return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
+  const core = `drop-shadow(0 ${(t * 44) / scale}px ${(t * 34) / scale}px rgba(0, 0, 0, ${t * 1.0}))`;
+  const halo = `drop-shadow(0 ${(t * 120) / scale}px ${(t * 150) / scale}px rgba(0, 0, 0, ${t * 0.7}))`;
+  return `${core} ${halo}`;
 }
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -540,11 +542,12 @@ function bindCoverflow() {
 
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
-    // Only a touch that starts on a picture drives the deck; a touch on the
-    // reflection or the empty margins is left to the browser, so the page can
-    // scroll vertically there. (The reflection is pointer-events:none, so those
-    // touches surface on the container, not a card.)
-    if (!event.target.closest('.cf-card')) return;
+    // The deck engages for any touch in here (so a swipe works starting on ANY
+    // picture, centre or side). Scroll vs. gesture is decided by touch-action, not
+    // by the target: the picture cards are touch-action:none (locked), while the
+    // container is pan-y — so a vertical drag over the reflection or the empty
+    // margins still scrolls the page (the browser cancels our gesture), and a
+    // swipe on a picture never scrolls.
     pointers.set(event.pointerId, event);
     try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
 

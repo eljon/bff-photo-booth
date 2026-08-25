@@ -66,12 +66,45 @@ ${scriptTag}
 `;
   }
 
+  // Testing convenience for the hosted preview: drop four placeholder photos into
+  // the real file picker on load, so you land on the coverflow without picking
+  // every launch. Varied aspect ratios exercise the layouts. "Swap all 4 photos"
+  // still lets you choose your own. Pages build only — never the artifact body.
+  const placeholders = `<script>
+window.addEventListener('load', () => setTimeout(() => {
+  const specs = [
+    { w: 1200, h: 1600, bg: '#e2453b', n: '1' },
+    { w: 1600, h: 1200, bg: '#8a3ffc', n: '2' },
+    { w: 1400, h: 1400, bg: '#2f9e44', n: '3' },
+    { w: 1080, h: 1620, bg: '#1f8ecd', n: '4' },
+  ];
+  Promise.all(specs.map((s, i) => new Promise((res) => {
+    const c = document.createElement('canvas'); c.width = s.w; c.height = s.h;
+    const x = c.getContext('2d');
+    x.fillStyle = s.bg; x.fillRect(0, 0, s.w, s.h);
+    x.strokeStyle = 'rgba(255,255,255,0.3)'; x.lineWidth = s.w * 0.015;
+    for (let g = 1; g < 6; g++) { x.beginPath(); x.moveTo(s.w * g / 6, 0); x.lineTo(s.w * g / 6, s.h); x.stroke(); }
+    x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '700 ' + Math.min(s.w, s.h) * 0.5 + 'px -apple-system, sans-serif';
+    x.fillText(s.n, s.w / 2, s.h / 2);
+    c.toBlob((b) => res(new File([b], 'placeholder-' + s.n + '.png', { type: 'image/png' })), 'image/png');
+  }))).then((files) => {
+    const input = document.getElementById('filePicker');
+    if (!input) return;
+    const dt = new DataTransfer();
+    files.forEach((f) => dt.items.add(f));
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }).catch(() => {});
+}, 60));
+</script>`;
+
   const out = files.index
     .replace(/^\s*<link rel="manifest"[^>]*>\s*$\n?/m, '')
     .replace(/^\s*<link rel="icon"[^>]*>\s*$\n?/m, '')
     .replace(/^\s*<link rel="apple-touch-icon"[^>]*>\s*$\n?/m, '')
     .replace(/<link rel="stylesheet" href="\/css\/style\.css">/, `<style>\n${files.css}\n</style>`)
-    .replace(/<script type="module" src="\/js\/app\.mjs"><\/script>/, scriptTag);
+    .replace(/<script type="module" src="\/js\/app\.mjs"><\/script>/, `${scriptTag}\n${placeholders}`);
 
   // If the CSS/JS hooks weren't both present (an older layout), the inline didn't
   // happen and the page would 404 its assets — signal that with an empty result.

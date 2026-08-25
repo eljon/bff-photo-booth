@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.6 — 2026-08-25
+
+**Preview auto-loads test photos; punchier shadow; side-swipe really fixed.**
+
+- The GitHub Pages preview now drops four placeholder photos (varied aspect
+  ratios) into the picker on load, so testing lands straight on the coverflow —
+  no picking each launch. "Swap all 4 photos" still lets you choose your own. The
+  shareable claude.ai artifact does not do this.
+- The pinch shadow is now two stacked layers — a tight near-black core for a hard
+  edge plus a big soft halo — so it reads much more dramatically (still zero at
+  rest, still size-tracked and fading on release).
+- Side-swipe fix, take two: the deck now engages for any touch and lets
+  `touch-action` alone decide scroll vs. gesture (cards are locked, the container
+  is pan-y). So a swipe starting on any picture works, while a vertical drag over
+  the reflection or margins still scrolls the page.
+
 ## 1.31.5 — 2026-08-25
 
 **Bolder lift shadow; swipe works from the side pictures again.**
