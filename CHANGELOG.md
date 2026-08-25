@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.25.2 — 2026-08-25
+
+**Coverflow: scale the centre card back so the side photos show.**
+
+- The enlarged centre card had grown wide enough to hide its neighbours. Trimmed
+  the fit box (0.56h/0.88w → 0.46h/0.72w) and pushed the neighbours further out
+  (spacing 0.34→0.42 of the deck width), so the side designs clearly peek beside
+  the centre one again while it stays the focus.
+
 ## 1.25.1 — 2026-08-25
 
 **Remove the design label line; photos a touch bigger.**

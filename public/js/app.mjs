@@ -225,10 +225,11 @@ let cfBusy = false; // a swipe or glide is in flight — hold off the heavy prin
 
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
 
-/** Horizontal distance between neighbouring cards, in CSS px. */
+/** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative
+ *  to the card so the side photos always peek out beside the centre one. */
 function cfSpacing() {
   const cf = $('coverflow');
-  return Math.min(150, (cf.clientWidth || 320) * 0.34);
+  return Math.min(180, (cf.clientWidth || 320) * 0.42);
 }
 
 /** Lay the cards out in a coverflow fan around the continuous position cfPos. */
@@ -316,8 +317,8 @@ function rebuildCoverflow() {
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
-  const boxH = Math.min(window.innerHeight * 0.56, 540);
-  const boxW = Math.min(window.innerWidth * 0.88, 440);
+  const boxH = Math.min(window.innerHeight * 0.46, 430);
+  const boxW = Math.min(window.innerWidth * 0.72, 370);
 
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');
