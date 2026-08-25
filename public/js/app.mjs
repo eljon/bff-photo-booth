@@ -594,7 +594,7 @@ function bindCoverflow() {
     const ang = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX);
     const midX = (a.clientX + b.clientX) / 2;
     const midY = (a.clientY + b.clientY) / 2;
-    const scale = Math.min(3, Math.max(1, dist / manip.baseDist));
+    const scale = Math.min(3, Math.max(0.5, dist / manip.baseDist));
     const rot = ((ang - manip.baseAng) * 180) / Math.PI;
     const tx = midX - manip.baseMidX;
     const ty = midY - manip.baseMidY;

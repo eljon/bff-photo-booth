@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.5 — 2026-08-25
+
+**Pinch zooms out, too — not just in.**
+
+- The pinch peek used to clamp at the print's resting size, so you could only
+  make it bigger. It now lets you pinch down to half size as well, then springs
+  back to rest on release like always. (No lift shadow when shrunk — a print
+  smaller than its resting size sits flat, so the shadow stays at rest.)
+
 ## 1.32.4 — 2026-08-25
 
 **The intro bounces off the end instead of pausing there.**
