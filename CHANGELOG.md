@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.23.2 — 2026-08-25
+
+**Coverflow layering, actually fixed (the real cause).**
+
+- The deck used a shared 3D context (`transform-style: preserve-3d` + a `translateZ`
+  depth per card), and in that mode the browser stacks cards by 3D depth and
+  **ignores z-index** — so the incoming card came forward at the halfway crossover
+  no matter what, and every z-index tweak was cosmetic. Each card now carries its
+  own `perspective()` (same tilt, no shared 3D space), so cards are flat layers and
+  z-index alone decides what's in front. The current photo now genuinely stays on
+  top until the incoming reaches the centre.
+
 ## 1.23.1 — 2026-08-25
 
 **Coverflow: the front photo holds until the next is dead-centre.**

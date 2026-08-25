@@ -267,9 +267,10 @@ function positionCards() {
     const x = Math.sign(offset) * mag;
     const ry = Math.max(-55, Math.min(55, -offset * 44));
     const scale = Math.max(0.6, 1 - abs * 0.16);
-    const depth = -abs * 70;
+    // Per-card perspective(): the tilt is self-contained, so cards are flat layers
+    // and z-index (below) decides the stacking — not a shared-3D depth crossover.
     card.style.transform =
-      `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
+      `translate(-50%, -50%) translateX(${x}px) perspective(1100px) rotateY(${ry}deg) scale(${scale})`;
     // Cards are fully opaque — no see-through — so the top card cleanly covers
     // the ones behind it. Only cards well off the stage are hidden outright.
     card.style.opacity = abs > 2.6 ? '0' : '1';
