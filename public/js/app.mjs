@@ -379,25 +379,27 @@ const easeOutCubic2 = (t) => 1 - Math.pow(1 - t, 3);
  * Intro sweep, played whenever the photos are freshly completed. It is a real
  * coverflow scroll — driven by cfPos, so every card rotates and scales through
  * the centre as if a user swiped hard. The deck starts off the right edge (cfPos
- * a few slots before the first design, cards edge-on), whips right-to-left until
- * the rightmost design is centred, holds a beat, then swipes back to the middle.
- * Interruptible: any touch on a picture cancels it.
+ * a few slots before the first design, cards edge-on), whips right-to-left, and
+ * when it hits the rightmost design it doesn't stop — it rubber-bands a touch
+ * past the edge (the same iOS give as an end-of-list bounce) and slingshots
+ * straight back to the middle. Interruptible: any touch on a picture cancels it.
  */
 function runIntro() {
   const last = cfDesigns.length - 1;
   const middle = Math.floor(cfDesigns.length / 2);
   const startPos = -Math.min(3, last); // begin off to the right, cards edge-on
+  const over = last + rubber(0.9); // overshoot the edge with the same elastic give
   cfBusy = true;
   clearTimeout(warmTimer);
   cfPos = startPos;
   setCurrent(clampPos(Math.round(cfPos)));
   positionCards();
 
-  // Swipe hard through the deck to the rightmost, hold, then swipe back to middle.
+  // Swipe hard through the deck: overshoot the rightmost (the bounce), then
+  // slingshot back to the middle without ever coming to rest at the edge.
   const legs = [
-    { to: last, dur: 1150, ease: easeOutCubic2 },
-    { to: last, dur: 200, ease: (t) => t },
-    { to: middle, dur: 720, ease: easeOutCubic2 },
+    { to: over, dur: 1050, ease: easeOutCubic2 },
+    { to: middle, dur: 760, ease: easeOutCubic2 },
   ];
   let li = 0;
   let legFrom = startPos;

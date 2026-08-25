@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.4 — 2026-08-25
+
+**The intro bounces off the end instead of pausing there.**
+
+- The intro no longer holds a beat at the rightmost design. It now overshoots
+  the edge with the same iOS-style elastic give as an end-of-list bounce and
+  slingshots straight back to the middle in one continuous motion — no stop at
+  the end.
+
 ## 1.32.3 — 2026-08-25
 
 **The intro is a real coverflow swipe, not a flat slide.**
