@@ -36,25 +36,31 @@ async function available() {
 }
 
 /**
- * `lpstat -p -d` output looks like:
- *   printer Canon_SELPHY_CP1500 is idle.  enabled since Sat Aug 23 12:00:00 2025
- *   system default destination: Canon_SELPHY_CP1500
+ * Parse `lpstat -p -d` output into a printer list. The state clause varies:
+ *   printer Canon_G4010_series is idle.  enabled since ...
+ *   printer Canon_G4010_series now printing Canon_G4010_series-42.  enabled since ...
+ *   printer Canon_G4010_series disabled since ...
+ * The crucial part is recognising the printer NAME in every form — a printer that
+ * is mid-print must still appear, or the next job is rejected as "unknown printer"
+ * and nothing can ever queue behind a print in progress.
  */
-async function listPrinters() {
-  const res = await run('lpstat', ['-p', '-d']);
-  if (!res.ok && !res.stdout) return { printers: [], default: null, error: res.stderr || res.error };
-
+function parsePrinters(stdout) {
   const printers = [];
   let fallback = null;
 
-  for (const line of res.stdout.split('\n')) {
-    const p = line.match(/^printer\s+(\S+)\s+is\s+([^.]+)\.?/i);
+  for (const line of (stdout || '').split('\n')) {
+    const p = line.match(/^printer\s+(\S+)\s+(.*)$/i);
     if (p) {
-      const state = p[2].trim().toLowerCase();
+      const rest = p[2].toLowerCase();
+      let state = 'unknown';
+      if (rest.includes('printing') || rest.includes('processing')) state = 'printing';
+      else if (rest.includes('idle')) state = 'idle';
+      else if (rest.includes('disabled') || rest.includes('stopped')) state = 'disabled';
+      else if (rest.startsWith('is ')) state = rest.slice(3).split(/[.\s]/)[0] || 'unknown';
       printers.push({
         name: p[1],
         state,
-        ready: state.startsWith('idle') || state.startsWith('printing'),
+        ready: state === 'idle' || state === 'printing',
         detail: line.trim(),
       });
       continue;
@@ -63,6 +69,14 @@ async function listPrinters() {
     if (d) fallback = d[1];
   }
 
+  return { printers, default: fallback };
+}
+
+async function listPrinters() {
+  const res = await run('lpstat', ['-p', '-d']);
+  if (!res.ok && !res.stdout) return { printers: [], default: null, error: res.stderr || res.error };
+
+  const { printers, default: fallback } = parsePrinters(res.stdout);
   return { printers, default: fallback || (printers[0] ? printers[0].name : null), error: null };
 }
 
@@ -110,4 +124,4 @@ async function cancel(jobId) {
   return { ok: res.ok, error: res.ok ? null : (res.stderr || res.error || '').trim() };
 }
 
-module.exports = { available, listPrinters, listJobs, print, cancel, run };
+module.exports = { available, listPrinters, parsePrinters, listJobs, print, cancel, run };

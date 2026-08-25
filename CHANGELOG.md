@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.33.2 — 2026-08-25
+
+**Fix: couldn't queue a job while the printer was busy ("unknown printer").**
+
+- The booth reads the printer list from `lpstat -p`, but its parser only matched
+  the idle form (`printer X is idle.`). While a job was printing, CUPS reports
+  `printer X now printing X-42.` — which didn't match, so the printer vanished
+  from the list and the next print was rejected as `Unknown printer "…"`. That
+  made it impossible to line a job up behind one already printing.
+- The parser now recognises the printer name in every state — idle, now printing,
+  processing, disabled, stopped — so prints queue normally while another is in
+  progress (which is exactly what the queue-position display expects).
+
 ## 1.33.1 — 2026-08-25
 
 **Don't cry "failed" on a slow printer that actually took the job.**
