@@ -3,7 +3,7 @@ import { FILTERS, FILTER_ORDER } from './filters.mjs';
 import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout } from './render.mjs';
 
 const $ = (id) => document.getElementById(id);
-const MAX_SOURCE_DIM = 2400; // plenty for a 300 DPI cell, gentle on phone memory
+const MAX_SOURCE_DIM = 3600; // fills a full-page cell at the 600 DPI print scale, still gentle on memory
 
 // One layout, one look, one paper. The guest picks photos and prints — that is
 // the whole app.

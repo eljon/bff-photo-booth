@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.36.0 — 2026-08-25
+
+**Sharper prints: render at 600 DPI, not 300.**
+
+- Prints and phone-saves are now composed at 600 DPI (2400×3600 for a 4×6)
+  instead of 300 (1200×1800) — four times the pixels. At 300 DPI a capable photo
+  printer has to upscale a single hero photo, which reads soft and grainy on
+  paper; 600 DPI hands it real detail. (The on-screen preview is unaffected — it
+  renders at its own smaller size, so the app doesn't get heavier.)
+- Raised the imported-photo ceiling to 3600 px so a full-page photo actually has
+  the detail to fill a cell at the higher resolution, and nudged the print JPEG
+  fallback to 0.95. A 600 DPI 4×6 lands around 1.5 MB — still a quick upload.
+- The Facebook share stays web-sized (1200 px) on purpose — small and fast for
+  posting.
+
 ## 1.35.2 — 2026-08-25
 
 **Borderless for real: pick the printer's own borderless size.**

@@ -212,17 +212,25 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
   return canvas;
 }
 
+// Layouts are described at 300 DPI. We render the PRINT at PRINT_SCALE× that
+// (600 DPI) so a capable photo printer gets real detail instead of upscaling a
+// 300 DPI image — the difference between a crisp print and a soft, grainy one.
+// The on-screen preview stays at its own (smaller) scale, so this costs nothing
+// there. Source photos are kept large enough (MAX_SOURCE_DIM) to fill a full-page
+// cell at this resolution.
+export const PRINT_SCALE = 2;
+
 /** Render the print-resolution page and hand back a file ready for the queue. */
 export async function exportPrint(state) {
   const canvas = document.createElement('canvas');
-  composePage(canvas, state, 1);
+  composePage(canvas, state, PRINT_SCALE);
 
   let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('This browser could not render the print.');
   if (blob.size > 3 * 1024 * 1024) {
-    // A big PNG crawls over cellular; a 0.94 JPEG is indistinguishable at
-    // 300 DPI on photo paper and uploads in a second or two.
-    const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.94));
+    // A big PNG crawls over cellular; a 0.95 JPEG is indistinguishable on photo
+    // paper and uploads in a second or two.
+    const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
     if (jpeg) blob = jpeg;
   }
   return { blob, width: canvas.width, height: canvas.height };
