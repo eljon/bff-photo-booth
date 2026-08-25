@@ -230,7 +230,6 @@ let cfBusy = false; // a swipe or glide is in flight — hold off the heavy prin
 let manip = null;   // a two-finger direct-manipulation of one photo in flight
 let peekRaf = null; // the spring-back animation after a pinch is released
 let introRaf = null; // the intro sweep played each time the photos are completed
-let cfIntroX = 0;    // whole-deck x offset for the slide-in-from-offscreen entrance
 let wasComplete = false; // were all 4 photos filled on the previous render?
 
 const DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -268,8 +267,7 @@ function positionCards() {
     const abs = Math.abs(offset);
     // First neighbour sits a full step out; the rest compress into a stacked deck.
     const mag = Math.min(abs, 1) * spacing + Math.max(0, abs - 1) * spacing * 0.34;
-    // cfIntroX slides the whole deck in from off the right edge during the intro.
-    const x = Math.sign(offset) * mag + cfIntroX;
+    const x = Math.sign(offset) * mag;
     const ry = Math.max(-58, Math.min(58, -offset * 50));
     const scale = Math.max(0.62, 1 - abs * 0.10);
     // Real 3D depth (translateZ) does the stacking: the closer a card is to the
@@ -370,7 +368,6 @@ function stopIntro() {
   if (introRaf != null) {
     cancelAnimationFrame(introRaf);
     introRaf = null;
-    cfIntroX = 0; // never leave the deck parked off-screen
     cfBusy = false;
     positionCards();
   }
@@ -379,42 +376,42 @@ function stopIntro() {
 const easeOutCubic2 = (t) => 1 - Math.pow(1 - t, 3);
 
 /**
- * Intro sweep, played whenever the photos are freshly completed. The whole deck
- * starts off the RIGHT edge (cfIntroX) with the rightmost design already the
- * centred one, slides in until it lands centred, holds a beat, then scrolls back
- * to settle on the middle design. Interruptible: any touch cancels it.
+ * Intro sweep, played whenever the photos are freshly completed. It is a real
+ * coverflow scroll — driven by cfPos, so every card rotates and scales through
+ * the centre as if a user swiped hard. The deck starts off the right edge (cfPos
+ * a few slots before the first design, cards edge-on), whips right-to-left until
+ * the rightmost design is centred, holds a beat, then swipes back to the middle.
+ * Interruptible: any touch on a picture cancels it.
  */
 function runIntro() {
   const last = cfDesigns.length - 1;
   const middle = Math.floor(cfDesigns.length / 2);
-  const startX = Math.max(window.innerWidth, 380) * 1.1; // fully off the right edge
+  const startPos = -Math.min(3, last); // begin off to the right, cards edge-on
   cfBusy = true;
   clearTimeout(warmTimer);
-  cfPos = last;
-  cfIntroX = startX;
-  setCurrent(last);
+  cfPos = startPos;
+  setCurrent(clampPos(Math.round(cfPos)));
   positionCards();
 
-  // Each leg animates one value ('x' = the slide-in offset, 'pos' = the deck index).
+  // Swipe hard through the deck to the rightmost, hold, then swipe back to middle.
   const legs = [
-    { field: 'x', from: startX, to: 0, dur: 760, ease: easeOutCubic2 }, // slide in from the right
-    { field: 'x', from: 0, to: 0, dur: 200, ease: (t) => t },           // hold at the rightmost
-    { field: 'pos', from: last, to: middle, dur: 700, ease: easeOutCubic2 }, // scroll back to middle
+    { to: last, dur: 1150, ease: easeOutCubic2 },
+    { to: last, dur: 200, ease: (t) => t },
+    { to: middle, dur: 720, ease: easeOutCubic2 },
   ];
   let li = 0;
-  let start = null;
+  let legFrom = startPos;
+  let t0 = null;
   const step = (ts) => {
-    if (start === null) start = ts;
+    if (t0 === null) t0 = ts;
     const leg = legs[li];
-    const k = leg.dur > 0 ? Math.min(1, (ts - start) / leg.dur) : 1;
-    const v = leg.from + (leg.to - leg.from) * leg.ease(k);
-    if (leg.field === 'x') cfIntroX = v; else cfPos = v;
-    setCurrent(Math.round(clampPos(cfPos)));
+    const k = leg.dur > 0 ? Math.min(1, (ts - t0) / leg.dur) : 1;
+    cfPos = legFrom + (leg.to - legFrom) * leg.ease(k);
+    setCurrent(clampPos(Math.round(cfPos)));
     positionCards();
     if (k < 1) { introRaf = requestAnimationFrame(step); return; }
     li += 1;
-    if (li < legs.length) { start = null; introRaf = requestAnimationFrame(step); return; }
-    cfIntroX = 0;
+    if (li < legs.length) { legFrom = leg.to; t0 = null; introRaf = requestAnimationFrame(step); return; }
     cfPos = middle;
     setCurrent(middle);
     positionCards();
@@ -481,7 +478,6 @@ function rebuildCoverflow(playIntro = false) {
 
   cfPos = idx;
   cfIndex = -1; // force the label to refresh
-  cfIntroX = 0;
 
   // Whenever the photos are freshly completed, sweep the deck in from off the
   // right until the rightmost design is centred, then settle on the middle.

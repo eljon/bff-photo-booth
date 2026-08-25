@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.3 — 2026-08-25
+
+**The intro is a real coverflow swipe, not a flat slide.**
+
+- The entrance animation now drives the coverflow position itself, so every card
+  rotates and scales as it passes through the centre — exactly as if a user
+  swiped the deck hard — instead of the whole strip sliding across as one flat
+  block. It still starts off the right edge, whips through to the rightmost
+  design, holds a beat, then swings back to settle on the middle.
+
 ## 1.32.2 — 2026-08-25
 
 **Swipe only from the pictures — never from the reflection or the margins.**
