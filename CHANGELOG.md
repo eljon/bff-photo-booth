@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.7 — 2026-08-25
+
+**Reflection sits behind the print, never over it.**
+
+- When a pinch made the print and its reflection overlap, the reflection painted
+  on top of the picture. Gave the reflection a negative z-index within the card,
+  so it always renders behind the print — the picture cleanly covers it in the
+  overlap.
+
 ## 1.31.6 — 2026-08-25
 
 **Preview auto-loads test photos; punchier shadow; side-swipe really fixed.**

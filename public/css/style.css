@@ -145,6 +145,9 @@ body {
   filter: blur(3.5px);
   transform-origin: center center; /* a pinch mirrors the paper's transform about here */
   will-change: transform;
+  /* Behind the print: when a pinch makes the paper and its reflection overlap,
+     the reflection must sit under the picture, not paint over it. */
+  z-index: -1;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
   mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
 }
