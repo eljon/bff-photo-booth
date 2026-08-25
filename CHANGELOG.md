@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.10 — 2026-08-25
+
+**Tap a side picture to bring it to the centre.**
+
+- Tapping a side design now swipes it into the centre, not just dragging does.
+  The tap already tried to, but it resolved the target from `event.target` —
+  which the container's pointer-capture retargets away from the card, so it
+  always fell back to the current centre and nothing moved. It now finds the
+  tapped picture geometrically (the same hit-test the swipe uses), so any
+  visible card centres on tap.
+
 ## 1.32.9 — 2026-08-25
 
 **Render the frosted reflection at half resolution — pay for the retina bump.**

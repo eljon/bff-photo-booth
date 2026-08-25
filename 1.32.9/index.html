@@ -1728,6 +1728,24 @@ function endPeek(state) {
   peekRaf = requestAnimationFrame(step);
 }
 
+/** The index of the visible card whose picture (face box) is under a point, or
+ *  -1 if none. When cards overlap in the fan, the one whose centre is nearest the
+ *  point wins — the picture the tap is most squarely on. Geometric, not
+ *  event.target: the 3D stack and the container's pointer-capture both make the
+ *  DOM target unreliable, so we test the on-screen face rectangles directly. */
+function cardIndexAt(px, py) {
+  let best = -1;
+  let bestDist = Infinity;
+  [...$('cfTrack').children].forEach((card, i) => {
+    if (card.style.opacity === '0') return; // an off-stage, hidden card
+    const r = card.querySelector('canvas.cf-face').getBoundingClientRect();
+    if (px < r.left || px > r.right || py < r.top || py > r.bottom) return;
+    const d = Math.abs(px - (r.left + r.right) / 2);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  return best;
+}
+
 function bindCoverflow() {
   const cf = $('coverflow');
   const pointers = new Map();
@@ -1803,15 +1821,8 @@ function bindCoverflow() {
     // the reflection (which sits below the box) and the empty margins: touches
     // there fall through to the browser and scroll the page. A second finger may
     // land anywhere (so a pinch that started on a picture still works).
-    if (pointers.size === 0) {
-      const px = event.clientX;
-      const py = event.clientY;
-      const onPicture = [...$('cfTrack').children].some((card) => {
-        if (card.style.opacity === '0') return false; // an off-stage, hidden card
-        const r = card.querySelector('canvas.cf-face').getBoundingClientRect();
-        return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom;
-      });
-      if (!onPicture) return; // outside every picture — leave it to the page
+    if (pointers.size === 0 && cardIndexAt(event.clientX, event.clientY) < 0) {
+      return; // outside every picture — leave it to the page to scroll
     }
 
     stopIntro(); // a touch on a picture takes over from the intro sweep
@@ -1877,9 +1888,10 @@ function bindCoverflow() {
     const isFlick = Math.abs(v) > 0.012;
 
     if (!isFlick && moved < 6) {
-      // A tap: jump to the card under the finger, or settle to the nearest.
-      const card = event.target.closest('.cf-card');
-      const i = card ? [...$('cfTrack').children].indexOf(card) : -1;
+      // A tap: swipe the tapped picture — centre or side — to the middle. Found
+      // geometrically (pointer-capture retargets event.target to the container,
+      // so it can't tell us which card); falls back to the current centre.
+      const i = cardIndexAt(event.clientX, event.clientY);
       glideTo(i >= 0 ? i : from);
       return;
     }
