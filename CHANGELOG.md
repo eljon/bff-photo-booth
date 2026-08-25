@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.20.0 — 2026-08-25
+
+**Coverflow now flicks and glides like an iOS picker.**
+
+- Removed the ‹ › arrows — the deck is driven entirely by touch now.
+- Rewrote the motion as continuous, spring-based inertial scrolling. A release
+  carries its momentum and settles onto a card, so even a light flick slides to
+  the next design; a firmer flick carries up to two, with acceleration.
+- Removed the pink outline on the centred card — the front-and-centre card (plus
+  its label) is the selection.
+
 ## 1.19.2 — 2026-08-24
 
 **Fix: swiping the coverflow no longer scrolls the page.**

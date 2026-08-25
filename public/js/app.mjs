@@ -226,9 +226,17 @@ function updatePickButton() {
 
 // ---------------------------------------------------------------- coverflow
 
+// The coverflow scrolls on a continuous position (cfPos, in card units) driven
+// by a spring, so a flick glides and settles the way an iOS picker does. cfIndex
+// is the settled selection that Save/Print use.
 let cfDesigns = [];
-let cfIndex = 0;
-let cfJustDragged = false;
+let cfPos = 0;      // continuous centre position
+let cfIndex = -1;   // the design currently under the centre (drives label + print)
+let cfVel = 0;      // velocity in card-units per frame, carried into the settle
+let cfTarget = 0;   // where the spring is pulling to
+let cfRaf = null;
+
+const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
 
 /** Horizontal distance between neighbouring cards, in CSS px. */
 function cfSpacing() {
@@ -236,16 +244,12 @@ function cfSpacing() {
   return Math.min(150, (cf.clientWidth || 320) * 0.34);
 }
 
-/**
- * Lay the cards out in a coverflow fan around the selection. `extraUnits` shifts
- * the whole fan mid-swipe (in card widths) so the drag feels live before it snaps.
- */
-function positionCards(extraUnits = 0) {
+/** Lay the cards out in a coverflow fan around the continuous position cfPos. */
+function positionCards() {
   const cards = [...$('cfTrack').children];
   const spacing = cfSpacing();
-  const center = cfIndex + extraUnits;
   cards.forEach((card, i) => {
-    const offset = i - center;
+    const offset = i - cfPos;
     const abs = Math.abs(offset);
     // First neighbour sits a full step out; the rest compress into a stacked deck.
     const mag = Math.min(abs, 1) * spacing + Math.max(0, abs - 1) * spacing * 0.34;
@@ -257,35 +261,65 @@ function positionCards(extraUnits = 0) {
       `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
     card.style.opacity = abs > 2.5 ? '0' : String(Math.max(0.28, 1 - abs * 0.28));
     card.style.zIndex = String(100 - Math.round(abs * 10));
-    card.style.pointerEvents = abs > 2.5 ? 'none' : 'auto';
-    card.classList.toggle('is-current', i === cfIndex && Math.abs(extraUnits) < 0.02);
+    card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
   });
 }
 
-/** Commit a selection: update the label, the paper note, and the warmed print. */
-function selectDesign(index) {
-  if (!cfDesigns.length) return;
-  cfIndex = Math.max(0, Math.min(cfDesigns.length - 1, index));
-  const d = cfDesigns[cfIndex];
+/** The centred card changed — update the label, paper note, and warmed print. */
+function setCurrent(index) {
+  const i = clampPos(index);
+  if (i === cfIndex || !cfDesigns[i]) return;
+  cfIndex = i;
+  const d = cfDesigns[i];
   state.designKey = d.key;
   $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
-  $('cfCount').textContent = `${cfIndex + 1} / ${cfDesigns.length}`;
+  $('cfCount').textContent = `${i + 1} / ${cfDesigns.length}`;
   $('paperNote').textContent = d.paper;
-  $('cfPrev').disabled = cfIndex === 0;
-  $('cfNext').disabled = cfIndex === cfDesigns.length - 1;
-  positionCards();
   lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
   printGeneration += 1;
   warmPrint();
 }
 
+/** Spring one frame toward cfTarget, carrying cfVel, until it comes to rest. */
+function springStep() {
+  const STIFFNESS = 0.14;
+  const DAMPING = 0.78;
+  cfVel = (cfVel + (cfTarget - cfPos) * STIFFNESS) * DAMPING;
+  cfPos += cfVel;
+  setCurrent(Math.round(cfPos));
+  positionCards();
+  if (Math.abs(cfTarget - cfPos) < 0.001 && Math.abs(cfVel) < 0.001) {
+    cfPos = cfTarget;
+    cfVel = 0;
+    positionCards();
+    setCurrent(cfPos);
+    cfRaf = null;
+    return;
+  }
+  cfRaf = requestAnimationFrame(springStep);
+}
+
+/** Glide to a card index, letting whatever momentum cfVel holds carry into it. */
+function glideTo(index) {
+  cfTarget = clampPos(Math.round(index));
+  if (cfRaf == null) cfRaf = requestAnimationFrame(springStep);
+}
+
+function stopSpring() {
+  if (cfRaf != null) {
+    cancelAnimationFrame(cfRaf);
+    cfRaf = null;
+  }
+  cfVel = 0;
+}
+
 /** Rebuild the cards from the current photos, keeping the guest's chosen design. */
 function rebuildCoverflow() {
+  stopSpring();
   const base = LAYOUTS[state.layoutId];
   cfDesigns = designVariants(base, state.photos);
   let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
   if (idx < 0) idx = 0;
-  cfIndex = idx;
 
   const track = $('cfTrack');
   track.innerHTML = '';
@@ -296,7 +330,7 @@ function rebuildCoverflow() {
   const boxH = Math.min(window.innerHeight * 0.4, 340);
   const boxW = Math.min(window.innerWidth * 0.66, 320);
 
-  cfDesigns.forEach((design, i) => {
+  cfDesigns.forEach((design) => {
     const card = document.createElement('div');
     card.className = 'cf-card';
     const canvas = document.createElement('canvas');
@@ -305,58 +339,76 @@ function rebuildCoverflow() {
     canvas.style.width = `${Math.round(design.page.w * dispScale)}px`;
     canvas.style.height = `${Math.round(design.page.h * dispScale)}px`;
     card.appendChild(canvas);
-    card.addEventListener('click', () => {
-      if (cfJustDragged) return;
-      selectDesign(i);
-    });
     track.appendChild(card);
   });
 
-  selectDesign(cfIndex);
+  cfPos = idx;
+  cfIndex = -1; // force the label to refresh
+  setCurrent(idx);
+  positionCards();
 }
 
 function bindCoverflow() {
   const cf = $('coverflow');
   let dragging = false;
-  let startX = 0;
   let pid = null;
+  let startX = 0;
+  let startPos = 0;
+  let moved = 0;
+  let lastT = 0;
+  let velMs = 0; // smoothed velocity in card-units per millisecond
 
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
-    if (event.target.closest('.cf-nav')) return; // the arrows own their own taps
     dragging = true;
-    cfJustDragged = false;
-    startX = event.clientX;
     pid = event.pointerId;
+    startX = event.clientX;
+    startPos = cfPos;
+    moved = 0;
+    lastT = event.timeStamp;
+    velMs = 0;
+    stopSpring(); // grab it wherever it is — like catching a spinning wheel
+    try { cf.setPointerCapture(pid); } catch { /* fine */ }
   });
 
   cf.addEventListener('pointermove', (event) => {
     if (!dragging || event.pointerId !== pid) return;
     const dx = event.clientX - startX;
-    // Only claim the gesture once it is clearly a swipe — so taps on the arrows
-    // and on a side card still register as clicks.
-    if (Math.abs(dx) > 4 && !cfJustDragged) {
-      cfJustDragged = true;
-      try { cf.setPointerCapture(pid); } catch { /* fine */ }
-    }
-    if (cfJustDragged) positionCards(-dx / cfSpacing());
+    moved = Math.max(moved, Math.abs(dx));
+    const newPos = clampPos(startPos - dx / cfSpacing());
+    const dt = Math.max(1, event.timeStamp - lastT);
+    velMs = 0.7 * ((newPos - cfPos) / dt) + 0.3 * velMs; // smooth, so a flick reads clean
+    cfPos = newPos;
+    lastT = event.timeStamp;
+    setCurrent(Math.round(cfPos));
+    positionCards();
   });
 
   const end = (event) => {
     if (!dragging || event.pointerId !== pid) return;
     dragging = false;
-    if (cfJustDragged) {
-      const dx = event.clientX - startX;
-      selectDesign(Math.round(cfIndex - dx / cfSpacing()));
+
+    if (moved < 6) {
+      // A tap: jump to the card under the finger, or settle to the nearest.
+      const card = event.target.closest('.cf-card');
+      const i = card ? [...$('cfTrack').children].indexOf(card) : -1;
+      glideTo(i >= 0 ? i : Math.round(cfPos));
+      return;
     }
-    // Let the click that follows a real drag be swallowed, not treated as a tap.
-    setTimeout(() => { cfJustDragged = false; }, 0);
+
+    // A drag/flick: turn the release speed into momentum and let it glide. Even a
+    // gentle flick carries at least one card in its direction; a hard one at most
+    // two, so it never flies across the whole deck.
+    const from = Math.round(cfPos);
+    cfVel = Math.max(-0.9, Math.min(0.9, velMs * 16)); // per-frame, capped
+    let target = Math.round(cfPos + cfVel * 4);
+    if (cfVel > 0.04 && target <= from) target = from + 1;
+    if (cfVel < -0.04 && target >= from) target = from - 1;
+    target = Math.max(from - 2, Math.min(from + 2, target));
+    glideTo(target);
   };
   cf.addEventListener('pointerup', end);
   cf.addEventListener('pointercancel', end);
-
-  $('cfPrev').addEventListener('click', () => selectDesign(cfIndex - 1));
-  $('cfNext').addEventListener('click', () => selectDesign(cfIndex + 1));
 }
 
 function renderSlots() {

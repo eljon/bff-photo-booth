@@ -95,6 +95,8 @@ body {
   transform-style: preserve-3d;
 }
 
+/* Position is driven every frame by JS (a spring), so no CSS transition here —
+   it would lag behind and fight the animation. */
 .cf-card {
   position: absolute;
   top: 50%;
@@ -104,7 +106,6 @@ body {
   background: linear-gradient(180deg, #ffffff12, #ffffff06);
   box-shadow: 0 18px 40px -18px #000, 0 0 0 1px var(--line);
   will-change: transform, opacity;
-  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.28s ease;
   cursor: pointer;
 }
 /* The canvas is sized in JS to fit a box while keeping the true paper aspect
@@ -115,37 +116,6 @@ body {
   border-radius: 4px;
   background: #fff;
 }
-.cf-card.is-current { cursor: default; }
-.cf-card.is-current::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 10px;
-  box-shadow: 0 0 0 2px var(--accent);
-  pointer-events: none;
-}
-
-.cf-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 5;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 50%;
-  background: #15111bcc;
-  color: var(--ink);
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 6px 18px -8px #000;
-}
-.cf-nav:disabled { opacity: 0.3; cursor: default; }
-.cf-prev { left: 4px; }
-.cf-next { right: 4px; }
-
 .cf-label {
   text-align: center;
   margin: 12px 0 2px;
@@ -154,10 +124,6 @@ body {
   color: var(--ink);
 }
 .cf-label .cf-count { color: var(--ink-dim); font-weight: 500; font-size: 12px; margin-left: 6px; }
-
-@media (prefers-reduced-motion: reduce) {
-  .cf-card { transition: none; }
-}
 
 /* ---------------------------------------------------------------- panels */
 
