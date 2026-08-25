@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.0 — 2026-08-25
+
+**Roll back to any version by putting it in the URL.**
+
+- The GitHub Pages preview now publishes a self-contained snapshot of every
+  release under its own slug — open `…/bff-photo-booth/1.29.0/` (or any version)
+  to preview that exact build, with the root staying the latest. A versions index
+  at `/versions.html` lists them all.
+- `npm run preview` now builds the whole site: the latest at the root, a snapshot
+  per version (backfilled once from each release's commit — 57 versions back to
+  1.0.0), and the index. The build core moved to `scripts/lib-build.mjs`, shared
+  by `build-preview.mjs` (working tree, artifact `--body`) and the new
+  `scripts/build-site.mjs`. Any static host of the repo gets the same versioned
+  URLs; the claude.ai artifact stays a single latest page.
+
 ## 1.30.4 — 2026-08-25
 
 **Fix: pinch-zoom no longer drops the reflection or the deck's edges.**

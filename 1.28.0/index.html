@@ -150,15 +150,6 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
   mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
 }
-/* The paper: a pinch scales/rotates/moves this (a view only), around its centre,
-   without disturbing the card's coverflow position. It holds both the print face
-   and its reflection, so a pinch zooms them together; the container keeps its
-   overflow clipping, so the deck's clean left/right edges stay put. */
-.cf-paper {
-  position: relative;
-  transform-origin: center center;
-  will-change: transform;
-}
 .cf-label {
   text-align: center;
   margin: 12px 0 2px;
@@ -167,14 +158,6 @@ body {
   color: var(--ink);
 }
 .cf-label .cf-count { color: var(--ink-dim); font-weight: 500; font-size: 12px; margin-left: 6px; }
-.cf-hint {
-  text-align: center;
-  margin: 2px 0 0;
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
-  color: var(--ink-dim);
-  opacity: 0.75;
-}
 
 /* ---------------------------------------------------------------- panels */
 
@@ -482,7 +465,6 @@ body {
     </div>
 
     <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
-    <p class="cf-hint hidden" id="cfHint">Pinch to zoom in on the print · drag to move · twist to rotate</p>
   </section>
 
   <section class="pick">
@@ -563,7 +545,7 @@ body {
 <script type="module">
 
 const __PREVIEW_SESSION = {
-  version: "1.31.0", boothName: 'BFF Photo Booth',
+  version: "1.28.0", boothName: 'BFF Photo Booth',
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
   printingEnabled: false, requireApproval: false, keyRequired: false,
@@ -937,52 +919,21 @@ const DEFAULT_TRANSFORM = { zoom: 1, dx: 0, dy: 0, rot: 0 };
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**
- * The smallest scale at which the photo, rotated by `rot`, still fully covers
- * the cell — so a rotated crop never leaves a blank corner. A rotated rectangle
- * of source size (W×H)·scale covers a cell (cellW×cellH) when, along each of the
- * photo's own axes, its half-extent clears the cell's rotated footprint:
- *   W·scale/2 ≥ (cellW·|cos| + cellH·|sin|)/2, and the same for H with axes swapped.
- * For an unrotated `contain` cell (the layout shapes each cell to its photo) that
- * reduces to the exact fit, so nothing crops until the guest zooms or rotates.
- */
-function coverBase(cellW, cellH, W, H, rot, fit) {
-  if (fit === 'contain' && rot % 360 === 0) return Math.min(cellW / W, cellH / H);
-  const rad = (rot * Math.PI) / 180;
-  const c = Math.abs(Math.cos(rad));
-  const s = Math.abs(Math.sin(rad));
-  return Math.max((cellW * c + cellH * s) / W, (cellW * s + cellH * c) / H);
-}
-
-/**
- * Keep a crop inside its cell: however the guest zooms, pans, or rotates, the
- * photo still covers the frame, so a print can never come out with a sliver of
- * blank paper. Pan is clamped in the photo's own (rotated) frame, then mapped
- * back to page axes, so the reachable range is correct at any angle.
+ * Keep a crop inside its cell: however the guest pans, the photo still covers
+ * the frame, so a print can never come out with a sliver of blank paper.
  */
 function clampTransform(transform, cellW, cellH, bitmap, fit = 'cover') {
   const t = { zoom: 1, dx: 0, dy: 0, rot: 0, ...transform };
   t.zoom = Math.min(4, Math.max(1, t.zoom));
-  const rad = (t.rot * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const scale = coverBase(cellW, cellH, bitmap.width, bitmap.height, t.rot, fit) * t.zoom;
-
-  // Half the cell's footprint measured along the photo's own axes.
-  const needX = (cellW * Math.abs(cos) + cellH * Math.abs(sin)) / 2;
-  const needY = (cellW * Math.abs(sin) + cellH * Math.abs(cos)) / 2;
-  const slackX = Math.max(0, (bitmap.width * scale) / 2 - needX);
-  const slackY = Math.max(0, (bitmap.height * scale) / 2 - needY);
-
-  // Pan is stored as page-frame fractions of the cell. Rotate it into the photo
-  // frame to clamp against the slack, then rotate it back.
-  const px = t.dx * cellW;
-  const py = t.dy * cellH;
-  let lx = px * cos + py * sin;
-  let ly = -px * sin + py * cos;
-  lx = Math.min(slackX, Math.max(-slackX, lx));
-  ly = Math.min(slackY, Math.max(-slackY, ly));
-  t.dx = cellW ? (lx * cos - ly * sin) / cellW : 0;
-  t.dy = cellH ? (lx * sin + ly * cos) / cellH : 0;
+  const swap = Math.abs(t.rot % 180) === 90;
+  const fw = swap ? bitmap.height : bitmap.width;
+  const fh = swap ? bitmap.width : bitmap.height;
+  const base = fit === 'contain' ? Math.min(cellW / fw, cellH / fh) : Math.max(cellW / fw, cellH / fh);
+  const scale = base * t.zoom;
+  const slackX = Math.max(0, (fw * scale - cellW) / 2) / cellW;
+  const slackY = Math.max(0, (fh * scale - cellH) / 2) / cellH;
+  t.dx = Math.min(slackX, Math.max(-slackX, t.dx));
+  t.dy = Math.min(slackY, Math.max(-slackY, t.dy));
   return t;
 }
 
@@ -991,9 +942,15 @@ function drawPhoto(ctx, cell, photo, filterId) {
   const { bitmap } = photo;
   const fit = cell.fit || 'cover';
   const t = clampTransform(photo.transform, cell.w, cell.h, bitmap, fit);
+  const swap = Math.abs(t.rot % 180) === 90;
   const nw = bitmap.width;
   const nh = bitmap.height;
-  const scale = coverBase(cell.w, cell.h, nw, nh, t.rot, fit) * t.zoom;
+  const footprintW = swap ? nh : nw;
+  const footprintH = swap ? nw : nh;
+  const fitScale = fit === 'contain'
+    ? Math.min(cell.w / footprintW, cell.h / footprintH)
+    : Math.max(cell.w / footprintW, cell.h / footprintH);
+  const scale = fitScale * t.zoom;
 
   ctx.save();
   ctx.beginPath();
@@ -1379,7 +1336,6 @@ function updatePickButton() {
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
   $('cfLabel').classList.toggle('hidden', !full);
-  $('cfHint').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
 }
 
@@ -1395,26 +1351,8 @@ let cfIndex = -1;   // the design currently under the centre (drives label + pri
 let cfTarget = 0;   // the card the glide is easing to
 let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
-let manip = null;   // a two-finger direct-manipulation of one photo in flight
 
-const DPR = Math.min(2, window.devicePixelRatio || 1);
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
-
-/** Paint a card's face (the design) and its frosted mirror from current state. */
-function paintCard(card, design) {
-  const face = card.querySelector('canvas.cf-face');
-  const mirror = card.querySelector('canvas.cf-mirror');
-  const dispScale = Number(card.dataset.scale);
-  composePage(face, state, dispScale * DPR, design);
-  mirror.width = face.width;
-  mirror.height = face.height;
-  const mctx = mirror.getContext('2d');
-  mctx.setTransform(1, 0, 0, 1, 0, 0);
-  mctx.clearRect(0, 0, mirror.width, mirror.height);
-  mctx.translate(0, mirror.height);
-  mctx.scale(1, -1);
-  mctx.drawImage(face, 0, 0);
-}
 
 /** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative
  *  to the card so the side photos always peek out beside the centre one. */
@@ -1469,12 +1407,7 @@ function setCurrent(index) {
   if (!cfBusy) warmPrint();
 }
 
-// When a glide should bounce off an end, it first eases to a point just past the
-// edge (cfTarget), then — because cfBounceBack is set — eases back to the edge.
-let cfBounceBack = null;
-
-/** Ease one frame toward cfTarget. Monotonic between cards; the only overshoot
- *  is a deliberate end-of-list bounce, driven by cfBounceBack. */
+/** Ease one frame toward cfTarget. Monotonic — it decelerates in, never past. */
 function glideStep() {
   const EASE = 0.28; // fraction of the remaining gap closed per frame
   cfPos += (cfTarget - cfPos) * EASE;
@@ -1482,13 +1415,6 @@ function glideStep() {
   positionCards();
   if (Math.abs(cfTarget - cfPos) < 0.003) {
     cfPos = cfTarget;
-    if (cfBounceBack !== null) {
-      // Reached the overshoot point — now spring back to the edge.
-      cfTarget = cfBounceBack;
-      cfBounceBack = null;
-      cfRaf = requestAnimationFrame(glideStep);
-      return;
-    }
     positionCards();
     setCurrent(cfPos);
     cfRaf = null;
@@ -1501,26 +1427,11 @@ function glideStep() {
 
 /** Glide to a card index with a smooth, settling ease. */
 function glideTo(index) {
-  cfBounceBack = null;
   cfTarget = clampPos(Math.round(index));
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
 }
 
-/** Bounce off an end: overshoot a touch past the edge, then spring back to it —
- *  the iOS "you've hit the end of the list" feel. */
-function bounceEdge(edge) {
-  cfBounceBack = edge;
-  cfTarget = edge + (edge === 0 ? -0.3 : 0.3);
-  if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-}
-
-/** Rubber-band resistance for dragging past an end: the further past, the less
- *  it gives, asymptoting to MAX_OVER cards — so the end feels elastic, not walled. */
-const MAX_OVER = 0.55;
-const rubber = (over) => over / (1 + over / MAX_OVER);
-
 function stopSpring() {
-  cfBounceBack = null;
   if (cfRaf != null) {
     cancelAnimationFrame(cfRaf);
     cfRaf = null;
@@ -1538,6 +1449,7 @@ function rebuildCoverflow() {
 
   const track = $('cfTrack');
   track.innerHTML = '';
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
@@ -1548,34 +1460,31 @@ function rebuildCoverflow() {
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');
     card.className = 'cf-card';
+    const canvas = document.createElement('canvas');
     const dispScale = Math.min(boxH / design.page.h, boxW / design.page.w);
+    composePage(canvas, state, dispScale * dpr, design);
     const w = Math.round(design.page.w * dispScale);
     const h = Math.round(design.page.h * dispScale);
-    card.dataset.scale = String(dispScale);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    card.appendChild(canvas);
 
-    // The design itself (the "face"), wrapped in a paper element that a pinch
-    // zooms (a view transform, independent of the card's coverflow position)…
-    const paper = document.createElement('div');
-    paper.className = 'cf-paper';
-    const face = document.createElement('canvas');
-    face.className = 'cf-face';
-    face.style.width = `${w}px`;
-    face.style.height = `${h}px`;
-    paper.appendChild(face);
-
-    // …and its frosted-glass reflection: a vertically-flipped copy just below,
-    // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
-    // a crisp mirror. It lives INSIDE the paper, so a pinch zooms the reflection
-    // right along with the print. Flipping in the bitmap (not via a CSS transform)
-    // keeps it sitting cleanly below the card.
+    // Frosted-glass reflection: a vertically-flipped copy of the card, drawn once
+    // here. The CSS blurs and fades it so it reads as a soft, hazy reflection
+    // rather than a crisp mirror. Flipping in the bitmap (not via a CSS transform)
+    // keeps it sitting cleanly below the card in the 3D stack.
     const mirror = document.createElement('canvas');
     mirror.className = 'cf-mirror';
+    mirror.width = canvas.width;
+    mirror.height = canvas.height;
+    const mctx = mirror.getContext('2d');
+    mctx.translate(0, mirror.height);
+    mctx.scale(1, -1);
+    mctx.drawImage(canvas, 0, 0);
     mirror.style.width = `${w}px`;
     mirror.style.height = `${h}px`;
-    paper.appendChild(mirror);
-    card.appendChild(paper);
+    card.appendChild(mirror);
 
-    paintCard(card, design);
     track.appendChild(card);
   });
 
@@ -1585,141 +1494,36 @@ function rebuildCoverflow() {
   positionCards();
 }
 
-// -------------------------------------------------- pinch-to-zoom the paper
-
-/** The `.cf-paper` wrapper of the centred card — the thing a pinch zooms. */
-function centrePaper() {
-  const card = $('cfTrack').children[clampPos(Math.round(cfPos))];
-  return card ? card.querySelector('.cf-paper') : null;
-}
-
-/** The drop shadow for a paper lifted to `scale` off its resting spot: the
- *  further it rises, the bigger, softer, and fainter the shadow — like a real
- *  object moving away from the surface. Screen-space values are divided by scale
- *  because the shadow rides the same transform that enlarges the paper. */
-function paperShadow(scale) {
-  const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom
-  const dy = (4 + lift * 48) / scale;    // drops further as it rises
-  const blur = (10 + lift * 84) / scale; // bigger and more diffused
-  const alpha = 0.32 - lift * 0.14;      // softer as it spreads out
-  return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
-}
-
-/** Drop the peek: spring the paper back to its resting size and tidy up. The
- *  shadow rides the face (not the paper) so it never darkens the reflection. */
-function endPeek(paper, face) {
-  const ease = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
-  paper.style.transition = `transform 0.28s ${ease}`;
-  paper.style.transform = '';
-  face.style.transition = `filter 0.28s ${ease}`;
-  face.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
-  clearTimeout(manip && manip.timer);
-  const done = () => {
-    paper.style.transition = '';
-    face.style.transition = '';
-    face.style.filter = '';
-  };
-  // Give the spring time to land, then clean up the inline styles.
-  const timer = setTimeout(done, 320);
-  paper.addEventListener('transitionend', () => { clearTimeout(timer); done(); }, { once: true });
-}
-
 function bindCoverflow() {
   const cf = $('coverflow');
-  const pointers = new Map();
-  let swipeId = null;    // the pointer driving a one-finger browse
   let dragging = false;
+  let pid = null;
   let startX = 0;
   let startPos = 0;
   let moved = 0;
   let lastT = 0;
   let velMs = 0; // smoothed velocity in card-units per millisecond
 
-  // Two fingers on the centred card zoom the whole print (the "paper") so you can
-  // look at it up close — pinch to zoom, drag to move, twist to rotate. It is a
-  // view only: the print itself never changes, and it springs back on release.
-  // One finger still browses the deck, so there is no gesture clash.
-  const beginManip = () => {
-    dragging = false; // a browse never becomes a peek half-way
-    swipeId = null;
-    stopSpring();
-    cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before zooming
-    positionCards();
-    const paper = centrePaper();
-    if (!paper) return;
-    const face = paper.querySelector('canvas.cf-face');
-    const [a, b] = [...pointers.values()];
-    paper.style.transition = ''; // follow the fingers with no lag
-    face.style.transition = '';
-    face.style.filter = paperShadow(1); // a grounded shadow to start
-    manip = {
-      paper,
-      face,
-      baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
-      baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
-      baseMidX: (a.clientX + b.clientX) / 2,
-      baseMidY: (a.clientY + b.clientY) / 2,
-      timer: null,
-    };
-    cfBusy = true;
-    clearTimeout(warmTimer);
-  };
-
-  const updateManip = () => {
-    const [a, b] = [...pointers.values()];
-    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    const ang = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX);
-    const midX = (a.clientX + b.clientX) / 2;
-    const midY = (a.clientY + b.clientY) / 2;
-    const scale = Math.min(3, Math.max(1, dist / manip.baseDist));
-    const rot = ((ang - manip.baseAng) * 180) / Math.PI;
-    const tx = midX - manip.baseMidX;
-    const ty = midY - manip.baseMidY;
-    manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
-    manip.face.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
-  };
-
-  const endManip = () => {
-    const { paper, face } = manip;
-    endPeek(paper, face);
-    manip = null;
-    cfBusy = false;
-  };
-
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
-    pointers.set(event.pointerId, event);
-    try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
-
-    if (pointers.size >= 2) { beginManip(); return; }
-
-    // First finger: a possible browse (or a tap).
-    swipeId = event.pointerId;
     dragging = true;
+    pid = event.pointerId;
     startX = event.clientX;
     startPos = cfPos;
     moved = 0;
     lastT = event.timeStamp;
     velMs = 0;
     cfBusy = true;
-    clearTimeout(warmTimer); // cancel any warm queued before the gesture began
+    clearTimeout(warmTimer); // cancel any warm queued before the swipe began
     stopSpring(); // grab it wherever it is — like catching a spinning wheel
+    try { cf.setPointerCapture(pid); } catch { /* fine */ }
   });
 
   cf.addEventListener('pointermove', (event) => {
-    if (!pointers.has(event.pointerId)) return;
-    pointers.set(event.pointerId, event);
-
-    if (manip) { if (pointers.size >= 2) updateManip(); return; }
-    if (!dragging || event.pointerId !== swipeId) return;
-
+    if (!dragging || event.pointerId !== pid) return;
     const dx = event.clientX - startX;
     moved = Math.max(moved, Math.abs(dx));
-    // Rubber-band past the ends instead of hard-stopping: drag beyond the first
-    // or last design and it follows with easing resistance (iOS end-of-list feel).
-    const raw = startPos - dx / cfSpacing();
-    const max = cfDesigns.length - 1;
-    const newPos = raw < 0 ? -rubber(-raw) : raw > max ? max + rubber(raw - max) : raw;
+    const newPos = clampPos(startPos - dx / cfSpacing());
     const dt = Math.max(1, event.timeStamp - lastT);
     velMs = 0.7 * ((newPos - cfPos) / dt) + 0.3 * velMs; // smooth, so a flick reads clean
     cfPos = newPos;
@@ -1729,16 +1533,8 @@ function bindCoverflow() {
   });
 
   const end = (event) => {
-    if (!pointers.has(event.pointerId)) return;
-    pointers.delete(event.pointerId);
-
-    if (manip) {
-      if (pointers.size < 2) endManip();
-      return;
-    }
-    if (!dragging || event.pointerId !== swipeId) return;
+    if (!dragging || event.pointerId !== pid) return;
     dragging = false;
-    swipeId = null;
 
     // Release speed in card-units per frame. If the finger paused before lifting,
     // it is not a flick — ignore the now-stale speed.
@@ -1761,17 +1557,13 @@ function bindCoverflow() {
       // The release speed picks the target (faster → further); a small flick still
       // always advances one, a hard one at most two, so it never flies across.
       const capped = Math.max(-0.9, Math.min(0.9, v));
-      let rawTarget = Math.round(cfPos + capped * 5);
-      if (v > 0 && rawTarget <= from) rawTarget = from + 1;
-      if (v < 0 && rawTarget >= from) rawTarget = from - 1;
-      const max = cfDesigns.length - 1;
-      const target = Math.max(from - 2, Math.min(from + 2, rawTarget));
-      // Flicking past an end (there was momentum beyond it) bounces off it.
-      if (target <= 0 && rawTarget < 0) bounceEdge(0);
-      else if (target >= max && rawTarget > max) bounceEdge(max);
-      else glideTo(target);
+      let target = Math.round(cfPos + capped * 5);
+      if (v > 0 && target <= from) target = from + 1;
+      if (v < 0 && target >= from) target = from - 1;
+      target = Math.max(from - 2, Math.min(from + 2, target));
+      glideTo(target);
     } else {
-      // A slow drag: settle to the nearest card — springs back if past an end.
+      // A slow drag: settle to whichever card is nearest.
       glideTo(from);
     }
   };

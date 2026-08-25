@@ -1,0 +1,1572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#15111b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Photo Booth</title>
+<style>
+:root {
+  --bg: #15111b;
+  --bg-soft: #1e1826;
+  --card: #241d2e;
+  --line: #372c45;
+  --ink: #f6f1ef;
+  --ink-dim: #b3a7bd;
+  --accent: #ff5c7a;
+  --accent-ink: #2a0b13;
+  --ok: #5ad1a5;
+  --warn: #ffb020;
+  --radius: 18px;
+  --bar-h: 84px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(120% 60% at 50% 0%, #2a1f36 0%, transparent 60%),
+    var(--bg);
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 16px 0;
+}
+
+.topbar { text-align: center; padding: 10px 0 14px; }
+.topbar h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.topbar p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
+
+/* ---------------------------------------------------------------- preview */
+
+.stage { display: flex; flex-direction: column; align-items: center; }
+
+.paper-shadow {
+  padding: 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff10, #ffffff05);
+  box-shadow: 0 18px 40px -18px #000, 0 0 0 1px var(--line);
+}
+
+#preview {
+  display: block;
+  max-width: min(78vw, 300px);
+  max-height: 46vh;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.paper-note { color: var(--ink-dim); font-size: 12px; margin: 10px 0 2px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ---------------------------------------------------------------- panels */
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.panel-head h2 { margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.12em; }
+.sub { margin: 16px 0 8px; font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+.hint { color: var(--ink-dim); font-size: 13px; line-height: 1.45; margin: 12px 0 0; }
+
+.pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ffffff12;
+  color: var(--ink);
+}
+.pill.quiet { background: transparent; border: 1px solid var(--line); color: var(--ink-dim); font-weight: 500; }
+.pill.good { background: #5ad1a520; color: var(--ok); }
+.pill.bad { background: #ff5c7a20; color: var(--accent); }
+
+/* ---------------------------------------------------------------- slots */
+
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+
+.slot {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  background: var(--bg-soft);
+  color: var(--ink-dim);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.slot canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.slot.filled { border-style: solid; border-color: transparent; }
+.slot .num {
+  position: absolute;
+  left: 5px;
+  top: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  background: #00000090;
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+
+/* ---------------------------------------------------------------- chips */
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.chip {
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.chip[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip small { display: block; font-weight: 500; font-size: 11px; opacity: 0.75; }
+
+.swatches .chip { display: flex; align-items: center; gap: 8px; }
+.dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #0004; display: inline-block; }
+
+.text-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--ink);
+  padding: 13px 14px;
+  font-size: 16px;
+  font-family: inherit;
+}
+.text-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  border: 0;
+  border-radius: 14px;
+  padding: 15px 18px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-ghost { background: #ffffff12; color: var(--ink); }
+.btn-ghost.danger { color: var(--accent); }
+.btn-add { width: 100%; margin-top: 14px; background: #ffffff12; color: var(--ink); }
+.btn-icon { font-weight: 800; }
+.wide { width: 100%; margin-top: 12px; }
+
+.copies { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 15px; }
+.stepper { display: flex; align-items: center; gap: 4px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.stepper button {
+  width: 40px; height: 40px; border-radius: 50%; border: 0;
+  background: #ffffff12; color: var(--ink); font-size: 20px; font-weight: 700; cursor: pointer;
+}
+.stepper output { min-width: 34px; text-align: center; font-weight: 800; font-size: 17px; }
+
+.spacer { height: calc(var(--bar-h) + env(safe-area-inset-bottom) + 20px); }
+
+.actionbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #15111b00, #15111be6 22%, var(--bg) 60%);
+  backdrop-filter: blur(8px);
+}
+.actionbar .btn-primary { flex: 1; }
+.actionbar .btn-ghost { flex: 0 0 96px; }
+
+/* ---------------------------------------------------------------- sheet */
+
+.sheet, .overlay {
+  position: fixed;
+  inset: 0;
+  background: #0b0810cc;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+  backdrop-filter: blur(6px);
+}
+.overlay { align-items: center; padding: 20px; }
+.hidden { display: none !important; }
+
+.sheet-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--line);
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-head h2 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 0.1em; }
+.icon-btn { border: 0; background: #ffffff12; color: var(--ink); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+
+.crop-wrap { display: flex; flex-direction: column; align-items: center; margin: 14px 0 6px; }
+#cropCanvas {
+  max-width: min(74vw, 320px);
+  max-height: 44dvh;
+  border-radius: 10px;
+  background: #000;
+  touch-action: none;
+  cursor: grab;
+}
+.crop-hint { color: var(--ink-dim); font-size: 12px; margin: 10px 0 0; }
+
+.slider { width: 100%; margin: 10px 0 14px; accent-color: var(--accent); height: 30px; }
+
+.sheet-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.sheet-actions .btn { flex: 1; padding: 13px 8px; font-size: 14px; }
+
+/* ---------------------------------------------------------------- result */
+
+.result-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 26px 20px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+}
+.result-emoji { font-size: 44px; }
+.result-card h2 { margin: 10px 0 6px; font-size: 21px; }
+.result-card p { margin: 0; color: var(--ink-dim); font-size: 15px; line-height: 1.5; }
+.result-image { max-width: 150px; margin: 16px auto 0; display: block; border-radius: 6px; box-shadow: 0 10px 24px -12px #000; }
+.result-actions { display: flex; gap: 10px; margin-top: 22px; }
+.result-actions .btn { flex: 1; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bar-h) + env(safe-area-inset-bottom) + 16px);
+  transform: translateX(-50%);
+  background: #000000d9;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  z-index: 40;
+  max-width: 88vw;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: rise 0.18s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1 id="boothName">Photo Booth</h1>
+    <p id="boothMessage">Pick 4 photos. Make a strip. Take it home.</p>
+  </header>
+
+  <section class="stage" aria-label="Print preview">
+    <div class="paper-shadow">
+      <canvas id="preview" aria-label="Live preview of your print"></canvas>
+    </div>
+    <p class="paper-note"><span id="paperNote">4×6 print</span></p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Your four</h2>
+      <span id="slotCount" class="pill">0 / 4</span>
+    </div>
+    <div class="slots" id="slots"></div>
+    <button class="btn btn-add" id="addAll" type="button">
+      <span class="btn-icon">＋</span> Add photos from your phone
+    </button>
+    <p class="hint">Take them in your camera app first, then pick the four you like. Tap a photo to crop, rotate or swap it.</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Style</h2></div>
+
+    <h3 class="sub">Layout</h3>
+    <div class="chips" id="layoutChips" role="radiogroup" aria-label="Layout"></div>
+
+    <h3 class="sub">Look</h3>
+    <div class="chips" id="filterChips" role="radiogroup" aria-label="Filter"></div>
+
+    <h3 class="sub">Paper colour</h3>
+    <div class="chips swatches" id="frameChips" role="radiogroup" aria-label="Paper colour"></div>
+
+    <h3 class="sub">Caption</h3>
+    <input id="caption" class="text-input" type="text" inputmode="text" maxlength="28"
+           placeholder="Sam &amp; Alex · 2026" autocomplete="off">
+  </section>
+
+  <section class="panel" id="printPanel">
+    <div class="panel-head">
+      <h2>Print</h2>
+      <span id="printerState" class="pill quiet">checking printer…</span>
+    </div>
+    <div class="copies">
+      <span>Copies</span>
+      <div class="stepper">
+        <button type="button" id="copiesDown" aria-label="Fewer copies">−</button>
+        <output id="copiesValue">1</output>
+        <button type="button" id="copiesUp" aria-label="More copies">＋</button>
+      </div>
+    </div>
+    <p class="hint" id="printHint">Prints on the MacBook at the booth. Grab it from the tray.</p>
+  </section>
+
+  <div class="spacer"></div>
+</div>
+
+<div class="actionbar">
+  <button class="btn btn-ghost" id="saveBtn" type="button">Save</button>
+  <button class="btn btn-primary" id="printBtn" type="button" disabled>Print my strip</button>
+</div>
+
+<div class="sheet hidden" id="editor" role="dialog" aria-modal="true" aria-label="Adjust photo">
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <h2>Adjust photo <span id="editorIndex" class="pill"></span></h2>
+      <button class="icon-btn" id="editorClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="crop-wrap">
+      <canvas id="cropCanvas"></canvas>
+      <p class="crop-hint">Drag to move · pinch or slide to zoom</p>
+    </div>
+    <input id="zoom" class="slider" type="range" min="1" max="3" step="0.01" value="1" aria-label="Zoom">
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="rotateBtn" type="button">Rotate</button>
+      <button class="btn btn-ghost" id="resetBtn" type="button">Reset</button>
+      <button class="btn btn-ghost" id="replaceBtn" type="button">Replace</button>
+      <button class="btn btn-ghost danger" id="removeBtn" type="button">Remove</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="moveLeft" type="button">← Move back</button>
+      <button class="btn btn-ghost" id="moveRight" type="button">Move forward →</button>
+    </div>
+    <button class="btn btn-primary wide" id="editorDone" type="button">Done</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="result" role="dialog" aria-modal="true">
+  <div class="result-card">
+    <div class="result-emoji" id="resultEmoji">🖨️</div>
+    <h2 id="resultTitle">Sending to the printer…</h2>
+    <p id="resultBody">Hold tight.</p>
+    <img id="resultImage" alt="Your print" class="result-image hidden">
+    <div class="result-actions">
+      <button class="btn btn-ghost" id="resultSave" type="button">Save to phone</button>
+      <button class="btn btn-primary" id="resultDone" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+<input id="filePicker" type="file" accept="image/*" multiple hidden>
+<input id="fileOne" type="file" accept="image/*" hidden>
+
+<div class="toast hidden" id="toast"></div>
+
+<script type="module">
+
+const __PREVIEW_SESSION = {
+  version: "1.0.0", boothName: 'BFF Photo Booth',
+  message: 'Pick 4 photos. Take it home.',
+  maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
+  printingEnabled: false, requireApproval: false, keyRequired: false,
+  remote: false, dryRun: false,
+};
+const __origFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+  const u = typeof input === 'string' ? input : (input && input.url) || '';
+  if (u.includes('/api/session')) return Promise.resolve(new Response(JSON.stringify(__PREVIEW_SESSION), { status: 200, headers: { 'content-type': 'application/json' } }));
+  if (u.includes('/api/')) return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'Preview mode — printing needs the booth.' }), { status: 503, headers: { 'content-type': 'application/json' } }));
+  return __origFetch(input, init);
+};
+
+
+/* ===== js/filters.mjs ===== */
+// Photo looks. ctx.filter is used where the browser supports it (fast, GPU
+// backed); older iOS Safari falls back to the equivalent per-pixel maths so a
+// guest on an old phone still gets the same print.
+
+const FILTERS = {
+  none: { id: 'none', name: 'True', css: 'none' },
+  bw: { id: 'bw', name: 'B&W', css: 'grayscale(1) contrast(1.08)' },
+  noir: { id: 'noir', name: 'Noir', css: 'grayscale(1) contrast(1.35) brightness(0.96)' },
+  warm: { id: 'warm', name: 'Warm', css: 'saturate(1.12) sepia(0.18) brightness(1.03)' },
+  cool: { id: 'cool', name: 'Cool', css: 'saturate(1.05) hue-rotate(-8deg) brightness(1.02)' },
+  fade: { id: 'fade', name: 'Faded', css: 'contrast(0.88) saturate(0.85) brightness(1.08)' },
+};
+
+const FILTER_ORDER = ['none', 'bw', 'noir', 'warm', 'cool', 'fade'];
+
+let ctxFilterSupported = null;
+
+function supportsCtxFilter() {
+  if (ctxFilterSupported !== null) return ctxFilterSupported;
+  try {
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    ctx.filter = 'grayscale(1)';
+    ctxFilterSupported = ctx.filter === 'grayscale(1)';
+  } catch {
+    ctxFilterSupported = false;
+  }
+  return ctxFilterSupported;
+}
+
+const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+
+const PIXEL_OPS = {
+  none: null,
+  bw: (r, g, b) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const c = (y - 128) * 1.08 + 128;
+    return [c, c, c];
+  },
+  noir: (r, g, b) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const c = ((y - 128) * 1.35 + 128) * 0.96;
+    return [c, c, c];
+  },
+  warm: (r, g, b) => [r * 1.07 + 8, g * 1.02 + 2, b * 0.93],
+  cool: (r, g, b) => [r * 0.93, g * 1.0, b * 1.09 + 6],
+  fade: (r, g, b) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const mix = (v) => (v * 0.85 + y * 0.15) * 0.88 + 30;
+    return [mix(r), mix(g), mix(b)];
+  },
+};
+
+/** Apply a filter preset to a whole canvas in place (fallback path). */
+function applyPixelFilter(canvas, filterId) {
+  const op = PIXEL_OPS[filterId];
+  if (!op) return;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = image.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const [r, g, b] = op(d[i], d[i + 1], d[i + 2]);
+    d[i] = clamp(r);
+    d[i + 1] = clamp(g);
+    d[i + 2] = clamp(b);
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+
+/* ===== js/layouts.mjs ===== */
+// Print layouts. Every page is described in real pixels at 300 DPI, so the
+// canvas we compose on the phone is literally the file that goes to the tray.
+
+const DPI = 300;
+const inches = (n) => Math.round(n * DPI);
+
+function stripLayout() {
+  // Two identical 2x6 strips on one 4x6 sheet — cut down the middle.
+  const page = { w: inches(4), h: inches(6) };
+  const stripW = page.w / 2;
+  const pad = 44;
+  const gap = 22;
+  const footer = 150;
+  const cellW = stripW - pad * 2;
+  const cellH = Math.floor((page.h - pad * 2 - footer - gap * 3) / 4);
+  const cells = [];
+  for (let copy = 0; copy < 2; copy++) {
+    for (let i = 0; i < 4; i++) {
+      cells.push({
+        x: copy * stripW + pad,
+        y: pad + i * (cellH + gap),
+        w: cellW,
+        h: cellH,
+        photo: i,
+      });
+    }
+  }
+  const captionY = pad + 4 * cellH + 3 * gap;
+  return {
+    id: 'strip',
+    name: 'Classic strip',
+    blurb: 'Two 2×6 strips on one 4×6 — keep one, give one away',
+    paper: '4×6 portrait',
+    media: 'Custom.4x6in',
+    page,
+    cells,
+    captions: [
+      { x: pad, y: captionY, w: cellW, h: page.h - pad - captionY },
+      { x: stripW + pad, y: captionY, w: cellW, h: page.h - pad - captionY },
+    ],
+    cutLine: { x: stripW, y1: 0, y2: page.h },
+  };
+}
+
+function gridLayout() {
+  // 2x2 on a 4x6 portrait sheet.
+  const page = { w: inches(4), h: inches(6) };
+  const pad = 60;
+  const gap = 30;
+  const footer = 170;
+  const cellW = Math.floor((page.w - pad * 2 - gap) / 2);
+  const cellH = Math.floor((page.h - pad * 2 - footer - gap) / 2);
+  const cells = [];
+  for (let i = 0; i < 4; i++) {
+    cells.push({
+      x: pad + (i % 2) * (cellW + gap),
+      y: pad + Math.floor(i / 2) * (cellH + gap),
+      w: cellW,
+      h: cellH,
+      photo: i,
+    });
+  }
+  const captionY = pad + 2 * cellH + gap;
+  return {
+    id: 'grid',
+    name: 'Four-up grid',
+    blurb: 'Big 2×2 squares on a 4×6 print',
+    paper: '4×6 portrait',
+    media: 'Custom.4x6in',
+    page,
+    cells,
+    captions: [{ x: pad, y: captionY, w: page.w - pad * 2, h: page.h - pad - captionY }],
+    cutLine: null,
+  };
+}
+
+function filmstripLayout() {
+  // Four tall frames across a 6x4 landscape sheet.
+  const page = { w: inches(6), h: inches(4) };
+  const pad = 56;
+  const gap = 24;
+  const footer = 132;
+  const cellW = Math.floor((page.w - pad * 2 - gap * 3) / 4);
+  const cellH = page.h - pad * 2 - footer;
+  const cells = [];
+  for (let i = 0; i < 4; i++) {
+    cells.push({ x: pad + i * (cellW + gap), y: pad, w: cellW, h: cellH, photo: i });
+  }
+  const captionY = pad + cellH;
+  return {
+    id: 'filmstrip',
+    name: 'Wide filmstrip',
+    blurb: 'Four tall frames on a 6×4 landscape print',
+    paper: '6×4 landscape',
+    media: 'Custom.6x4in',
+    page,
+    cells,
+    captions: [{ x: pad, y: captionY, w: page.w - pad * 2, h: page.h - pad - captionY }],
+    cutLine: null,
+  };
+}
+
+const LAYOUTS = {
+  strip: stripLayout(),
+  grid: gridLayout(),
+  filmstrip: filmstripLayout(),
+};
+
+const LAYOUT_ORDER = ['strip', 'grid', 'filmstrip'];
+
+const FRAMES = {
+  white: { id: 'white', name: 'White', bg: '#ffffff', ink: '#101010', accent: '#9a9a9a' },
+  black: { id: 'black', name: 'Black', bg: '#111111', ink: '#f5f5f5', accent: '#8a8a8a' },
+  cream: { id: 'cream', name: 'Cream', bg: '#f4ece0', ink: '#4a3b2c', accent: '#b9a68e' },
+  blush: { id: 'blush', name: 'Blush', bg: '#f7dfe4', ink: '#7a3b48', accent: '#c98d9c' },
+};
+
+const DEFAULT_TRANSFORM = { zoom: 1, dx: 0, dy: 0, rot: 0 };
+
+
+/* ===== js/render.mjs ===== */
+
+const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+/**
+ * Keep a crop inside its cell: however the guest pans, the photo still covers
+ * the frame, so a print can never come out with a sliver of blank paper.
+ */
+function clampTransform(transform, cellW, cellH, bitmap) {
+  const t = { zoom: 1, dx: 0, dy: 0, rot: 0, ...transform };
+  t.zoom = Math.min(4, Math.max(1, t.zoom));
+  const swap = Math.abs(t.rot % 180) === 90;
+  const fw = swap ? bitmap.height : bitmap.width;
+  const fh = swap ? bitmap.width : bitmap.height;
+  const scale = Math.max(cellW / fw, cellH / fh) * t.zoom;
+  const slackX = Math.max(0, (fw * scale - cellW) / 2) / cellW;
+  const slackY = Math.max(0, (fh * scale - cellH) / 2) / cellH;
+  t.dx = Math.min(slackX, Math.max(-slackX, t.dx));
+  t.dy = Math.min(slackY, Math.max(-slackY, t.dy));
+  return t;
+}
+
+/** Draw one photo, cover-fitted into a cell and honouring the guest's crop. */
+function drawPhoto(ctx, cell, photo, filterId) {
+  const { bitmap } = photo;
+  const t = clampTransform(photo.transform, cell.w, cell.h, bitmap);
+  const swap = Math.abs(t.rot % 180) === 90;
+  const nw = bitmap.width;
+  const nh = bitmap.height;
+  const footprintW = swap ? nh : nw;
+  const footprintH = swap ? nw : nh;
+  const scale = Math.max(cell.w / footprintW, cell.h / footprintH) * t.zoom;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cell.x, cell.y, cell.w, cell.h);
+  ctx.clip();
+
+  const useCtxFilter = filterId !== 'none' && supportsCtxFilter();
+  if (useCtxFilter) ctx.filter = FILTERS[filterId].css;
+
+  ctx.translate(cell.x + cell.w / 2 + t.dx * cell.w, cell.y + cell.h / 2 + t.dy * cell.h);
+  ctx.rotate((t.rot * Math.PI) / 180);
+  ctx.drawImage(bitmap, (-nw * scale) / 2, (-nh * scale) / 2, nw * scale, nh * scale);
+  ctx.restore();
+
+  if (filterId !== 'none' && !useCtxFilter) {
+    // Older Safari: redo this cell through the pixel path.
+    const tile = document.createElement('canvas');
+    tile.width = Math.max(1, Math.round(cell.w));
+    tile.height = Math.max(1, Math.round(cell.h));
+    const tctx = tile.getContext('2d', { willReadFrequently: true });
+    tctx.translate(tile.width / 2 + t.dx * cell.w, tile.height / 2 + t.dy * cell.h);
+    tctx.rotate((t.rot * Math.PI) / 180);
+    tctx.drawImage(bitmap, (-nw * scale) / 2, (-nh * scale) / 2, nw * scale, nh * scale);
+    applyPixelFilter(tile, filterId);
+    ctx.drawImage(tile, cell.x, cell.y, cell.w, cell.h);
+  }
+}
+
+function drawPlaceholder(ctx, cell, index, frame) {
+  ctx.save();
+  ctx.strokeStyle = frame.accent;
+  ctx.fillStyle = frame.accent;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = Math.max(2, cell.w * 0.012);
+  ctx.setLineDash([cell.w * 0.06, cell.w * 0.04]);
+  ctx.strokeRect(cell.x + 4, cell.y + 4, cell.w - 8, cell.h - 8);
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.55;
+  ctx.font = `600 ${Math.round(Math.min(cell.w, cell.h) * 0.3)}px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(index + 1), cell.x + cell.w / 2, cell.y + cell.h / 2);
+  ctx.restore();
+}
+
+/**
+ * Shrink text until it fits its block. Letter spacing has to be applied before
+ * measuring, or a tracked-out footer runs off the edge of the paper.
+ */
+function fitText(ctx, text, maxWidth, startSize, weight, spacingRatio = 0) {
+  let size = startSize;
+  const apply = () => {
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    ctx.letterSpacing = `${Math.round(size * spacingRatio)}px`;
+  };
+  apply();
+  while (size > 10 && ctx.measureText(text).width > maxWidth) {
+    size -= 2;
+    apply();
+  }
+  return size;
+}
+
+function drawCaption(ctx, box, frame, caption, subtitle) {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '0px';
+  const cx = box.x + box.w / 2;
+  const hasCaption = Boolean(caption);
+  const captionSize = Math.round(box.h * (hasCaption ? 0.42 : 0));
+  const subSize = Math.round(box.h * (hasCaption ? 0.2 : 0.28));
+
+  ctx.textBaseline = 'alphabetic';
+
+  if (hasCaption) {
+    ctx.fillStyle = frame.ink;
+    fitText(ctx, caption, box.w, captionSize, '700');
+    ctx.fillText(caption, cx, box.y + box.h * 0.52);
+  }
+  if (subtitle) {
+    ctx.fillStyle = frame.accent;
+    fitText(ctx, subtitle, box.w, subSize, '500', 0.12);
+    ctx.fillText(subtitle, cx, box.y + box.h * (hasCaption ? 0.88 : 0.62));
+  }
+  ctx.restore();
+}
+
+function drawCutLine(ctx, layout, frame) {
+  if (!layout.cutLine) return;
+  ctx.save();
+  ctx.strokeStyle = frame.accent;
+  ctx.globalAlpha = 0.4;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 12]);
+  ctx.beginPath();
+  ctx.moveTo(layout.cutLine.x, layout.cutLine.y1 + 20);
+  ctx.lineTo(layout.cutLine.x, layout.cutLine.y2 - 20);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Compose the whole page.
+ * `scale` of 1 renders the real 300 DPI print; the preview uses a fraction.
+ */
+function composePage(canvas, state, scale = 1) {
+  const layout = LAYOUTS[state.layoutId];
+  const frame = FRAMES[state.frameId] || FRAMES.white;
+  const w = Math.round(layout.page.w * scale);
+  const h = Math.round(layout.page.h * scale);
+
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = frame.bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.scale(scale, scale);
+  ctx.imageSmoothingQuality = 'high';
+
+  for (const cell of layout.cells) {
+    const photo = state.photos[cell.photo];
+    if (photo && photo.bitmap) drawPhoto(ctx, cell, photo, state.filterId);
+    else drawPlaceholder(ctx, cell, cell.photo, frame);
+  }
+
+  drawCutLine(ctx, layout, frame);
+  for (const box of layout.captions) drawCaption(ctx, box, frame, state.caption, state.subtitle);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return canvas;
+}
+
+/** Render the print-resolution page and hand back a file ready for the queue. */
+async function exportPrint(state) {
+  const canvas = document.createElement('canvas');
+  composePage(canvas, state, 1);
+
+  let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('This browser could not render the print.');
+  if (blob.size > 3 * 1024 * 1024) {
+    // A big PNG crawls over cellular; a 0.94 JPEG is indistinguishable at
+    // 300 DPI on photo paper and uploads in a second or two.
+    const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.94));
+    if (jpeg) blob = jpeg;
+  }
+  return { blob, width: canvas.width, height: canvas.height };
+}
+
+/** Single photo filling a canvas — used by the crop editor and the slot thumbs. */
+function drawSinglePhoto(canvas, photo, filterId = 'none') {
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawPhoto(ctx, { x: 0, y: 0, w: canvas.width, h: canvas.height }, photo, filterId);
+  return canvas;
+}
+
+
+/* ===== js/app.mjs ===== */
+
+const $ = (id) => document.getElementById(id);
+const MAX_SOURCE_DIM = 2400; // plenty for a 300 DPI cell, gentle on phone memory
+
+const state = {
+  layoutId: 'strip',
+  frameId: 'white',
+  filterId: 'none',
+  caption: '',
+  subtitle: '',
+  copies: 1,
+  photos: [null, null, null, null],
+};
+
+const session = {
+  boothName: 'Photo Booth',
+  maxCopies: 3,
+  printingEnabled: true,
+  requireApproval: false,
+  keyRequired: false,
+  remote: false,
+  dryRun: false,
+  online: false,
+};
+
+const KEY_STORAGE = 'booth.key';
+
+/**
+ * A public booth carries its access key in the QR link (?k=…). Stash it and
+ * tidy the address bar, so the guest never types anything and a shared
+ * screenshot of the URL bar does not hand out printing rights.
+ */
+function claimAccessKey() {
+  const url = new URL(location.href);
+  const fromLink = url.searchParams.get('k');
+  if (fromLink) {
+    try {
+      localStorage.setItem(KEY_STORAGE, fromLink);
+    } catch {
+      /* private mode — the key still works for this page load */
+    }
+    url.searchParams.delete('k');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    return fromLink;
+  }
+  try {
+    return localStorage.getItem(KEY_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+let accessKey = claimAccessKey();
+
+let editorIndex = null;
+let pendingSlot = null;
+let lastPrintBlob = null;
+
+// ---------------------------------------------------------------- utilities
+
+function toast(message, ms = 2600) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.remove('hidden');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+function todayStamp() {
+  return new Date()
+    .toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+    .toUpperCase();
+}
+
+/** Decode a picked file, honouring EXIF rotation, and shrink it for memory. */
+async function loadPhoto(file) {
+  let source = null;
+  try {
+    source = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    source = await loadViaImgElement(file);
+  }
+  if (!source || !source.width) throw new Error('That file is not a photo this browser can read.');
+  return downscale(source, MAX_SOURCE_DIM);
+}
+
+function loadViaImgElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not open that photo. Try a different one.'));
+    };
+    img.src = url;
+  });
+}
+
+function downscale(source, maxDim) {
+  const w = source.width || source.naturalWidth;
+  const h = source.height || source.naturalHeight;
+  const longest = Math.max(w, h);
+  if (longest <= maxDim) return source;
+  const ratio = maxDim / longest;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * ratio);
+  canvas.height = Math.round(h * ratio);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  if (source.close) source.close();
+  return canvas;
+}
+
+function filledCount() {
+  return state.photos.filter(Boolean).length;
+}
+
+// ---------------------------------------------------------------- rendering
+
+let frameRequested = false;
+
+function scheduleRender() {
+  lastPrintBlob = null; // anything that redraws invalidates the exported page
+  if (frameRequested) return;
+  frameRequested = true;
+  requestAnimationFrame(() => {
+    frameRequested = false;
+    renderAll();
+  });
+}
+
+function previewScale(layout) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssWidth = Math.min(300, window.innerWidth * 0.78);
+  return Math.min(1, (cssWidth * dpr) / layout.page.w);
+}
+
+function renderAll() {
+  const layout = LAYOUTS[state.layoutId];
+  state.subtitle = `${session.boothName} · ${todayStamp()}`;
+  composePage($('preview'), state, previewScale(layout));
+  $('paperNote').textContent = `${layout.paper} · ${layout.name}`;
+  $('slotCount').textContent = `${filledCount()} / 4`;
+  $('printBtn').disabled = filledCount() < 4 || !session.printingEnabled;
+  $('saveBtn').disabled = filledCount() < 4;
+  renderSlots();
+}
+
+function renderSlots() {
+  const container = $('slots');
+  if (!container.childElementCount) {
+    for (let i = 0; i < 4; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'slot';
+      btn.dataset.index = String(i);
+      btn.addEventListener('click', () => onSlotTap(i));
+      container.appendChild(btn);
+    }
+  }
+
+  [...container.children].forEach((btn, i) => {
+    const photo = state.photos[i];
+    btn.classList.toggle('filled', Boolean(photo));
+    btn.innerHTML = '';
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = String(i + 1);
+    if (!photo) {
+      btn.textContent = '＋';
+      btn.setAttribute('aria-label', `Add photo ${i + 1}`);
+      return;
+    }
+    const thumb = document.createElement('canvas');
+    thumb.width = 120;
+    thumb.height = 160;
+    drawSinglePhoto(thumb, photo, state.filterId);
+    btn.appendChild(thumb);
+    btn.appendChild(num);
+    btn.setAttribute('aria-label', `Adjust photo ${i + 1}`);
+  });
+}
+
+// ---------------------------------------------------------------- controls
+
+function buildChips() {
+  const layoutBox = $('layoutChips');
+  for (const id of LAYOUT_ORDER) {
+    const layout = LAYOUTS[id];
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.setAttribute('role', 'radio');
+    chip.dataset.value = id;
+    chip.innerHTML = `${layout.name}<small>${layout.blurb}</small>`;
+    chip.addEventListener('click', () => {
+      state.layoutId = id;
+      syncChips();
+      scheduleRender();
+    });
+    layoutBox.appendChild(chip);
+  }
+
+  const filterBox = $('filterChips');
+  for (const id of FILTER_ORDER) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.setAttribute('role', 'radio');
+    chip.dataset.value = id;
+    chip.textContent = FILTERS[id].name;
+    chip.addEventListener('click', () => {
+      state.filterId = id;
+      syncChips();
+      scheduleRender();
+    });
+    filterBox.appendChild(chip);
+  }
+
+  const frameBox = $('frameChips');
+  for (const frame of Object.values(FRAMES)) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.setAttribute('role', 'radio');
+    chip.dataset.value = frame.id;
+    chip.innerHTML = `<span class="dot" style="background:${frame.bg}"></span>${frame.name}`;
+    chip.addEventListener('click', () => {
+      state.frameId = frame.id;
+      syncChips();
+      scheduleRender();
+    });
+    frameBox.appendChild(chip);
+  }
+  syncChips();
+}
+
+function syncChips() {
+  const map = { layoutChips: state.layoutId, filterChips: state.filterId, frameChips: state.frameId };
+  for (const [boxId, value] of Object.entries(map)) {
+    for (const chip of $(boxId).children) {
+      chip.setAttribute('aria-checked', String(chip.dataset.value === value));
+    }
+  }
+}
+
+// ---------------------------------------------------------------- picking
+
+function onSlotTap(index) {
+  if (state.photos[index]) openEditor(index);
+  else pickInto(index);
+}
+
+function pickInto(index) {
+  pendingSlot = index;
+  $('fileOne').value = '';
+  $('fileOne').click();
+}
+
+async function acceptFiles(files, startIndex = null) {
+  const list = [...files].slice(0, 4);
+  if (!list.length) return;
+  toast(list.length > 1 ? 'Loading your photos…' : 'Loading…', 1400);
+
+  let cursor = startIndex;
+  for (const file of list) {
+    try {
+      const bitmap = await loadPhoto(file);
+      const slot = cursor !== null ? cursor : nextOpenSlot();
+      state.photos[slot] = { bitmap, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } };
+      cursor = null; // an explicit slot only claims the first file
+      scheduleRender();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  if (filledCount() === 4) toast('Looking good. Style it below, then print.', 2200);
+}
+
+let overflowCursor = 0;
+
+function nextOpenSlot() {
+  const open = state.photos.findIndex((p) => !p);
+  if (open !== -1) return open;
+  const slot = overflowCursor % 4;
+  overflowCursor += 1;
+  return slot;
+}
+
+// ---------------------------------------------------------------- editor
+
+const crop = { dragging: false, startX: 0, startY: 0, baseDx: 0, baseDy: 0, pinchDist: 0, baseZoom: 1 };
+
+function cellFor(index) {
+  const layout = LAYOUTS[state.layoutId];
+  return layout.cells.find((c) => c.photo === index) || layout.cells[0];
+}
+
+function openEditor(index) {
+  editorIndex = index;
+  $('editorIndex').textContent = String(index + 1);
+  $('editor').classList.remove('hidden');
+  sizeCropCanvas();
+  $('zoom').value = String(state.photos[index].transform.zoom);
+  drawCrop();
+}
+
+function closeEditor() {
+  editorIndex = null;
+  $('editor').classList.add('hidden');
+  scheduleRender();
+}
+
+function sizeCropCanvas() {
+  const cell = cellFor(editorIndex);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssWidth = Math.min(320, window.innerWidth * 0.74);
+  const canvas = $('cropCanvas');
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${Math.round((cssWidth * cell.h) / cell.w)}px`;
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(((cssWidth * cell.h) / cell.w) * dpr);
+}
+
+function drawCrop() {
+  if (editorIndex === null) return;
+  const photo = state.photos[editorIndex];
+  if (!photo) return;
+  const canvas = $('cropCanvas');
+  photo.transform = clampTransform(photo.transform, canvas.width, canvas.height, photo.bitmap);
+  drawSinglePhoto(canvas, photo, state.filterId);
+}
+
+function bindCropGestures() {
+  const canvas = $('cropCanvas');
+  const pointers = new Map();
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (editorIndex === null) return;
+    canvas.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, event);
+    const t = state.photos[editorIndex].transform;
+    if (pointers.size === 1) {
+      crop.dragging = true;
+      crop.startX = event.clientX;
+      crop.startY = event.clientY;
+      crop.baseDx = t.dx;
+      crop.baseDy = t.dy;
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      crop.pinchDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      crop.baseZoom = t.zoom;
+    }
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (editorIndex === null || !pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, event);
+    const photo = state.photos[editorIndex];
+    const rect = canvas.getBoundingClientRect();
+
+    if (pointers.size >= 2) {
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      if (crop.pinchDist > 0) {
+        photo.transform.zoom = Math.min(4, Math.max(1, (crop.baseZoom * dist) / crop.pinchDist));
+        $('zoom').value = String(Math.min(3, photo.transform.zoom));
+      }
+    } else if (crop.dragging) {
+      photo.transform.dx = crop.baseDx + (event.clientX - crop.startX) / rect.width;
+      photo.transform.dy = crop.baseDy + (event.clientY - crop.startY) / rect.height;
+    }
+    drawCrop();
+  });
+
+  const release = (event) => {
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) crop.pinchDist = 0;
+    if (pointers.size === 0) crop.dragging = false;
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+}
+
+// ---------------------------------------------------------------- printing
+
+/** POST the page with a progress bar — uploads matter on a cellular booth. */
+function uploadPrint(path, blob, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', path);
+    request.timeout = 120_000;
+    request.setRequestHeader('content-type', blob.type || 'image/png');
+    if (accessKey) request.setRequestHeader('x-booth-key', accessKey);
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    });
+    request.addEventListener('load', () => {
+      try {
+        resolve({ status: request.status, data: JSON.parse(request.responseText) });
+      } catch {
+        reject(new Error('The booth sent back something unreadable.'));
+      }
+    });
+    request.addEventListener('error', () => reject(new Error('network')));
+    request.addEventListener('timeout', () => reject(new Error('network')));
+    request.send(blob);
+  });
+}
+
+const WAITING = ['awaiting-approval', 'pending', 'claimed', 'printing'];
+
+/** Turn a job record into what the guest sees. */
+function showJob(job) {
+  if (job.status === 'awaiting-approval') {
+    return showResult({
+      emoji: '👀',
+      title: 'Waiting for the host',
+      body: 'Your strip is in the queue — the booth host taps print. Stay close to the tray.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (WAITING.includes(job.status)) {
+    return showResult({
+      emoji: '📡',
+      title: 'Sending it to the booth',
+      body: 'The printer is picking up your strip now.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (job.status === 'failed') {
+    return showResult({
+      emoji: '🙃',
+      title: 'The printer said no',
+      body: `${job.error || 'Printing failed.'} You can still save the photo to your phone.`,
+      image: job.image,
+    });
+  }
+  if (job.status === 'rejected') {
+    return showResult({
+      emoji: '🤷',
+      title: 'The host skipped this one',
+      body: 'Ask them why. You can still save it to your phone.',
+      image: job.image,
+    });
+  }
+  return showResult({
+    emoji: '🎉',
+    title: session.dryRun ? 'Saved (dry run)' : 'Printing now!',
+    body: session.dryRun
+      ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
+      : `${job.copies} ${job.copies === 1 ? 'copy' : 'copies'} on the way${job.cupsJobId ? ` · job ${job.cupsJobId}` : ''}. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
+    image: job.image,
+  });
+}
+
+/** Follow a job until the printer has actually taken it. */
+async function trackJob(job) {
+  const deadline = Date.now() + 120_000;
+  let current = job;
+  while (WAITING.includes(current.status) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch(`/api/job?id=${encodeURIComponent(current.id)}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      current = data.job;
+    } catch {
+      return;
+    }
+    showJob(current);
+  }
+}
+
+function showResult({ emoji, title, body, image, busy }) {
+  $('resultEmoji').textContent = emoji;
+  $('resultTitle').textContent = title;
+  $('resultBody').textContent = body;
+  $('result').classList.remove('hidden');
+  $('resultDone').disabled = Boolean(busy);
+  const img = $('resultImage');
+  if (image) {
+    img.src = image;
+    img.classList.remove('hidden');
+  } else {
+    img.classList.add('hidden');
+  }
+}
+
+async function doPrint() {
+  if (filledCount() < 4) {
+    toast('Four photos first.');
+    return;
+  }
+  showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 300 DPI.', busy: true });
+
+  let result;
+  try {
+    result = await exportPrint(state);
+  } catch (err) {
+    showResult({ emoji: '😵', title: 'Could not build the print', body: err.message });
+    return;
+  }
+  lastPrintBlob = result.blob;
+
+  const params = new URLSearchParams({
+    layout: state.layoutId,
+    copies: String(state.copies),
+    guest: state.caption.slice(0, 40),
+  });
+
+  try {
+    const { status, data } = await uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
+      showResult({
+        emoji: '📤',
+        title: 'Sending to the booth…',
+        body: `${Math.round(fraction * 100)}% uploaded`,
+        busy: true,
+      });
+    });
+
+    if (status === 401) {
+      accessKey = '';
+      try {
+        localStorage.removeItem(KEY_STORAGE);
+      } catch {
+        /* nothing to clear */
+      }
+      showResult({
+        emoji: '🔑',
+        title: 'Scan the booth QR code',
+        body: 'This booth only prints for guests who came in through its QR code. Scan it and try again — your photos stay put.',
+      });
+      return;
+    }
+
+    if (status < 200 || status >= 300 || !data.ok) {
+      showResult({
+        emoji: '🙃',
+        title: 'The printer said no',
+        body: `${data.error || 'Printing failed.'} You can still save the photo to your phone.`,
+      });
+      return;
+    }
+
+    showJob(data.job);
+    trackJob(data.job);
+  } catch (err) {
+    showResult({
+      emoji: '📶',
+      title: err.message === 'network' ? 'Lost the connection' : 'Something went wrong',
+      body: 'Check your signal and try again — or save the photo to your phone.',
+    });
+  }
+}
+
+async function savePhoto() {
+  try {
+    const { blob } = lastPrintBlob ? { blob: lastPrintBlob } : await exportPrint(state);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `photobooth-${Date.now()}.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 20_000);
+    toast('Saved to your downloads.');
+  } catch (err) {
+    toast(err.message || 'Could not save that.');
+  }
+}
+
+function resetBooth() {
+  state.photos = [null, null, null, null];
+  state.caption = '';
+  $('caption').value = '';
+  lastPrintBlob = null;
+  overflowCursor = 0;
+  $('result').classList.add('hidden');
+  scheduleRender();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---------------------------------------------------------------- session
+
+async function loadSession() {
+  try {
+    const response = await fetch('/api/session');
+    const data = await response.json();
+    Object.assign(session, data, { online: true });
+  } catch {
+    session.online = false;
+  }
+
+  $('boothName').textContent = session.boothName;
+  document.title = session.boothName;
+  if (session.message) $('boothMessage').textContent = session.message;
+  state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
+  $('copiesValue').textContent = String(state.copies);
+
+  if (session.keyRequired && !accessKey) {
+    $('printHint').textContent = 'Scan the booth QR code to unlock printing — you can still build and save a strip.';
+  }
+
+  if (!session.printingEnabled || !session.online) {
+    $('printPanel').classList.add('hidden');
+    $('printBtn').classList.add('hidden');
+    $('saveBtn').classList.remove('btn-ghost');
+    $('saveBtn').classList.add('btn-primary');
+    $('saveBtn').textContent = 'Save my strip';
+    $('saveBtn').style.flex = '1';
+  }
+  scheduleRender();
+  if (session.online && session.printingEnabled) refreshPrinter();
+}
+
+async function refreshPrinter() {
+  const pill = $('printerState');
+  try {
+    const response = await fetch('/api/printers');
+    const data = await response.json();
+    if (data.dryRun) {
+      pill.textContent = 'dry run';
+      pill.className = 'pill quiet';
+      return;
+    }
+    if (data.remote && !data.agentOnline) {
+      pill.textContent = 'booth offline';
+      pill.className = 'pill bad';
+      $('printHint').textContent = 'The booth Mac is not connected right now. Save your strip and try again in a minute.';
+      return;
+    }
+    const chosen = data.printers.find((p) => p.name === data.default) || data.printers[0];
+    if (!chosen) {
+      pill.textContent = 'no printer';
+      pill.className = 'pill bad';
+      $('printHint').textContent = 'No printer is set up on the booth Mac yet. Ask the host, or save to your phone.';
+      return;
+    }
+    pill.textContent = chosen.ready ? 'ready' : chosen.state;
+    pill.className = `pill ${chosen.ready ? 'good' : 'bad'}`;
+  } catch {
+    pill.textContent = 'offline';
+    pill.className = 'pill bad';
+  }
+}
+
+// ---------------------------------------------------------------- wiring
+
+function bind() {
+  $('addAll').addEventListener('click', () => {
+    $('filePicker').value = '';
+    $('filePicker').click();
+  });
+  $('filePicker').addEventListener('change', (event) => acceptFiles(event.target.files));
+  $('fileOne').addEventListener('change', (event) => {
+    const slot = pendingSlot;
+    pendingSlot = null;
+    acceptFiles(event.target.files, slot);
+  });
+
+  $('caption').addEventListener('input', (event) => {
+    state.caption = event.target.value.trim();
+    scheduleRender();
+  });
+
+  $('copiesDown').addEventListener('click', () => {
+    state.copies = Math.max(1, state.copies - 1);
+    $('copiesValue').textContent = String(state.copies);
+  });
+  $('copiesUp').addEventListener('click', () => {
+    state.copies = Math.min(session.maxCopies || 3, state.copies + 1);
+    $('copiesValue').textContent = String(state.copies);
+  });
+
+  $('printBtn').addEventListener('click', doPrint);
+  $('saveBtn').addEventListener('click', savePhoto);
+  $('resultSave').addEventListener('click', savePhoto);
+  $('resultDone').addEventListener('click', resetBooth);
+
+  $('editorClose').addEventListener('click', closeEditor);
+  $('editorDone').addEventListener('click', closeEditor);
+  $('editor').addEventListener('click', (event) => {
+    if (event.target === $('editor')) closeEditor();
+  });
+  $('zoom').addEventListener('input', (event) => {
+    if (editorIndex === null) return;
+    state.photos[editorIndex].transform.zoom = Number(event.target.value);
+    drawCrop();
+  });
+  $('rotateBtn').addEventListener('click', () => {
+    if (editorIndex === null) return;
+    const t = state.photos[editorIndex].transform;
+    t.rot = (t.rot + 90) % 360;
+    drawCrop();
+  });
+  $('resetBtn').addEventListener('click', () => {
+    if (editorIndex === null) return;
+    state.photos[editorIndex].transform = { zoom: 1, dx: 0, dy: 0, rot: 0 };
+    $('zoom').value = '1';
+    drawCrop();
+  });
+  $('replaceBtn').addEventListener('click', () => {
+    const index = editorIndex;
+    closeEditor();
+    pickInto(index);
+  });
+  $('removeBtn').addEventListener('click', () => {
+    if (editorIndex === null) return;
+    state.photos[editorIndex] = null;
+    closeEditor();
+  });
+  $('moveLeft').addEventListener('click', () => swapEditor(-1));
+  $('moveRight').addEventListener('click', () => swapEditor(1));
+
+  bindCropGestures();
+  window.addEventListener('resize', scheduleRender);
+}
+
+function swapEditor(direction) {
+  if (editorIndex === null) return;
+  const target = (editorIndex + direction + 4) % 4;
+  const photos = state.photos;
+  [photos[editorIndex], photos[target]] = [photos[target], photos[editorIndex]];
+  editorIndex = target;
+  $('editorIndex').textContent = String(target + 1);
+  if (!photos[target]) {
+    closeEditor();
+    return;
+  }
+  sizeCropCanvas();
+  drawCrop();
+  scheduleRender();
+}
+
+buildChips();
+bind();
+loadSession();
+scheduleRender();
+
+</script>
+</body>
+</html>

@@ -82,100 +82,6 @@ body {
 
 .paper-note { color: var(--ink-dim); font-size: 12px; margin: 10px 0 2px; letter-spacing: 0.08em; text-transform: uppercase; }
 
-/* ---------------------------------------------------------------- coverflow */
-
-.coverflow {
-  position: relative;
-  width: 100%;
-  height: 62vh;
-  max-height: 560px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  perspective: 1100px;
-  overflow: hidden;
-  touch-action: none;             /* we own the gesture — a swipe never scrolls the page */
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-}
-
-/* Shared 3D space: cards stack by real depth (translateZ), so as a card nears the
-   centre it rises smoothly to the front — the hand-off happens continuously where
-   the cards meet, with no hard z-index pop. */
-.cf-track {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-}
-
-/* Position is driven every frame by JS, so no CSS transition here — it would lag
-   behind and fight the animation. No drop shadow: it would sit under the card and
-   darken the top of the reflection, opening a fake gap; the mirror grounds it. */
-.cf-card {
-  position: absolute;
-  /* Baseline is a fixed fraction of the container, so every card's bottom edge
-     lands on the same line — the "glass". A portrait card is taller than a
-     landscape one, but both rest on this line, so their reflections line up. */
-  top: 68%;
-  left: 50%;
-  border-radius: 6px;
-  /* Scale and rotate pivot about the bottom-centre, so shrinking a side card or
-     tilting it keeps its bottom edge pinned to the glass line. */
-  transform-origin: 50% 100%;
-  will-change: transform, opacity;
-  cursor: pointer;
-}
-/* The canvas is sized in JS to fit a box while keeping the true paper aspect
-   (4×6 stays 4×6, 6×4 stays 6×4). No max-width here — that was clamping the
-   width while the height stayed, squishing every card toward square. */
-.cf-card canvas {
-  display: block;
-  border-radius: 6px;
-  background: #fff;
-}
-/* Frosted-glass reflection: a separate blurred, faded copy sitting just below
-   the card. Unlike -webkit-box-reflect (a crisp mirror = glossy glass), this can
-   be blurred, so it reads as a soft, hazy reflection on frosted glass. It is a
-   child of the card, so it tilts and recedes in 3D with it. The image is drawn
-   pre-flipped in JS; the mask fades it out quickly (short) and it is faint
-   (subtle). It never intercepts taps. */
-.cf-mirror {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  border-radius: 6px;
-  pointer-events: none;
-  opacity: 0.22;
-  filter: blur(3.5px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
-  mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
-}
-/* The paper: a pinch scales/rotates/moves this (a view only), around its centre,
-   without disturbing the card's coverflow position. It holds both the print face
-   and its reflection, so a pinch zooms them together; the container keeps its
-   overflow clipping, so the deck's clean left/right edges stay put. */
-.cf-paper {
-  position: relative;
-  transform-origin: center center;
-  will-change: transform;
-}
-.cf-label {
-  text-align: center;
-  margin: 12px 0 2px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.cf-label .cf-count { color: var(--ink-dim); font-weight: 500; font-size: 12px; margin-left: 6px; }
-.cf-hint {
-  text-align: center;
-  margin: 2px 0 0;
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
-  color: var(--ink-dim);
-  opacity: 0.75;
-}
-
 /* ---------------------------------------------------------------- panels */
 
 .panel {
@@ -338,17 +244,7 @@ body {
   backdrop-filter: blur(8px);
 }
 .actionbar .btn-primary { flex: 1; }
-.actionbar .btn-ghost { flex: 0 0 84px; }
-.btn-fb {
-  flex: 0 0 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: #1877f2;
-  color: #fff;
-}
-.btn-fb svg { display: block; }
+.actionbar .btn-ghost { flex: 0 0 96px; }
 
 /* ---------------------------------------------------------------- sheet */
 
@@ -468,7 +364,7 @@ body {
   </header>
 
   <section class="stage" aria-label="Print preview">
-    <div class="paper-shadow" id="singleWrap">
+    <div class="paper-shadow">
       <canvas id="preview" aria-label="Live preview of your print"></canvas>
       <div class="pick-overlay" id="pickOverlay">
         <button class="btn btn-primary btn-pick" id="addAll" type="button">
@@ -476,17 +372,14 @@ body {
         </button>
       </div>
     </div>
-
-    <div class="coverflow hidden" id="coverflow" aria-label="Choose a design — swipe left or right">
-      <div class="cf-track" id="cfTrack"></div>
-    </div>
-
-    <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
-    <p class="cf-hint hidden" id="cfHint">Pinch to zoom in on the print · drag to move · twist to rotate</p>
+    <p class="paper-note"><span id="paperNote">4×6 print</span></p>
   </section>
 
   <section class="pick">
-    <button class="btn btn-ghost wide hidden" id="swapAll" type="button">Swap all 4 photos</button>
+    <p class="hint" id="pickHint">One tap opens your camera roll — choose all four there, then hit Done. The first one becomes the big photo.</p>
+
+    <div class="slots hidden" id="slots"></div>
+    <p class="hint hidden" id="editHint">The first photo is the big one — tap any photo to crop it, or make it the hero.</p>
     <p class="hint problem hidden" id="printProblem"></p>
   </section>
 
@@ -496,9 +389,6 @@ body {
 
 <div class="actionbar">
   <button class="btn btn-ghost" id="saveBtn" type="button">Save</button>
-  <button class="btn btn-fb" id="fbBtn" type="button" disabled aria-label="Share on Facebook">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
-  </button>
   <button class="btn btn-primary" id="printBtn" type="button" disabled>Print</button>
 </div>
 
@@ -563,7 +453,7 @@ body {
 <script type="module">
 
 const __PREVIEW_SESSION = {
-  version: "1.31.0", boothName: 'BFF Photo Booth',
+  version: "1.17.0", boothName: 'BFF Photo Booth',
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
   printingEnabled: false, requireApproval: false, keyRequired: false,
@@ -726,167 +616,77 @@ function photoAspect(photo) {
 const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
-const GAP = 26; // uniform gutter between photos, in print pixels
+const GAP = 26;         // uniform gutter between photos, in print pixels
+const HERO_FRAC = 0.64; // the hero's share of the long axis
 
-/**
- * Lay groups of photos out as justified ROWS. Every cell is shaped to its own
- * photo's aspect ratio, so a contain-fit fills it exactly — no matting inside a
- * frame, no skew, and every photo keeps its true orientation. Each row is scaled
- * so the photos in it span the full width edge to edge (they touch, save for the
- * gutter). The stack of rows is scaled to fit the sheet and centred, so the only
- * whitespace is one thin, even margin on the axis the shapes could not fill.
- */
-function justifyRows(page, groups, aspects) {
-  const W = page.w;
-  const H = page.h;
-  const rows = groups.map((g) => {
-    const sumA = g.reduce((s, i) => s + aspects[i], 0);
-    return { g, h: (W - GAP * (g.length - 1)) / sumA };
-  });
-  const naturalH = rows.reduce((s, r) => s + r.h, 0) + GAP * (rows.length - 1);
-  const scale = naturalH > H ? H / naturalH : 1;
-  const finalW = W * scale;
-  const finalH = naturalH * scale;
-  const x0 = (W - finalW) / 2;
-  let y = (H - finalH) / 2;
-
-  const cells = [];
-  for (const r of rows) {
-    const h = r.h * scale;
-    let x = x0;
-    for (const i of r.g) {
-      const w = aspects[i] * h;
-      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
-      x += w + GAP * scale;
-    }
-    y += h + GAP * scale;
-  }
-  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
-  return { cells, coverage: area / (W * H) };
-}
-
-/** As justifyRows, but as COLUMNS: each group fills the full height, side by side. */
-function justifyCols(page, groups, aspects) {
-  const W = page.w;
-  const H = page.h;
-  const cols = groups.map((g) => {
-    const sumInv = g.reduce((s, i) => s + 1 / aspects[i], 0);
-    return { g, w: (H - GAP * (g.length - 1)) / sumInv };
-  });
-  const naturalW = cols.reduce((s, c) => s + c.w, 0) + GAP * (cols.length - 1);
-  const scale = naturalW > W ? W / naturalW : 1;
-  const finalW = naturalW * scale;
-  const finalH = H * scale;
-  const y0 = (H - finalH) / 2;
-  let x = (W - finalW) / 2;
-
-  const cells = [];
-  for (const c of cols) {
-    const w = c.w * scale;
-    let y = y0;
-    for (const i of c.g) {
-      const h = w / aspects[i];
-      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
-      y += h + GAP * scale;
-    }
-    x += w + GAP * scale;
-  }
-  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
-  return { cells, coverage: area / (W * H) };
+/** How much of a photo survives a contain-fit into a cell (1 = it matches exactly). */
+function kept(photoAspect, cellAspect) {
+  return Math.min(photoAspect, cellAspect) / Math.max(photoAspect, cellAspect);
 }
 
 /**
- * The best hero design for one photo: try the hero along the top, the bottom,
- * the left and the right, on both sheets, and keep whichever fills the most
- * paper. Because cells are shaped to their photos, "most paper filled" is the
- * layout with the least whitespace — nothing is cropped and nothing is skewed.
+ * A hero grid that reaches all four paper edges with a uniform gutter between
+ * the photos and NO outer margin. Photos contain-fit inside their cells, so
+ * nothing is ever cropped; where a photo's shape differs from its cell it gets a
+ * little matting, but the grid itself is flush to the paper on every side.
+ *
+ * arrange 'top' = hero across the top, three along the bottom;
+ * arrange 'left' = hero down the left, three stacked on the right.
  */
-function heroDesign(aspects, heroIndex) {
+function heroGrid(page, aspects, heroIndex, arrange) {
+  const W = page.w;
+  const H = page.h;
   const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
-  const plans = [
-    { arrange: 'top', fn: justifyRows, groups: [[heroIndex], others] },
-    { arrange: 'bottom', fn: justifyRows, groups: [others, [heroIndex]] },
-    { arrange: 'left', fn: justifyCols, groups: [[heroIndex], others] },
-    { arrange: 'right', fn: justifyCols, groups: [others, [heroIndex]] },
-  ];
-  let best = null;
-  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
-    const page = { w: paper.w, h: paper.h };
-    for (const plan of plans) {
-      const laid = plan.fn(page, plan.groups, aspects);
-      if (!best || laid.coverage > best.coverage) {
-        best = { ...laid, page, media: paper.media, paper: paper.paper, arrange: plan.arrange };
-      }
-    }
-  }
-  // Hero cell first, whatever the placement — downstream code reads cells[0] as
-  // the hero (the crop editor, the "biggest photo" checks).
-  best.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : a.photo - b.photo));
-  return best;
-}
+  const cells = [];
 
-/** Best no-hero layout: the four photos packed to fill the sheet as fully as they can. */
-function evenGrid(aspects) {
-  const plans = [
-    (p) => justifyRows(p, [[0, 1], [2, 3]], aspects),
-    (p) => justifyCols(p, [[0, 2], [1, 3]], aspects),
-    (p) => justifyRows(p, [[0, 1, 2, 3]], aspects),
-    (p) => justifyCols(p, [[0], [1], [2], [3]], aspects),
-  ];
-  let best = null;
-  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
-    const page = { w: paper.w, h: paper.h };
-    for (const fn of plans) {
-      const laid = fn(page);
-      if (!best || laid.coverage > best.coverage) {
-        best = { ...laid, page, media: paper.media, paper: paper.paper };
-      }
-    }
+  if (arrange === 'top') {
+    const heroH = (H - GAP) * HERO_FRAC;
+    const thumbH = H - GAP - heroH;
+    const tw = (W - GAP * 2) / 3;
+    cells.push({ x: 0, y: 0, w: W, h: heroH, photo: heroIndex, fit: 'contain' });
+    others.forEach((idx, k) => {
+      cells.push({ x: k * (tw + GAP), y: heroH + GAP, w: tw, h: thumbH, photo: idx, fit: 'contain' });
+    });
+  } else {
+    const heroW = (W - GAP) * HERO_FRAC;
+    const thumbW = W - GAP - heroW;
+    const th = (H - GAP * 2) / 3;
+    cells.push({ x: 0, y: 0, w: heroW, h: H, photo: heroIndex, fit: 'contain' });
+    others.forEach((idx, k) => {
+      cells.push({ x: heroW + GAP, y: k * (th + GAP), w: thumbW, h: th, photo: idx, fit: 'contain' });
+    });
   }
-  return best;
-}
 
-const ARRANGE_SUB = { top: 'on top', bottom: 'on the bottom', left: 'on the left', right: 'on the right' };
+  // Prefer the arrangement whose cells best match the photos, so the matting is
+  // as small as possible. The hero counts double — keeping the star clean matters.
+  const score = cells.reduce((acc, c) => {
+    const weight = c.photo === heroIndex ? 2 : 1;
+    return acc + kept(aspects[c.photo], c.w / c.h) * weight;
+  }, 0) / (others.length + 2);
+  return { cells, score };
+}
 
 /**
- * The booth's own pick: photo 0 as the hero (unless told otherwise), in the
- * placement and on the sheet that fill the most paper without cropping.
+ * Pick the hero placement and sheet orientation with the least matting, while
+ * always filling the paper edge to edge. Photo 0 is the hero unless told otherwise.
  */
 function resolveGrid(base, photos, heroIndex = 0) {
-  const d = heroDesign(photos.map(photoAspect), heroIndex);
-  return { cells: d.cells, captions: [], page: d.page, media: d.media, paper: d.paper };
-}
-
-/**
- * The designs offered as cards in the picker: each photo as the big hero (placed
- * and sized to fill the most paper), plus an even layout with no hero. Photo 0
- * leads, so the default card matches resolveGrid. Every design shapes its cells
- * to the real photos, so nothing is cropped, nothing is skewed, and the only
- * whitespace is one thin even margin.
- */
-function designVariants(base, photos) {
   const aspects = photos.map(photoAspect);
-
-  const out = photos.map((_, hero) => {
-    const d = heroDesign(aspects, hero);
-    return {
-      key: `hero:${hero}`,
-      kind: 'hero',
-      heroIndex: hero,
-      arrange: d.arrange,
-      title: `Big #${hero + 1}`,
-      sub: ARRANGE_SUB[d.arrange],
-      captions: [],
-      cells: d.cells,
-      page: d.page,
-      media: d.media,
-      paper: d.paper,
-    };
-  });
-
-  out.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [], ...evenGrid(aspects) });
-  return out;
+  let best = null;
+  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
+    const page = { w: paper.w, h: paper.h };
+    for (const arrange of ['top', 'left']) {
+      const laid = heroGrid(page, aspects, heroIndex, arrange);
+      if (!best || laid.score > best.score) {
+        best = { cells: laid.cells, score: laid.score, page, media: paper.media, paper: paper.paper };
+      }
+    }
+  }
+  return { cells: best.cells, captions: [], page: best.page, media: best.media, paper: best.paper };
 }
+
+
+
 
 function filmstripLayout() {
   // Four tall frames across a 6x4 landscape sheet.
@@ -937,52 +737,21 @@ const DEFAULT_TRANSFORM = { zoom: 1, dx: 0, dy: 0, rot: 0 };
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**
- * The smallest scale at which the photo, rotated by `rot`, still fully covers
- * the cell — so a rotated crop never leaves a blank corner. A rotated rectangle
- * of source size (W×H)·scale covers a cell (cellW×cellH) when, along each of the
- * photo's own axes, its half-extent clears the cell's rotated footprint:
- *   W·scale/2 ≥ (cellW·|cos| + cellH·|sin|)/2, and the same for H with axes swapped.
- * For an unrotated `contain` cell (the layout shapes each cell to its photo) that
- * reduces to the exact fit, so nothing crops until the guest zooms or rotates.
- */
-function coverBase(cellW, cellH, W, H, rot, fit) {
-  if (fit === 'contain' && rot % 360 === 0) return Math.min(cellW / W, cellH / H);
-  const rad = (rot * Math.PI) / 180;
-  const c = Math.abs(Math.cos(rad));
-  const s = Math.abs(Math.sin(rad));
-  return Math.max((cellW * c + cellH * s) / W, (cellW * s + cellH * c) / H);
-}
-
-/**
- * Keep a crop inside its cell: however the guest zooms, pans, or rotates, the
- * photo still covers the frame, so a print can never come out with a sliver of
- * blank paper. Pan is clamped in the photo's own (rotated) frame, then mapped
- * back to page axes, so the reachable range is correct at any angle.
+ * Keep a crop inside its cell: however the guest pans, the photo still covers
+ * the frame, so a print can never come out with a sliver of blank paper.
  */
 function clampTransform(transform, cellW, cellH, bitmap, fit = 'cover') {
   const t = { zoom: 1, dx: 0, dy: 0, rot: 0, ...transform };
   t.zoom = Math.min(4, Math.max(1, t.zoom));
-  const rad = (t.rot * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const scale = coverBase(cellW, cellH, bitmap.width, bitmap.height, t.rot, fit) * t.zoom;
-
-  // Half the cell's footprint measured along the photo's own axes.
-  const needX = (cellW * Math.abs(cos) + cellH * Math.abs(sin)) / 2;
-  const needY = (cellW * Math.abs(sin) + cellH * Math.abs(cos)) / 2;
-  const slackX = Math.max(0, (bitmap.width * scale) / 2 - needX);
-  const slackY = Math.max(0, (bitmap.height * scale) / 2 - needY);
-
-  // Pan is stored as page-frame fractions of the cell. Rotate it into the photo
-  // frame to clamp against the slack, then rotate it back.
-  const px = t.dx * cellW;
-  const py = t.dy * cellH;
-  let lx = px * cos + py * sin;
-  let ly = -px * sin + py * cos;
-  lx = Math.min(slackX, Math.max(-slackX, lx));
-  ly = Math.min(slackY, Math.max(-slackY, ly));
-  t.dx = cellW ? (lx * cos - ly * sin) / cellW : 0;
-  t.dy = cellH ? (lx * sin + ly * cos) / cellH : 0;
+  const swap = Math.abs(t.rot % 180) === 90;
+  const fw = swap ? bitmap.height : bitmap.width;
+  const fh = swap ? bitmap.width : bitmap.height;
+  const base = fit === 'contain' ? Math.min(cellW / fw, cellH / fh) : Math.max(cellW / fw, cellH / fh);
+  const scale = base * t.zoom;
+  const slackX = Math.max(0, (fw * scale - cellW) / 2) / cellW;
+  const slackY = Math.max(0, (fh * scale - cellH) / 2) / cellH;
+  t.dx = Math.min(slackX, Math.max(-slackX, t.dx));
+  t.dy = Math.min(slackY, Math.max(-slackY, t.dy));
   return t;
 }
 
@@ -991,9 +760,15 @@ function drawPhoto(ctx, cell, photo, filterId) {
   const { bitmap } = photo;
   const fit = cell.fit || 'cover';
   const t = clampTransform(photo.transform, cell.w, cell.h, bitmap, fit);
+  const swap = Math.abs(t.rot % 180) === 90;
   const nw = bitmap.width;
   const nh = bitmap.height;
-  const scale = coverBase(cell.w, cell.h, nw, nh, t.rot, fit) * t.zoom;
+  const footprintW = swap ? nh : nw;
+  const footprintH = swap ? nw : nh;
+  const fitScale = fit === 'contain'
+    ? Math.min(cell.w / footprintW, cell.h / footprintH)
+    : Math.max(cell.w / footprintW, cell.h / footprintH);
+  const scale = fitScale * t.zoom;
 
   ctx.save();
   ctx.beginPath();
@@ -1100,21 +875,14 @@ function drawCutLine(ctx, layout, frame) {
  * `scale` of 1 renders the real 300 DPI print; the preview uses a fraction.
  */
 /** The layout to print for this state — resolving a dynamic grid to real cells,
- *  the chosen sheet orientation, and its paper size. When the guest has picked a
- *  design from the coverflow (state.designKey), that one is used; otherwise the
- *  booth's own auto-best grid. */
+ *  the chosen sheet orientation, and its paper size. */
 function resolveLayout(state) {
   const base = LAYOUTS[state.layoutId];
-  if (!base.dynamic) return base;
-  if (state.designKey) {
-    const chosen = designVariants(base, state.photos).find((d) => d.key === state.designKey);
-    if (chosen) return { ...base, ...chosen };
-  }
-  return { ...base, ...resolveGrid(base, state.photos) };
+  return base.dynamic ? { ...base, ...resolveGrid(base, state.photos) } : base;
 }
 
-function composePage(canvas, state, scale = 1, layoutOverride = null) {
-  const layout = layoutOverride || resolveLayout(state);
+function composePage(canvas, state, scale = 1) {
+  const layout = resolveLayout(state);
   const frame = FRAMES[state.frameId] || FRAMES.white;
   const w = Math.round(layout.page.w * scale);
   const h = Math.round(layout.page.h * scale);
@@ -1185,7 +953,6 @@ const state = {
   caption: '',
   subtitle: '',
   copies: 1,
-  designKey: null, // which coverflow design is chosen; null = the booth's auto-best
   photos: [null, null, null, null],
 };
 
@@ -1322,20 +1089,14 @@ function previewScale(layout) {
 }
 
 function renderAll() {
-  const full = filledCount() === 4;
+  const layout = resolveLayout(state);
   state.subtitle = `${session.boothName} · ${todayStamp()}`;
+  composePage($('preview'), state, previewScale(layout));
+  $('paperNote').textContent = layout.paper;
   updatePickButton();
-  if (full) {
-    // The coverflow of designs is the preview now — it draws the selected print.
-    // Never rebuild mid-gesture (a stray resize must not reset an active swipe).
-    if (!cfBusy) rebuildCoverflow();
-  } else {
-    const layout = resolveLayout(state);
-    composePage($('preview'), state, previewScale(layout));
-  }
-  $('printBtn').disabled = !full || !session.printingEnabled;
-  $('saveBtn').disabled = !full;
-  $('fbBtn').disabled = !full;
+  $('printBtn').disabled = filledCount() < 4 || !session.printingEnabled;
+  $('saveBtn').disabled = filledCount() < 4;
+  renderSlots();
   warmPrint();
 }
 
@@ -1364,419 +1125,28 @@ function warmPrint() {
 /** The picker is the main event: one tap should get all four photos. */
 function updatePickButton() {
   const missing = 4 - filledCount();
-  const full = missing === 0;
   const button = $('addAll');
   const label = $('pickLabel');
+  const hint = $('pickHint');
 
-  if (missing === 4) label.textContent = 'Pick 4 photos';
-  else if (missing > 0) label.textContent = `Add ${missing} more`;
+  if (missing === 4) {
+    label.textContent = 'Pick 4 photos';
+    hint.textContent = 'One tap opens your camera roll — select all four there, then hit Done.';
+  } else if (missing > 0) {
+    label.textContent = `Add ${missing} more`;
+    hint.textContent = 'Pick them all at once — they drop into the empty slots in order.';
+  } else {
+    label.textContent = 'Swap all 4';
+    hint.textContent = 'Happy with these? Save them, or print.';
+  }
 
   button.classList.toggle('btn-primary', missing > 0);
   button.classList.toggle('btn-ghost', missing === 0);
-
-  // Before the print is full: the single preview and the pick button. Once it is
-  // full: the coverflow of designs takes over the stage.
-  $('singleWrap').classList.toggle('hidden', full);
-  $('coverflow').classList.toggle('hidden', !full);
-  $('cfLabel').classList.toggle('hidden', !full);
-  $('cfHint').classList.toggle('hidden', !full);
-  $('swapAll').classList.toggle('hidden', !full);
-}
-
-// ---------------------------------------------------------------- coverflow
-
-// The coverflow scrolls on a continuous position (cfPos, in card units). A flick
-// picks a target card from the release speed, then cfPos eases to it — a smooth,
-// decelerating glide with no overshoot, so it settles without bouncing. cfIndex
-// is the settled selection that Save/Print use.
-let cfDesigns = [];
-let cfPos = 0;      // continuous centre position
-let cfIndex = -1;   // the design currently under the centre (drives label + print)
-let cfTarget = 0;   // the card the glide is easing to
-let cfRaf = null;
-let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
-let manip = null;   // a two-finger direct-manipulation of one photo in flight
-
-const DPR = Math.min(2, window.devicePixelRatio || 1);
-const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
-
-/** Paint a card's face (the design) and its frosted mirror from current state. */
-function paintCard(card, design) {
-  const face = card.querySelector('canvas.cf-face');
-  const mirror = card.querySelector('canvas.cf-mirror');
-  const dispScale = Number(card.dataset.scale);
-  composePage(face, state, dispScale * DPR, design);
-  mirror.width = face.width;
-  mirror.height = face.height;
-  const mctx = mirror.getContext('2d');
-  mctx.setTransform(1, 0, 0, 1, 0, 0);
-  mctx.clearRect(0, 0, mirror.width, mirror.height);
-  mctx.translate(0, mirror.height);
-  mctx.scale(1, -1);
-  mctx.drawImage(face, 0, 0);
-}
-
-/** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative
- *  to the card so the side photos always peek out beside the centre one. */
-function cfSpacing() {
-  const cf = $('coverflow');
-  return Math.min(180, (cf.clientWidth || 320) * 0.42);
-}
-
-/** Lay the cards out in a coverflow fan around the continuous position cfPos. */
-function positionCards() {
-  const cards = [...$('cfTrack').children];
-  const spacing = cfSpacing();
-  cards.forEach((card, i) => {
-    const offset = i - cfPos;
-    const abs = Math.abs(offset);
-    // First neighbour sits a full step out; the rest compress into a stacked deck.
-    const mag = Math.min(abs, 1) * spacing + Math.max(0, abs - 1) * spacing * 0.34;
-    const x = Math.sign(offset) * mag;
-    const ry = Math.max(-58, Math.min(58, -offset * 50));
-    const scale = Math.max(0.62, 1 - abs * 0.10);
-    // Real 3D depth (translateZ) does the stacking: the closer a card is to the
-    // centre, the further forward it sits, so it rises to the front smoothly as it
-    // reaches the middle instead of popping via a z-index swap.
-    const depth = -abs * 130;
-    // translateY(-100%) lifts the card fully above its `top` anchor, so its
-    // bottom edge sits exactly on the baseline (the glass line) — the same line
-    // for every card regardless of height, so landscape and portrait bottoms
-    // align and the reflection reads as a single sheet of glass. The reflection
-    // falls into the space below the baseline.
-    card.style.transform =
-      `translate(-50%, -100%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
-    // Fully opaque — no see-through — so the front card cleanly covers the rest.
-    // Cards well off the stage are hidden outright.
-    card.style.opacity = abs > 2.6 ? '0' : '1';
-    card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
-  });
-}
-
-/** The centred card changed — update the label and the warmed print. */
-function setCurrent(index) {
-  const i = clampPos(index);
-  if (i === cfIndex || !cfDesigns[i]) return;
-  cfIndex = i;
-  const d = cfDesigns[i];
-  state.designKey = d.key;
-  $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
-  $('cfCount').textContent = `${i + 1} / ${cfDesigns.length}`;
-  lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
-  printGeneration += 1;
-  // Never warm mid-gesture: exportPrint is a heavy 300 DPI render that would
-  // block the main thread and make the swipe stutter. It runs once we settle.
-  if (!cfBusy) warmPrint();
-}
-
-// When a glide should bounce off an end, it first eases to a point just past the
-// edge (cfTarget), then — because cfBounceBack is set — eases back to the edge.
-let cfBounceBack = null;
-
-/** Ease one frame toward cfTarget. Monotonic between cards; the only overshoot
- *  is a deliberate end-of-list bounce, driven by cfBounceBack. */
-function glideStep() {
-  const EASE = 0.28; // fraction of the remaining gap closed per frame
-  cfPos += (cfTarget - cfPos) * EASE;
-  setCurrent(Math.round(cfPos));
-  positionCards();
-  if (Math.abs(cfTarget - cfPos) < 0.003) {
-    cfPos = cfTarget;
-    if (cfBounceBack !== null) {
-      // Reached the overshoot point — now spring back to the edge.
-      cfTarget = cfBounceBack;
-      cfBounceBack = null;
-      cfRaf = requestAnimationFrame(glideStep);
-      return;
-    }
-    positionCards();
-    setCurrent(cfPos);
-    cfRaf = null;
-    cfBusy = false;
-    warmPrint(); // settled — now it is safe to render the print ahead of time
-    return;
-  }
-  cfRaf = requestAnimationFrame(glideStep);
-}
-
-/** Glide to a card index with a smooth, settling ease. */
-function glideTo(index) {
-  cfBounceBack = null;
-  cfTarget = clampPos(Math.round(index));
-  if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-}
-
-/** Bounce off an end: overshoot a touch past the edge, then spring back to it —
- *  the iOS "you've hit the end of the list" feel. */
-function bounceEdge(edge) {
-  cfBounceBack = edge;
-  cfTarget = edge + (edge === 0 ? -0.3 : 0.3);
-  if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-}
-
-/** Rubber-band resistance for dragging past an end: the further past, the less
- *  it gives, asymptoting to MAX_OVER cards — so the end feels elastic, not walled. */
-const MAX_OVER = 0.55;
-const rubber = (over) => over / (1 + over / MAX_OVER);
-
-function stopSpring() {
-  cfBounceBack = null;
-  if (cfRaf != null) {
-    cancelAnimationFrame(cfRaf);
-    cfRaf = null;
-  }
-}
-
-/** Rebuild the cards from the current photos, keeping the guest's chosen design. */
-function rebuildCoverflow() {
-  stopSpring();
-  cfBusy = false; // a rebuild is not a gesture — let it warm the print normally
-  const base = LAYOUTS[state.layoutId];
-  cfDesigns = designVariants(base, state.photos);
-  let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
-  if (idx < 0) idx = 0;
-
-  const track = $('cfTrack');
-  track.innerHTML = '';
-  // Fit each card inside a box while keeping its true paper aspect: the display
-  // size comes from ONE scale for both axes, so nothing is squished. A landscape
-  // sheet fits by width, a portrait sheet by height. Big box → big photos.
-  const boxH = Math.min(window.innerHeight * 0.37, 350);
-  // boxW caps a landscape card's width — keep it tighter so its side photos show.
-  const boxW = Math.min(window.innerWidth * 0.55, 300);
-
-  cfDesigns.forEach((design) => {
-    const card = document.createElement('div');
-    card.className = 'cf-card';
-    const dispScale = Math.min(boxH / design.page.h, boxW / design.page.w);
-    const w = Math.round(design.page.w * dispScale);
-    const h = Math.round(design.page.h * dispScale);
-    card.dataset.scale = String(dispScale);
-
-    // The design itself (the "face"), wrapped in a paper element that a pinch
-    // zooms (a view transform, independent of the card's coverflow position)…
-    const paper = document.createElement('div');
-    paper.className = 'cf-paper';
-    const face = document.createElement('canvas');
-    face.className = 'cf-face';
-    face.style.width = `${w}px`;
-    face.style.height = `${h}px`;
-    paper.appendChild(face);
-
-    // …and its frosted-glass reflection: a vertically-flipped copy just below,
-    // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
-    // a crisp mirror. It lives INSIDE the paper, so a pinch zooms the reflection
-    // right along with the print. Flipping in the bitmap (not via a CSS transform)
-    // keeps it sitting cleanly below the card.
-    const mirror = document.createElement('canvas');
-    mirror.className = 'cf-mirror';
-    mirror.style.width = `${w}px`;
-    mirror.style.height = `${h}px`;
-    paper.appendChild(mirror);
-    card.appendChild(paper);
-
-    paintCard(card, design);
-    track.appendChild(card);
-  });
-
-  cfPos = idx;
-  cfIndex = -1; // force the label to refresh
-  setCurrent(idx);
-  positionCards();
-}
-
-// -------------------------------------------------- pinch-to-zoom the paper
-
-/** The `.cf-paper` wrapper of the centred card — the thing a pinch zooms. */
-function centrePaper() {
-  const card = $('cfTrack').children[clampPos(Math.round(cfPos))];
-  return card ? card.querySelector('.cf-paper') : null;
-}
-
-/** The drop shadow for a paper lifted to `scale` off its resting spot: the
- *  further it rises, the bigger, softer, and fainter the shadow — like a real
- *  object moving away from the surface. Screen-space values are divided by scale
- *  because the shadow rides the same transform that enlarges the paper. */
-function paperShadow(scale) {
-  const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom
-  const dy = (4 + lift * 48) / scale;    // drops further as it rises
-  const blur = (10 + lift * 84) / scale; // bigger and more diffused
-  const alpha = 0.32 - lift * 0.14;      // softer as it spreads out
-  return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
-}
-
-/** Drop the peek: spring the paper back to its resting size and tidy up. The
- *  shadow rides the face (not the paper) so it never darkens the reflection. */
-function endPeek(paper, face) {
-  const ease = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
-  paper.style.transition = `transform 0.28s ${ease}`;
-  paper.style.transform = '';
-  face.style.transition = `filter 0.28s ${ease}`;
-  face.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
-  clearTimeout(manip && manip.timer);
-  const done = () => {
-    paper.style.transition = '';
-    face.style.transition = '';
-    face.style.filter = '';
-  };
-  // Give the spring time to land, then clean up the inline styles.
-  const timer = setTimeout(done, 320);
-  paper.addEventListener('transitionend', () => { clearTimeout(timer); done(); }, { once: true });
-}
-
-function bindCoverflow() {
-  const cf = $('coverflow');
-  const pointers = new Map();
-  let swipeId = null;    // the pointer driving a one-finger browse
-  let dragging = false;
-  let startX = 0;
-  let startPos = 0;
-  let moved = 0;
-  let lastT = 0;
-  let velMs = 0; // smoothed velocity in card-units per millisecond
-
-  // Two fingers on the centred card zoom the whole print (the "paper") so you can
-  // look at it up close — pinch to zoom, drag to move, twist to rotate. It is a
-  // view only: the print itself never changes, and it springs back on release.
-  // One finger still browses the deck, so there is no gesture clash.
-  const beginManip = () => {
-    dragging = false; // a browse never becomes a peek half-way
-    swipeId = null;
-    stopSpring();
-    cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before zooming
-    positionCards();
-    const paper = centrePaper();
-    if (!paper) return;
-    const face = paper.querySelector('canvas.cf-face');
-    const [a, b] = [...pointers.values()];
-    paper.style.transition = ''; // follow the fingers with no lag
-    face.style.transition = '';
-    face.style.filter = paperShadow(1); // a grounded shadow to start
-    manip = {
-      paper,
-      face,
-      baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
-      baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
-      baseMidX: (a.clientX + b.clientX) / 2,
-      baseMidY: (a.clientY + b.clientY) / 2,
-      timer: null,
-    };
-    cfBusy = true;
-    clearTimeout(warmTimer);
-  };
-
-  const updateManip = () => {
-    const [a, b] = [...pointers.values()];
-    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    const ang = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX);
-    const midX = (a.clientX + b.clientX) / 2;
-    const midY = (a.clientY + b.clientY) / 2;
-    const scale = Math.min(3, Math.max(1, dist / manip.baseDist));
-    const rot = ((ang - manip.baseAng) * 180) / Math.PI;
-    const tx = midX - manip.baseMidX;
-    const ty = midY - manip.baseMidY;
-    manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
-    manip.face.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
-  };
-
-  const endManip = () => {
-    const { paper, face } = manip;
-    endPeek(paper, face);
-    manip = null;
-    cfBusy = false;
-  };
-
-  cf.addEventListener('pointerdown', (event) => {
-    if (!cfDesigns.length) return;
-    pointers.set(event.pointerId, event);
-    try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
-
-    if (pointers.size >= 2) { beginManip(); return; }
-
-    // First finger: a possible browse (or a tap).
-    swipeId = event.pointerId;
-    dragging = true;
-    startX = event.clientX;
-    startPos = cfPos;
-    moved = 0;
-    lastT = event.timeStamp;
-    velMs = 0;
-    cfBusy = true;
-    clearTimeout(warmTimer); // cancel any warm queued before the gesture began
-    stopSpring(); // grab it wherever it is — like catching a spinning wheel
-  });
-
-  cf.addEventListener('pointermove', (event) => {
-    if (!pointers.has(event.pointerId)) return;
-    pointers.set(event.pointerId, event);
-
-    if (manip) { if (pointers.size >= 2) updateManip(); return; }
-    if (!dragging || event.pointerId !== swipeId) return;
-
-    const dx = event.clientX - startX;
-    moved = Math.max(moved, Math.abs(dx));
-    // Rubber-band past the ends instead of hard-stopping: drag beyond the first
-    // or last design and it follows with easing resistance (iOS end-of-list feel).
-    const raw = startPos - dx / cfSpacing();
-    const max = cfDesigns.length - 1;
-    const newPos = raw < 0 ? -rubber(-raw) : raw > max ? max + rubber(raw - max) : raw;
-    const dt = Math.max(1, event.timeStamp - lastT);
-    velMs = 0.7 * ((newPos - cfPos) / dt) + 0.3 * velMs; // smooth, so a flick reads clean
-    cfPos = newPos;
-    lastT = event.timeStamp;
-    setCurrent(Math.round(cfPos));
-    positionCards();
-  });
-
-  const end = (event) => {
-    if (!pointers.has(event.pointerId)) return;
-    pointers.delete(event.pointerId);
-
-    if (manip) {
-      if (pointers.size < 2) endManip();
-      return;
-    }
-    if (!dragging || event.pointerId !== swipeId) return;
-    dragging = false;
-    swipeId = null;
-
-    // Release speed in card-units per frame. If the finger paused before lifting,
-    // it is not a flick — ignore the now-stale speed.
-    const idle = event.timeStamp - lastT;
-    const v = idle > 60 ? 0 : velMs * 16;
-    const from = Math.round(cfPos);
-    // A quick flick counts even when the finger barely travelled — that is what
-    // makes a small flick feel responsive.
-    const isFlick = Math.abs(v) > 0.012;
-
-    if (!isFlick && moved < 6) {
-      // A tap: jump to the card under the finger, or settle to the nearest.
-      const card = event.target.closest('.cf-card');
-      const i = card ? [...$('cfTrack').children].indexOf(card) : -1;
-      glideTo(i >= 0 ? i : from);
-      return;
-    }
-
-    if (isFlick) {
-      // The release speed picks the target (faster → further); a small flick still
-      // always advances one, a hard one at most two, so it never flies across.
-      const capped = Math.max(-0.9, Math.min(0.9, v));
-      let rawTarget = Math.round(cfPos + capped * 5);
-      if (v > 0 && rawTarget <= from) rawTarget = from + 1;
-      if (v < 0 && rawTarget >= from) rawTarget = from - 1;
-      const max = cfDesigns.length - 1;
-      const target = Math.max(from - 2, Math.min(from + 2, rawTarget));
-      // Flicking past an end (there was momentum beyond it) bounces off it.
-      if (target <= 0 && rawTarget < 0) bounceEdge(0);
-      else if (target >= max && rawTarget > max) bounceEdge(max);
-      else glideTo(target);
-    } else {
-      // A slow drag: settle to the nearest card — springs back if past an end.
-      glideTo(from);
-    }
-  };
-  cf.addEventListener('pointerup', end);
-  cf.addEventListener('pointercancel', end);
+  $('pickOverlay').classList.toggle('compact', missing === 0);
+  // Nothing to tap yet — no empty grid, no crop hint, just the one button.
+  const empty = missing === 4;
+  $('slots').classList.toggle('hidden', empty);
+  $('editHint').classList.toggle('hidden', empty);
 }
 
 function renderSlots() {
@@ -2204,50 +1574,6 @@ async function buildPrintBlob() {
   }
 }
 
-const DEFAULT_HASHTAG = '#bff2026';
-
-/** A web-sized JPEG of the print — small and quick to hand off to the app. */
-async function buildShareBlob() {
-  const layout = resolveLayout(state);
-  const scale = Math.min(1, 1200 / Math.max(layout.page.w, layout.page.h));
-  const canvas = document.createElement('canvas');
-  composePage(canvas, state, scale);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-}
-
-/**
- * Hand the photo to the Facebook app, where the guest is already signed in. The
- * share sheet is the only door a website has to the installed app — Apple and
- * Facebook don't expose a link that jumps straight into the app's composer — so
- * tapping Facebook there opens the app's own post screen with the photo attached
- * and #bff2026 pre-filled (the guest types their own words in front). On a desktop
- * with no app to share to, it falls back to Facebook's web share for the link.
- */
-async function shareToFacebook() {
-  if (filledCount() < 4) {
-    toast('Four photos first.');
-    return;
-  }
-  const caption = session.shareHashtag || DEFAULT_HASHTAG;
-  const blob = await buildShareBlob();
-  if (!blob) return;
-  const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
-
-  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], text: caption });
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // guest backed out — leave it
-      // any other error → fall through to the desktop link share
-    }
-  }
-
-  // Desktop / no app share available: open Facebook's web share for the booth link.
-  const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.origin)}&hashtag=${encodeURIComponent(caption)}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
-
 /**
  * On a phone, show the finished photo big and let the guest press-and-hold it —
  * iOS and Android both offer "Save to Photos" / "Download image" from that, and
@@ -2304,8 +1630,8 @@ async function loadSession() {
 
   $('boothName').textContent = session.boothName;
   document.title = session.boothName;
-  if (session.message) $('boothMessage').textContent = session.message;
   $('version').textContent = session.version ? `v${session.version}` : '';
+  if (session.message) $('boothMessage').textContent = session.message;
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
   if (session.keyRequired && !accessKey) {
@@ -2350,15 +1676,12 @@ async function refreshPrinter() {
 
 // ---------------------------------------------------------------- wiring
 
-function openPicker(replaceAll) {
-  replaceAllNext = replaceAll;
-  $('filePicker').value = '';
-  $('filePicker').click();
-}
-
 function bind() {
-  $('addAll').addEventListener('click', () => openPicker(filledCount() === 4));
-  $('swapAll').addEventListener('click', () => openPicker(true)); // starts a fresh set of 4
+  $('addAll').addEventListener('click', () => {
+    replaceAllNext = filledCount() === 4; // "Swap all 4" starts a fresh set
+    $('filePicker').value = '';
+    $('filePicker').click();
+  });
   $('filePicker').addEventListener('change', (event) => acceptFiles(event.target.files));
   $('fileOne').addEventListener('change', (event) => {
     const slot = pendingSlot;
@@ -2368,7 +1691,6 @@ function bind() {
 
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
-  $('fbBtn').addEventListener('click', shareToFacebook);
   $('resultSave').addEventListener('click', savePhoto);
   $('saveClose').addEventListener('click', closeSaveSheet);
   $('saveShare').addEventListener('click', async () => {
@@ -2414,7 +1736,6 @@ function bind() {
   $('makeHero').addEventListener('click', makeHero);
 
   bindCropGestures();
-  bindCoverflow();
   window.addEventListener('resize', scheduleRender);
 }
 

@@ -14,9 +14,14 @@ Zero npm dependencies.
 **See the guest app without running anything:**
 **<https://eljon.github.io/bff-photo-booth/>** — a live preview served by GitHub
 Pages. Pick 4 photos and try the design picker from any phone. Printing is off in
-the preview (that needs the booth Mac); everything else is the real thing. The
-preview is a single self-contained `index.html` at the repo root, rebuilt with
-`npm run preview` whenever the guest app changes.
+the preview (that needs the booth Mac); everything else is the real thing.
+
+**Roll back to any version** by putting its number in the URL, e.g.
+`https://eljon.github.io/bff-photo-booth/1.29.0/`. Every release is a
+self-contained page under its own slug; browse them all at
+[`/versions.html`](https://eljon.github.io/bff-photo-booth/versions.html). `npm
+run preview` rebuilds the latest at the root, backfills any missing version
+snapshots, and refreshes the index.
 
 ## How the print reaches the printer
 
