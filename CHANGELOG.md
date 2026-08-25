@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.2 — 2026-08-25
+
+**Swipe only from the pictures — never from the reflection or the margins.**
+
+- Removing the earlier target guard (to fix side-swipe) had let a swipe start
+  anywhere, including the reflection. Replaced it with a geometric hit-test: a
+  swipe engages only when the touch lands inside a visible card's box (any
+  picture, centre or side), so touches on the reflection (below the box) or the
+  empty margins fall through to the page and scroll. A second finger may still
+  land anywhere, so a pinch that began on a picture keeps working.
+
 ## 1.32.1 — 2026-08-25
 
 **Intro plays on every completion and slides in from off-screen.**

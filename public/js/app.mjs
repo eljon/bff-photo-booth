@@ -618,13 +618,24 @@ function bindCoverflow() {
 
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
-    stopIntro(); // a touch takes over from the intro sweep
-    // The deck engages for any touch in here (so a swipe works starting on ANY
-    // picture, centre or side). Scroll vs. gesture is decided by touch-action, not
-    // by the target: the picture cards are touch-action:none (locked), while the
-    // container is pan-y — so a vertical drag over the reflection or the empty
-    // margins still scrolls the page (the browser cancels our gesture), and a
-    // swipe on a picture never scrolls.
+
+    // Engage only when the touch lands ON a picture — any visible card, centre or
+    // side. This is a geometric hit-test against the card boxes, so it excludes
+    // the reflection (which sits below the box) and the empty margins: touches
+    // there fall through to the browser and scroll the page. A second finger may
+    // land anywhere (so a pinch that started on a picture still works).
+    if (pointers.size === 0) {
+      const px = event.clientX;
+      const py = event.clientY;
+      const onPicture = [...$('cfTrack').children].some((card) => {
+        if (card.style.opacity === '0') return false; // an off-stage, hidden card
+        const r = card.querySelector('canvas.cf-face').getBoundingClientRect();
+        return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom;
+      });
+      if (!onPicture) return; // outside every picture — leave it to the page
+    }
+
+    stopIntro(); // a touch on a picture takes over from the intro sweep
     pointers.set(event.pointerId, event);
     try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
 
