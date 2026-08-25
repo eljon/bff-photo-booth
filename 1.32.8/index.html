@@ -1414,14 +1414,17 @@ function paintCard(card, design) {
   const mirror = card.querySelector('canvas.cf-mirror');
   const dispScale = Number(card.dataset.scale);
   composePage(face, state, dispScale * DPR, design);
-  mirror.width = face.width;
-  mirror.height = face.height;
+  // The reflection is blurred (blur 3.5px) and faded to 22%, so it needs nowhere
+  // near the face's resolution — render it at half density. Invisible behind the
+  // blur, and it keeps this the cheap half of the paint even at full retina DPR.
+  mirror.width = Math.max(1, Math.round(face.width / 2));
+  mirror.height = Math.max(1, Math.round(face.height / 2));
   const mctx = mirror.getContext('2d');
   mctx.setTransform(1, 0, 0, 1, 0, 0);
   mctx.clearRect(0, 0, mirror.width, mirror.height);
   mctx.translate(0, mirror.height);
   mctx.scale(1, -1);
-  mctx.drawImage(face, 0, 0);
+  mctx.drawImage(face, 0, 0, mirror.width, mirror.height);
 }
 
 /** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative

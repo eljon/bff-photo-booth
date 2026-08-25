@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.9 — 2026-08-25
+
+**Render the frosted reflection at half resolution — pay for the retina bump.**
+
+- The full-resolution retina render (v1.32.8) doubled canvas memory. The
+  reflection, though, is blurred and faded to 22%, so it never needed the face's
+  resolution — it now renders at half density, invisible behind the blur. That
+  more than offsets the sharpness bump: canvas memory on a 3× phone drops from
+  ~13 MB back to ~8 MB (the old soft version was ~6 MB), and the card-build stays
+  a quick one-off. The animation and pinch were never affected — they only move
+  CSS transforms, they don't repaint the canvases.
+
 ## 1.32.8 — 2026-08-25
 
 **Sharp coverflow on retina phones — no more soft preview.**
