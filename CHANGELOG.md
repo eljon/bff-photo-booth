@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.29.1 — 2026-08-25
+
+**Fix: the Pages preview showed the README, not the app.**
+
+- GitHub Pages was set to "Deploy from a branch", so its built-in Jekyll build
+  rendered README.md as the site and raced (and beat) the custom deploy workflow.
+  Fixed by serving the built app as a committed `index.html` at the repo root
+  with a `.nojekyll` marker — an index page always wins over the README, and
+  `.nojekyll` stops Jekyll from touching anything. Retired the custom Pages
+  workflow so there is one deterministic deployer. Regenerate the page with
+  `npm run preview` when the guest app changes.
+
 ## 1.29.0 — 2026-08-25
 
 **Pinch, drag, and twist a photo to adjust it — right on the design.**

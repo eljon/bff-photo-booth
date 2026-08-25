@@ -12,10 +12,11 @@ venue's guest Wi-Fi, or anywhere else.
 Zero npm dependencies.
 
 **See the guest app without running anything:**
-**<https://eljon.github.io/bff-photo-booth/>** — a live preview, rebuilt from the
-latest code on every push. Pick 4 photos and try the design picker from any
-phone. Printing is off in the preview (that needs the booth Mac); everything else
-is the real thing.
+**<https://eljon.github.io/bff-photo-booth/>** — a live preview served by GitHub
+Pages. Pick 4 photos and try the design picker from any phone. Printing is off in
+the preview (that needs the booth Mac); everything else is the real thing. The
+preview is a single self-contained `index.html` at the repo root, rebuilt with
+`npm run preview` whenever the guest app changes.
 
 ## How the print reaches the printer
 

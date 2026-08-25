@@ -2,10 +2,13 @@
 //
 // It inlines the guest CSS and the four ES modules (import/export stripped, one
 // shared module scope) and shims /api/* so the app runs offline in save/share
-// mode. Used by the GitHub Pages workflow to publish an always-latest preview
-// at a stable URL, and reusable for the claude.ai artifact preview (--body).
+// mode. The output is committed as the repo-root index.html, which GitHub Pages
+// (Deploy-from-a-branch) serves at the stable preview URL. Regenerate it with
+// `npm run preview` whenever the guest app changes. Also reusable for the
+// claude.ai artifact preview (--body).
 //
-//   node scripts/build-preview.mjs --out _site/index.html   # full HTML document
+//   npm run preview                                          # writes ./index.html
+//   node scripts/build-preview.mjs --out index.html          # full HTML document
 //   node scripts/build-preview.mjs --body --out preview.html # body-only (artifact)
 //
 // Zero dependencies, on purpose.

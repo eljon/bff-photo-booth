@@ -1,0 +1,2444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#15111b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Photo Booth</title>
+<style>
+:root {
+  --bg: #15111b;
+  --bg-soft: #1e1826;
+  --card: #241d2e;
+  --line: #372c45;
+  --ink: #f6f1ef;
+  --ink-dim: #b3a7bd;
+  --accent: #ff5c7a;
+  --accent-ink: #2a0b13;
+  --ok: #5ad1a5;
+  --warn: #ffb020;
+  --radius: 18px;
+  --bar-h: 84px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(120% 60% at 50% 0%, #2a1f36 0%, transparent 60%),
+    var(--bg);
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 16px 0;
+}
+
+.topbar { text-align: center; padding: 10px 0 14px; }
+.topbar h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.topbar p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
+
+/* ---------------------------------------------------------------- preview */
+
+.stage { display: flex; flex-direction: column; align-items: center; }
+
+.paper-shadow {
+  position: relative;
+  padding: 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff10, #ffffff05);
+  box-shadow: 0 18px 40px -18px #000, 0 0 0 1px var(--line);
+}
+
+#preview {
+  display: block;
+  max-width: min(78vw, 300px);
+  max-height: 46vh;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.paper-note { color: var(--ink-dim); font-size: 12px; margin: 10px 0 2px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ---------------------------------------------------------------- coverflow */
+
+.coverflow {
+  position: relative;
+  width: 100%;
+  height: 62vh;
+  max-height: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1100px;
+  overflow: hidden;
+  touch-action: none;             /* we own the gesture — a swipe never scrolls the page */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Shared 3D space: cards stack by real depth (translateZ), so as a card nears the
+   centre it rises smoothly to the front — the hand-off happens continuously where
+   the cards meet, with no hard z-index pop. */
+.cf-track {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Position is driven every frame by JS, so no CSS transition here — it would lag
+   behind and fight the animation. No drop shadow: it would sit under the card and
+   darken the top of the reflection, opening a fake gap; the mirror grounds it. */
+.cf-card {
+  position: absolute;
+  /* Baseline is a fixed fraction of the container, so every card's bottom edge
+     lands on the same line — the "glass". A portrait card is taller than a
+     landscape one, but both rest on this line, so their reflections line up. */
+  top: 68%;
+  left: 50%;
+  border-radius: 6px;
+  /* Scale and rotate pivot about the bottom-centre, so shrinking a side card or
+     tilting it keeps its bottom edge pinned to the glass line. */
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
+  cursor: pointer;
+}
+/* The canvas is sized in JS to fit a box while keeping the true paper aspect
+   (4×6 stays 4×6, 6×4 stays 6×4). No max-width here — that was clamping the
+   width while the height stayed, squishing every card toward square. */
+.cf-card canvas {
+  display: block;
+  border-radius: 6px;
+  background: #fff;
+}
+/* Frosted-glass reflection: a separate blurred, faded copy sitting just below
+   the card. Unlike -webkit-box-reflect (a crisp mirror = glossy glass), this can
+   be blurred, so it reads as a soft, hazy reflection on frosted glass. It is a
+   child of the card, so it tilts and recedes in 3D with it. The image is drawn
+   pre-flipped in JS; the mask fades it out quickly (short) and it is faint
+   (subtle). It never intercepts taps. */
+.cf-mirror {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0.22;
+  filter: blur(3.5px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
+}
+.cf-label {
+  text-align: center;
+  margin: 12px 0 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.cf-label .cf-count { color: var(--ink-dim); font-weight: 500; font-size: 12px; margin-left: 6px; }
+.cf-hint {
+  text-align: center;
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  opacity: 0.75;
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.panel-head h2 { margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.12em; }
+.sub { margin: 16px 0 8px; font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+.hint { color: var(--ink-dim); font-size: 13px; line-height: 1.45; margin: 12px 0 0; }
+
+.pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ffffff12;
+  color: var(--ink);
+}
+.pill.quiet { background: transparent; border: 1px solid var(--line); color: var(--ink-dim); font-weight: 500; }
+.pill.good { background: #5ad1a520; color: var(--ok); }
+.pill.bad { background: #ff5c7a20; color: var(--accent); }
+
+/* ---------------------------------------------------------------- slots */
+
+.pick { margin-top: 16px; }
+.hint.problem { color: var(--accent); }
+
+/* The one button lives on top of the print itself, so there is never an empty
+   grid sitting next to a button asking to fill it. */
+.pick-overlay {
+  position: absolute;
+  inset: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  border-radius: 4px;
+  background: #15111ba6;
+  backdrop-filter: blur(1.5px);
+  transition: background 0.18s ease;
+}
+.btn-pick {
+  max-width: 100%;
+  padding: 15px 22px;
+  font-size: 16px;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px -10px #000c;
+}
+
+/* Once the print is full, get out of the way of it. */
+.pick-overlay.compact {
+  align-items: flex-end;
+  justify-content: center;
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+.pick-overlay.compact .btn-pick {
+  pointer-events: auto;
+  padding: 9px 15px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: #15111bd9;
+  color: var(--ink);
+  backdrop-filter: blur(6px);
+}
+
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+
+.slot {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  background: var(--bg-soft);
+  color: var(--ink-dim);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.7;
+  -webkit-tap-highlight-color: transparent;
+}
+.slot.filled { opacity: 1; }
+.slot canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.slot:disabled { cursor: default; font-size: 13px; font-weight: 700; opacity: 0.45; }
+.slot.filled { border-style: solid; border-color: transparent; }
+.slot .num {
+  position: absolute;
+  left: 5px;
+  top: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  background: #00000090;
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+
+/* ------------------------------------------------------- forms (host page) */
+
+.text-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--ink);
+  padding: 13px 14px;
+  font-size: 16px;
+  font-family: inherit;
+}
+.text-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  border: 0;
+  border-radius: 14px;
+  padding: 15px 18px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-ghost { background: #ffffff12; color: var(--ink); }
+.btn-ghost.danger { color: var(--accent); }
+.btn-add { width: 100%; margin-top: 14px; background: #ffffff12; color: var(--ink); }
+.btn-icon { font-weight: 800; }
+.wide { width: 100%; margin-top: 12px; }
+
+.version {
+  text-align: center;
+  color: var(--ink-dim);
+  opacity: 0.5;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  margin: 20px 0 0;
+}
+
+.spacer { height: calc(var(--bar-h) + env(safe-area-inset-bottom) + 20px); }
+
+.actionbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #15111b00, #15111be6 22%, var(--bg) 60%);
+  backdrop-filter: blur(8px);
+}
+.actionbar .btn-primary { flex: 1; }
+.actionbar .btn-ghost { flex: 0 0 84px; }
+.btn-fb {
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #1877f2;
+  color: #fff;
+}
+.btn-fb svg { display: block; }
+
+/* ---------------------------------------------------------------- sheet */
+
+.sheet, .overlay {
+  position: fixed;
+  inset: 0;
+  background: #0b0810cc;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+  backdrop-filter: blur(6px);
+}
+.overlay { align-items: center; padding: 20px; }
+.hidden { display: none !important; }
+
+.sheet-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--line);
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-head h2 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 0.1em; }
+.icon-btn { border: 0; background: #ffffff12; color: var(--ink); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+
+.crop-wrap { display: flex; flex-direction: column; align-items: center; margin: 14px 0 6px; }
+#cropCanvas {
+  max-width: min(74vw, 320px);
+  max-height: 44dvh;
+  border-radius: 10px;
+  background: #000;
+  touch-action: none;
+  cursor: grab;
+}
+.crop-hint { color: var(--ink-dim); font-size: 12px; margin: 10px 0 0; }
+
+.slider { width: 100%; margin: 10px 0 14px; accent-color: var(--accent); height: 30px; }
+
+.sheet-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.sheet-actions .btn { flex: 1; padding: 13px 8px; font-size: 14px; }
+
+/* ---------------------------------------------------------------- result */
+
+.save-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 22px 20px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+}
+.save-card h2 { margin: 0 0 6px; font-size: 20px; }
+.save-how { margin: 0 0 16px; color: var(--ink-dim); font-size: 14px; line-height: 1.5; }
+.save-how strong { color: var(--ink); }
+.save-image {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto 20px;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px -14px #000;
+  /* let the OS offer its image context menu, and never hijack the long press */
+  -webkit-touch-callout: default;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.result-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 26px 20px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+}
+.result-emoji { font-size: 44px; }
+.result-card h2 { margin: 10px 0 6px; font-size: 21px; }
+.result-card p { margin: 0; color: var(--ink-dim); font-size: 15px; line-height: 1.5; }
+.result-image { max-width: 150px; margin: 16px auto 0; display: block; border-radius: 6px; box-shadow: 0 10px 24px -12px #000; }
+.result-actions { display: flex; gap: 10px; margin-top: 22px; }
+.result-actions .btn { flex: 1; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bar-h) + env(safe-area-inset-bottom) + 16px);
+  transform: translateX(-50%);
+  background: #000000d9;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  z-index: 40;
+  max-width: 88vw;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: rise 0.18s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1 id="boothName">Photo Booth</h1>
+    <p id="boothMessage">Pick 4 photos. Take it home.</p>
+  </header>
+
+  <section class="stage" aria-label="Print preview">
+    <div class="paper-shadow" id="singleWrap">
+      <canvas id="preview" aria-label="Live preview of your print"></canvas>
+      <div class="pick-overlay" id="pickOverlay">
+        <button class="btn btn-primary btn-pick" id="addAll" type="button">
+          <span id="pickLabel">Pick your 4 photos</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="coverflow hidden" id="coverflow" aria-label="Choose a design — swipe left or right">
+      <div class="cf-track" id="cfTrack"></div>
+    </div>
+
+    <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
+    <p class="cf-hint hidden" id="cfHint">Pinch a photo to zoom · drag to move · twist to rotate</p>
+  </section>
+
+  <section class="pick">
+    <button class="btn btn-ghost wide hidden" id="swapAll" type="button">Swap all 4 photos</button>
+    <p class="hint problem hidden" id="printProblem"></p>
+  </section>
+
+  <p class="version" id="version">&nbsp;</p>
+  <div class="spacer"></div>
+</div>
+
+<div class="actionbar">
+  <button class="btn btn-ghost" id="saveBtn" type="button">Save</button>
+  <button class="btn btn-fb" id="fbBtn" type="button" disabled aria-label="Share on Facebook">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+  </button>
+  <button class="btn btn-primary" id="printBtn" type="button" disabled>Print</button>
+</div>
+
+<div class="sheet hidden" id="editor" role="dialog" aria-modal="true" aria-label="Adjust photo">
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <h2>Adjust photo <span id="editorIndex" class="pill"></span></h2>
+      <button class="icon-btn" id="editorClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="crop-wrap">
+      <canvas id="cropCanvas"></canvas>
+      <p class="crop-hint">Drag to move · pinch or slide to zoom</p>
+    </div>
+    <input id="zoom" class="slider" type="range" min="1" max="3" step="0.01" value="1" aria-label="Zoom">
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="rotateBtn" type="button">Rotate</button>
+      <button class="btn btn-ghost" id="resetBtn" type="button">Reset</button>
+      <button class="btn btn-ghost" id="replaceBtn" type="button">Replace</button>
+      <button class="btn btn-ghost danger" id="removeBtn" type="button">Remove</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="makeHero" type="button">★ Make this the big one</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="moveLeft" type="button">← Move back</button>
+      <button class="btn btn-ghost" id="moveRight" type="button">Move forward →</button>
+    </div>
+    <button class="btn btn-primary wide" id="editorDone" type="button">Done</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="saveSheet" role="dialog" aria-modal="true" aria-label="Save to your photos">
+  <div class="save-card">
+    <h2>Save to your photos</h2>
+    <p class="save-how">Touch and hold the photo, then tap <strong>Save to Photos</strong>. It goes straight to your camera roll.</p>
+    <img id="saveImage" class="save-image" alt="Your photo — touch and hold to save">
+    <div class="result-actions">
+      <button class="btn btn-ghost" id="saveShare" type="button">Share instead</button>
+      <button class="btn btn-primary" id="saveClose" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="result" role="dialog" aria-modal="true">
+  <div class="result-card">
+    <div class="result-emoji" id="resultEmoji">🖨️</div>
+    <h2 id="resultTitle">Sending to the printer…</h2>
+    <p id="resultBody">Hold tight.</p>
+    <img id="resultImage" alt="Your print" class="result-image hidden">
+    <div class="result-actions">
+      <button class="btn btn-ghost" id="resultSave" type="button">Save to phone</button>
+      <button class="btn btn-primary" id="resultDone" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+<input id="filePicker" type="file" accept="image/*" multiple hidden>
+<input id="fileOne" type="file" accept="image/*" hidden>
+
+<div class="toast hidden" id="toast"></div>
+
+<script type="module">
+
+const __PREVIEW_SESSION = {
+  version: 'preview', boothName: 'BFF Photo Booth',
+  message: 'Pick 4 photos. Take it home.',
+  maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
+  printingEnabled: false, requireApproval: false, keyRequired: false,
+  remote: false, dryRun: false,
+};
+const __origFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+  const u = typeof input === 'string' ? input : (input && input.url) || '';
+  if (u.includes('/api/session')) return Promise.resolve(new Response(JSON.stringify(__PREVIEW_SESSION), { status: 200, headers: { 'content-type': 'application/json' } }));
+  if (u.includes('/api/')) return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'Preview mode — printing needs the booth.' }), { status: 503, headers: { 'content-type': 'application/json' } }));
+  return __origFetch(input, init);
+};
+
+
+/* ===== js/filters.mjs ===== */
+// Photo looks. ctx.filter is used where the browser supports it (fast, GPU
+// backed); older iOS Safari falls back to the equivalent per-pixel maths so a
+// guest on an old phone still gets the same print.
+
+const FILTERS = {
+  none: { id: 'none', name: 'True', css: 'none' },
+  bw: { id: 'bw', name: 'B&W', css: 'grayscale(1) contrast(1.08)' },
+  noir: { id: 'noir', name: 'Noir', css: 'grayscale(1) contrast(1.35) brightness(0.96)' },
+  warm: { id: 'warm', name: 'Warm', css: 'saturate(1.12) sepia(0.18) brightness(1.03)' },
+  cool: { id: 'cool', name: 'Cool', css: 'saturate(1.05) hue-rotate(-8deg) brightness(1.02)' },
+  fade: { id: 'fade', name: 'Faded', css: 'contrast(0.88) saturate(0.85) brightness(1.08)' },
+};
+
+const FILTER_ORDER = ['none', 'bw', 'noir', 'warm', 'cool', 'fade'];
+
+let ctxFilterSupported = null;
+
+function supportsCtxFilter() {
+  if (ctxFilterSupported !== null) return ctxFilterSupported;
+  try {
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    ctx.filter = 'grayscale(1)';
+    ctxFilterSupported = ctx.filter === 'grayscale(1)';
+  } catch {
+    ctxFilterSupported = false;
+  }
+  return ctxFilterSupported;
+}
+
+const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+
+const PIXEL_OPS = {
+  none: null,
+  bw: (r, g, b) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const c = (y - 128) * 1.08 + 128;
+    return [c, c, c];
+  },
+  noir: (r, g, b) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const c = ((y - 128) * 1.35 + 128) * 0.96;
+    return [c, c, c];
+  },
+  warm: (r, g, b) => [r * 1.07 + 8, g * 1.02 + 2, b * 0.93],
+  cool: (r, g, b) => [r * 0.93, g * 1.0, b * 1.09 + 6],
+  fade: (r, g, b) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const mix = (v) => (v * 0.85 + y * 0.15) * 0.88 + 30;
+    return [mix(r), mix(g), mix(b)];
+  },
+};
+
+/** Apply a filter preset to a whole canvas in place (fallback path). */
+function applyPixelFilter(canvas, filterId) {
+  const op = PIXEL_OPS[filterId];
+  if (!op) return;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = image.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const [r, g, b] = op(d[i], d[i + 1], d[i + 2]);
+    d[i] = clamp(r);
+    d[i + 1] = clamp(g);
+    d[i + 2] = clamp(b);
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+
+/* ===== js/layouts.mjs ===== */
+// Print layouts. Every page is described in real pixels at 300 DPI, so the
+// canvas we compose on the phone is literally the file that goes to the tray.
+
+const DPI = 300;
+const inches = (n) => Math.round(n * DPI);
+
+function stripLayout() {
+  // Two identical 2x6 strips on one 4x6 sheet — cut down the middle.
+  const page = { w: inches(4), h: inches(6) };
+  const stripW = page.w / 2;
+  const pad = 44;
+  const gap = 22;
+  const footer = 150;
+  const cellW = stripW - pad * 2;
+  const cellH = Math.floor((page.h - pad * 2 - footer - gap * 3) / 4);
+  const cells = [];
+  for (let copy = 0; copy < 2; copy++) {
+    for (let i = 0; i < 4; i++) {
+      cells.push({
+        x: copy * stripW + pad,
+        y: pad + i * (cellH + gap),
+        w: cellW,
+        h: cellH,
+        photo: i,
+      });
+    }
+  }
+  const captionY = pad + 4 * cellH + 3 * gap;
+  return {
+    id: 'strip',
+    name: 'Classic strip',
+    blurb: 'Two 2×6 strips on one 4×6 — keep one, give one away',
+    paper: '4×6 portrait',
+    media: 'Custom.4x6in',
+    page,
+    cells,
+    captions: [
+      { x: pad, y: captionY, w: cellW, h: page.h - pad - captionY },
+      { x: stripW + pad, y: captionY, w: cellW, h: page.h - pad - captionY },
+    ],
+    cutLine: { x: stripW, y1: 0, y2: page.h },
+  };
+}
+
+function gridLayout() {
+  // Cells are computed per print from the real photos (see resolveGrid), so a
+  // mix of portrait and landscape shots each fit without cropping. The static
+  // values here are just the defaults; resolveGrid fills the sheet edge to edge.
+  const page = { w: inches(4), h: inches(6) };
+  return {
+    id: 'grid',
+    name: 'Auto grid',
+    blurb: 'One big hero photo with three beside it — nothing cropped',
+    paper: '4×6 portrait',
+    media: 'Custom.4x6in',
+    page,
+    dynamic: true,
+    cells: [], // filled in by resolveGrid at render time
+    captions: [],
+    cutLine: null,
+  };
+}
+
+/** Aspect ratio (w/h) a photo occupies, honouring a 90° rotation. */
+function photoAspect(photo) {
+  if (!photo || !photo.bitmap) return 3 / 4; // an empty slot stands in as portrait
+  const t = photo.transform || {};
+  const swap = Math.abs((t.rot || 0) % 180) === 90;
+  const w = swap ? photo.bitmap.height : photo.bitmap.width;
+  const h = swap ? photo.bitmap.width : photo.bitmap.height;
+  return w / h || 3 / 4;
+}
+
+const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
+const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
+
+const GAP = 26; // uniform gutter between photos, in print pixels
+
+/**
+ * Lay groups of photos out as justified ROWS. Every cell is shaped to its own
+ * photo's aspect ratio, so a contain-fit fills it exactly — no matting inside a
+ * frame, no skew, and every photo keeps its true orientation. Each row is scaled
+ * so the photos in it span the full width edge to edge (they touch, save for the
+ * gutter). The stack of rows is scaled to fit the sheet and centred, so the only
+ * whitespace is one thin, even margin on the axis the shapes could not fill.
+ */
+function justifyRows(page, groups, aspects) {
+  const W = page.w;
+  const H = page.h;
+  const rows = groups.map((g) => {
+    const sumA = g.reduce((s, i) => s + aspects[i], 0);
+    return { g, h: (W - GAP * (g.length - 1)) / sumA };
+  });
+  const naturalH = rows.reduce((s, r) => s + r.h, 0) + GAP * (rows.length - 1);
+  const scale = naturalH > H ? H / naturalH : 1;
+  const finalW = W * scale;
+  const finalH = naturalH * scale;
+  const x0 = (W - finalW) / 2;
+  let y = (H - finalH) / 2;
+
+  const cells = [];
+  for (const r of rows) {
+    const h = r.h * scale;
+    let x = x0;
+    for (const i of r.g) {
+      const w = aspects[i] * h;
+      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
+      x += w + GAP * scale;
+    }
+    y += h + GAP * scale;
+  }
+  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
+  return { cells, coverage: area / (W * H) };
+}
+
+/** As justifyRows, but as COLUMNS: each group fills the full height, side by side. */
+function justifyCols(page, groups, aspects) {
+  const W = page.w;
+  const H = page.h;
+  const cols = groups.map((g) => {
+    const sumInv = g.reduce((s, i) => s + 1 / aspects[i], 0);
+    return { g, w: (H - GAP * (g.length - 1)) / sumInv };
+  });
+  const naturalW = cols.reduce((s, c) => s + c.w, 0) + GAP * (cols.length - 1);
+  const scale = naturalW > W ? W / naturalW : 1;
+  const finalW = naturalW * scale;
+  const finalH = H * scale;
+  const y0 = (H - finalH) / 2;
+  let x = (W - finalW) / 2;
+
+  const cells = [];
+  for (const c of cols) {
+    const w = c.w * scale;
+    let y = y0;
+    for (const i of c.g) {
+      const h = w / aspects[i];
+      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
+      y += h + GAP * scale;
+    }
+    x += w + GAP * scale;
+  }
+  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
+  return { cells, coverage: area / (W * H) };
+}
+
+/**
+ * The best hero design for one photo: try the hero along the top, the bottom,
+ * the left and the right, on both sheets, and keep whichever fills the most
+ * paper. Because cells are shaped to their photos, "most paper filled" is the
+ * layout with the least whitespace — nothing is cropped and nothing is skewed.
+ */
+function heroDesign(aspects, heroIndex) {
+  const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
+  const plans = [
+    { arrange: 'top', fn: justifyRows, groups: [[heroIndex], others] },
+    { arrange: 'bottom', fn: justifyRows, groups: [others, [heroIndex]] },
+    { arrange: 'left', fn: justifyCols, groups: [[heroIndex], others] },
+    { arrange: 'right', fn: justifyCols, groups: [others, [heroIndex]] },
+  ];
+  let best = null;
+  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
+    const page = { w: paper.w, h: paper.h };
+    for (const plan of plans) {
+      const laid = plan.fn(page, plan.groups, aspects);
+      if (!best || laid.coverage > best.coverage) {
+        best = { ...laid, page, media: paper.media, paper: paper.paper, arrange: plan.arrange };
+      }
+    }
+  }
+  // Hero cell first, whatever the placement — downstream code reads cells[0] as
+  // the hero (the crop editor, the "biggest photo" checks).
+  best.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : a.photo - b.photo));
+  return best;
+}
+
+/** Best no-hero layout: the four photos packed to fill the sheet as fully as they can. */
+function evenGrid(aspects) {
+  const plans = [
+    (p) => justifyRows(p, [[0, 1], [2, 3]], aspects),
+    (p) => justifyCols(p, [[0, 2], [1, 3]], aspects),
+    (p) => justifyRows(p, [[0, 1, 2, 3]], aspects),
+    (p) => justifyCols(p, [[0], [1], [2], [3]], aspects),
+  ];
+  let best = null;
+  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
+    const page = { w: paper.w, h: paper.h };
+    for (const fn of plans) {
+      const laid = fn(page);
+      if (!best || laid.coverage > best.coverage) {
+        best = { ...laid, page, media: paper.media, paper: paper.paper };
+      }
+    }
+  }
+  return best;
+}
+
+const ARRANGE_SUB = { top: 'on top', bottom: 'on the bottom', left: 'on the left', right: 'on the right' };
+
+/**
+ * The booth's own pick: photo 0 as the hero (unless told otherwise), in the
+ * placement and on the sheet that fill the most paper without cropping.
+ */
+function resolveGrid(base, photos, heroIndex = 0) {
+  const d = heroDesign(photos.map(photoAspect), heroIndex);
+  return { cells: d.cells, captions: [], page: d.page, media: d.media, paper: d.paper };
+}
+
+/**
+ * The designs offered as cards in the picker: each photo as the big hero (placed
+ * and sized to fill the most paper), plus an even layout with no hero. Photo 0
+ * leads, so the default card matches resolveGrid. Every design shapes its cells
+ * to the real photos, so nothing is cropped, nothing is skewed, and the only
+ * whitespace is one thin even margin.
+ */
+function designVariants(base, photos) {
+  const aspects = photos.map(photoAspect);
+
+  const out = photos.map((_, hero) => {
+    const d = heroDesign(aspects, hero);
+    return {
+      key: `hero:${hero}`,
+      kind: 'hero',
+      heroIndex: hero,
+      arrange: d.arrange,
+      title: `Big #${hero + 1}`,
+      sub: ARRANGE_SUB[d.arrange],
+      captions: [],
+      cells: d.cells,
+      page: d.page,
+      media: d.media,
+      paper: d.paper,
+    };
+  });
+
+  out.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [], ...evenGrid(aspects) });
+  return out;
+}
+
+function filmstripLayout() {
+  // Four tall frames across a 6x4 landscape sheet.
+  const page = { w: inches(6), h: inches(4) };
+  const pad = 56;
+  const gap = 24;
+  const footer = 132;
+  const cellW = Math.floor((page.w - pad * 2 - gap * 3) / 4);
+  const cellH = page.h - pad * 2 - footer;
+  const cells = [];
+  for (let i = 0; i < 4; i++) {
+    cells.push({ x: pad + i * (cellW + gap), y: pad, w: cellW, h: cellH, photo: i });
+  }
+  const captionY = pad + cellH;
+  return {
+    id: 'filmstrip',
+    name: 'Wide filmstrip',
+    blurb: 'Four tall frames on a 6×4 landscape print',
+    paper: '6×4 landscape',
+    media: 'Custom.6x4in',
+    page,
+    cells,
+    captions: [{ x: pad, y: captionY, w: page.w - pad * 2, h: page.h - pad - captionY }],
+    cutLine: null,
+  };
+}
+
+const LAYOUTS = {
+  strip: stripLayout(),
+  grid: gridLayout(),
+  filmstrip: filmstripLayout(),
+};
+
+const LAYOUT_ORDER = ['strip', 'grid', 'filmstrip'];
+
+const FRAMES = {
+  white: { id: 'white', name: 'White', bg: '#ffffff', ink: '#101010', accent: '#9a9a9a' },
+  black: { id: 'black', name: 'Black', bg: '#111111', ink: '#f5f5f5', accent: '#8a8a8a' },
+  cream: { id: 'cream', name: 'Cream', bg: '#f4ece0', ink: '#4a3b2c', accent: '#b9a68e' },
+  blush: { id: 'blush', name: 'Blush', bg: '#f7dfe4', ink: '#7a3b48', accent: '#c98d9c' },
+};
+
+const DEFAULT_TRANSFORM = { zoom: 1, dx: 0, dy: 0, rot: 0 };
+
+
+/* ===== js/render.mjs ===== */
+
+const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+/**
+ * The smallest scale at which the photo, rotated by `rot`, still fully covers
+ * the cell — so a rotated crop never leaves a blank corner. A rotated rectangle
+ * of source size (W×H)·scale covers a cell (cellW×cellH) when, along each of the
+ * photo's own axes, its half-extent clears the cell's rotated footprint:
+ *   W·scale/2 ≥ (cellW·|cos| + cellH·|sin|)/2, and the same for H with axes swapped.
+ * For an unrotated `contain` cell (the layout shapes each cell to its photo) that
+ * reduces to the exact fit, so nothing crops until the guest zooms or rotates.
+ */
+function coverBase(cellW, cellH, W, H, rot, fit) {
+  if (fit === 'contain' && rot % 360 === 0) return Math.min(cellW / W, cellH / H);
+  const rad = (rot * Math.PI) / 180;
+  const c = Math.abs(Math.cos(rad));
+  const s = Math.abs(Math.sin(rad));
+  return Math.max((cellW * c + cellH * s) / W, (cellW * s + cellH * c) / H);
+}
+
+/**
+ * Keep a crop inside its cell: however the guest zooms, pans, or rotates, the
+ * photo still covers the frame, so a print can never come out with a sliver of
+ * blank paper. Pan is clamped in the photo's own (rotated) frame, then mapped
+ * back to page axes, so the reachable range is correct at any angle.
+ */
+function clampTransform(transform, cellW, cellH, bitmap, fit = 'cover') {
+  const t = { zoom: 1, dx: 0, dy: 0, rot: 0, ...transform };
+  t.zoom = Math.min(4, Math.max(1, t.zoom));
+  const rad = (t.rot * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const scale = coverBase(cellW, cellH, bitmap.width, bitmap.height, t.rot, fit) * t.zoom;
+
+  // Half the cell's footprint measured along the photo's own axes.
+  const needX = (cellW * Math.abs(cos) + cellH * Math.abs(sin)) / 2;
+  const needY = (cellW * Math.abs(sin) + cellH * Math.abs(cos)) / 2;
+  const slackX = Math.max(0, (bitmap.width * scale) / 2 - needX);
+  const slackY = Math.max(0, (bitmap.height * scale) / 2 - needY);
+
+  // Pan is stored as page-frame fractions of the cell. Rotate it into the photo
+  // frame to clamp against the slack, then rotate it back.
+  const px = t.dx * cellW;
+  const py = t.dy * cellH;
+  let lx = px * cos + py * sin;
+  let ly = -px * sin + py * cos;
+  lx = Math.min(slackX, Math.max(-slackX, lx));
+  ly = Math.min(slackY, Math.max(-slackY, ly));
+  t.dx = cellW ? (lx * cos - ly * sin) / cellW : 0;
+  t.dy = cellH ? (lx * sin + ly * cos) / cellH : 0;
+  return t;
+}
+
+/** Draw one photo, cover-fitted into a cell and honouring the guest's crop. */
+function drawPhoto(ctx, cell, photo, filterId) {
+  const { bitmap } = photo;
+  const fit = cell.fit || 'cover';
+  const t = clampTransform(photo.transform, cell.w, cell.h, bitmap, fit);
+  const nw = bitmap.width;
+  const nh = bitmap.height;
+  const scale = coverBase(cell.w, cell.h, nw, nh, t.rot, fit) * t.zoom;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cell.x, cell.y, cell.w, cell.h);
+  ctx.clip();
+
+  const useCtxFilter = filterId !== 'none' && supportsCtxFilter();
+  if (useCtxFilter) ctx.filter = FILTERS[filterId].css;
+
+  ctx.translate(cell.x + cell.w / 2 + t.dx * cell.w, cell.y + cell.h / 2 + t.dy * cell.h);
+  ctx.rotate((t.rot * Math.PI) / 180);
+  ctx.drawImage(bitmap, (-nw * scale) / 2, (-nh * scale) / 2, nw * scale, nh * scale);
+  ctx.restore();
+
+  if (filterId !== 'none' && !useCtxFilter) {
+    // Older Safari: redo this cell through the pixel path.
+    const tile = document.createElement('canvas');
+    tile.width = Math.max(1, Math.round(cell.w));
+    tile.height = Math.max(1, Math.round(cell.h));
+    const tctx = tile.getContext('2d', { willReadFrequently: true });
+    tctx.translate(tile.width / 2 + t.dx * cell.w, tile.height / 2 + t.dy * cell.h);
+    tctx.rotate((t.rot * Math.PI) / 180);
+    tctx.drawImage(bitmap, (-nw * scale) / 2, (-nh * scale) / 2, nw * scale, nh * scale);
+    applyPixelFilter(tile, filterId);
+    ctx.drawImage(tile, cell.x, cell.y, cell.w, cell.h);
+  }
+}
+
+function drawPlaceholder(ctx, cell, index, frame) {
+  ctx.save();
+  ctx.strokeStyle = frame.accent;
+  ctx.fillStyle = frame.accent;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = Math.max(2, cell.w * 0.012);
+  ctx.setLineDash([cell.w * 0.06, cell.w * 0.04]);
+  ctx.strokeRect(cell.x + 4, cell.y + 4, cell.w - 8, cell.h - 8);
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.55;
+  ctx.font = `600 ${Math.round(Math.min(cell.w, cell.h) * 0.3)}px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(index + 1), cell.x + cell.w / 2, cell.y + cell.h / 2);
+  ctx.restore();
+}
+
+/**
+ * Shrink text until it fits its block. Letter spacing has to be applied before
+ * measuring, or a tracked-out footer runs off the edge of the paper.
+ */
+function fitText(ctx, text, maxWidth, startSize, weight, spacingRatio = 0) {
+  let size = startSize;
+  const apply = () => {
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    ctx.letterSpacing = `${Math.round(size * spacingRatio)}px`;
+  };
+  apply();
+  while (size > 10 && ctx.measureText(text).width > maxWidth) {
+    size -= 2;
+    apply();
+  }
+  return size;
+}
+
+function drawCaption(ctx, box, frame, caption, subtitle) {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '0px';
+  const cx = box.x + box.w / 2;
+  const hasCaption = Boolean(caption);
+  const captionSize = Math.round(box.h * (hasCaption ? 0.42 : 0));
+  const subSize = Math.round(box.h * (hasCaption ? 0.2 : 0.28));
+
+  ctx.textBaseline = 'alphabetic';
+
+  if (hasCaption) {
+    ctx.fillStyle = frame.ink;
+    fitText(ctx, caption, box.w, captionSize, '700');
+    ctx.fillText(caption, cx, box.y + box.h * 0.52);
+  }
+  if (subtitle) {
+    ctx.fillStyle = frame.accent;
+    fitText(ctx, subtitle, box.w, subSize, '500', 0.12);
+    ctx.fillText(subtitle, cx, box.y + box.h * (hasCaption ? 0.88 : 0.62));
+  }
+  ctx.restore();
+}
+
+function drawCutLine(ctx, layout, frame) {
+  if (!layout.cutLine) return;
+  ctx.save();
+  ctx.strokeStyle = frame.accent;
+  ctx.globalAlpha = 0.4;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 12]);
+  ctx.beginPath();
+  ctx.moveTo(layout.cutLine.x, layout.cutLine.y1 + 20);
+  ctx.lineTo(layout.cutLine.x, layout.cutLine.y2 - 20);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Compose the whole page.
+ * `scale` of 1 renders the real 300 DPI print; the preview uses a fraction.
+ */
+/** The layout to print for this state — resolving a dynamic grid to real cells,
+ *  the chosen sheet orientation, and its paper size. When the guest has picked a
+ *  design from the coverflow (state.designKey), that one is used; otherwise the
+ *  booth's own auto-best grid. */
+function resolveLayout(state) {
+  const base = LAYOUTS[state.layoutId];
+  if (!base.dynamic) return base;
+  if (state.designKey) {
+    const chosen = designVariants(base, state.photos).find((d) => d.key === state.designKey);
+    if (chosen) return { ...base, ...chosen };
+  }
+  return { ...base, ...resolveGrid(base, state.photos) };
+}
+
+function composePage(canvas, state, scale = 1, layoutOverride = null) {
+  const layout = layoutOverride || resolveLayout(state);
+  const frame = FRAMES[state.frameId] || FRAMES.white;
+  const w = Math.round(layout.page.w * scale);
+  const h = Math.round(layout.page.h * scale);
+
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = frame.bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.scale(scale, scale);
+  ctx.imageSmoothingQuality = 'high';
+
+  for (const cell of layout.cells) {
+    const photo = state.photos[cell.photo];
+    if (photo && photo.bitmap) drawPhoto(ctx, cell, photo, state.filterId);
+    else drawPlaceholder(ctx, cell, cell.photo, frame);
+  }
+
+  drawCutLine(ctx, layout, frame);
+  for (const box of layout.captions) drawCaption(ctx, box, frame, state.caption, state.subtitle);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return canvas;
+}
+
+/** Render the print-resolution page and hand back a file ready for the queue. */
+async function exportPrint(state) {
+  const canvas = document.createElement('canvas');
+  composePage(canvas, state, 1);
+
+  let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('This browser could not render the print.');
+  if (blob.size > 3 * 1024 * 1024) {
+    // A big PNG crawls over cellular; a 0.94 JPEG is indistinguishable at
+    // 300 DPI on photo paper and uploads in a second or two.
+    const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.94));
+    if (jpeg) blob = jpeg;
+  }
+  return { blob, width: canvas.width, height: canvas.height };
+}
+
+/** Single photo filling a canvas — used by the crop editor and the slot thumbs. */
+function drawSinglePhoto(canvas, photo, filterId = 'none') {
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawPhoto(ctx, { x: 0, y: 0, w: canvas.width, h: canvas.height }, photo, filterId);
+  return canvas;
+}
+
+
+/* ===== js/app.mjs ===== */
+
+const $ = (id) => document.getElementById(id);
+const MAX_SOURCE_DIM = 2400; // plenty for a 300 DPI cell, gentle on phone memory
+
+// One layout, one look, one paper. The guest picks photos and prints — that is
+// the whole app.
+const state = {
+  layoutId: 'grid',
+  frameId: 'white',
+  filterId: 'none',
+  caption: '',
+  subtitle: '',
+  copies: 1,
+  designKey: null, // which coverflow design is chosen; null = the booth's auto-best
+  photos: [null, null, null, null],
+};
+
+const session = {
+  boothName: 'Photo Booth',
+  maxCopies: 3,
+  printingEnabled: true,
+  requireApproval: false,
+  keyRequired: false,
+  remote: false,
+  dryRun: false,
+  online: false,
+};
+
+const KEY_STORAGE = 'booth.key';
+
+/**
+ * A public booth carries its access key in the QR link (?k=…). Stash it and
+ * tidy the address bar, so the guest never types anything and a shared
+ * screenshot of the URL bar does not hand out printing rights.
+ */
+function claimAccessKey() {
+  const url = new URL(location.href);
+  const fromLink = url.searchParams.get('k');
+  if (fromLink) {
+    try {
+      localStorage.setItem(KEY_STORAGE, fromLink);
+    } catch {
+      /* private mode — the key still works for this page load */
+    }
+    url.searchParams.delete('k');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    return fromLink;
+  }
+  try {
+    return localStorage.getItem(KEY_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+let accessKey = claimAccessKey();
+
+let editorIndex = null;
+let pendingSlot = null;
+let replaceAllNext = false;
+let lastPrintBlob = null;
+let printGeneration = 0; // bumped whenever the page changes, so stale renders are dropped
+let warmTimer = null;
+
+// ---------------------------------------------------------------- utilities
+
+function toast(message, ms = 2600) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.remove('hidden');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+function todayStamp() {
+  return new Date()
+    .toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+    .toUpperCase();
+}
+
+/** Decode a picked file, honouring EXIF rotation, and shrink it for memory. */
+async function loadPhoto(file) {
+  let source = null;
+  try {
+    source = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    source = await loadViaImgElement(file);
+  }
+  if (!source || !source.width) throw new Error('That file is not a photo this browser can read.');
+  return downscale(source, MAX_SOURCE_DIM);
+}
+
+function loadViaImgElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not open that photo. Try a different one.'));
+    };
+    img.src = url;
+  });
+}
+
+function downscale(source, maxDim) {
+  const w = source.width || source.naturalWidth;
+  const h = source.height || source.naturalHeight;
+  const longest = Math.max(w, h);
+  if (longest <= maxDim) return source;
+  const ratio = maxDim / longest;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * ratio);
+  canvas.height = Math.round(h * ratio);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  if (source.close) source.close();
+  return canvas;
+}
+
+function filledCount() {
+  return state.photos.filter(Boolean).length;
+}
+
+// ---------------------------------------------------------------- rendering
+
+let frameRequested = false;
+
+function scheduleRender() {
+  lastPrintBlob = null; // anything that redraws invalidates the exported page
+  printGeneration += 1;
+  if (frameRequested) return;
+  frameRequested = true;
+  requestAnimationFrame(() => {
+    frameRequested = false;
+    renderAll();
+  });
+}
+
+function previewScale(layout) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssWidth = Math.min(300, window.innerWidth * 0.78);
+  return Math.min(1, (cssWidth * dpr) / layout.page.w);
+}
+
+function renderAll() {
+  const full = filledCount() === 4;
+  state.subtitle = `${session.boothName} · ${todayStamp()}`;
+  updatePickButton();
+  if (full) {
+    // The coverflow of designs is the preview now — it draws the selected print.
+    // Never rebuild mid-gesture (a stray resize must not reset an active swipe).
+    if (!cfBusy) rebuildCoverflow();
+  } else {
+    const layout = resolveLayout(state);
+    composePage($('preview'), state, previewScale(layout));
+  }
+  $('printBtn').disabled = !full || !session.printingEnabled;
+  $('saveBtn').disabled = !full;
+  $('fbBtn').disabled = !full;
+  warmPrint();
+}
+
+/**
+ * Render the page ahead of time once all four photos are in. iOS only lets
+ * navigator.share run inside the tap that asked for it, and rendering a 300 DPI
+ * page takes long enough to lose that permission — so have it ready first.
+ * Debounced, because a resize can fire renders in a burst.
+ */
+function warmPrint() {
+  clearTimeout(warmTimer);
+  if (filledCount() < 4 || lastPrintBlob) return;
+
+  warmTimer = setTimeout(() => {
+    const generation = printGeneration;
+    exportPrint(state)
+      .then((result) => {
+        if (generation === printGeneration) lastPrintBlob = result.blob;
+      })
+      .catch(() => {
+        /* a real Save or Print will surface the failure */
+      });
+  }, 500);
+}
+
+/** The picker is the main event: one tap should get all four photos. */
+function updatePickButton() {
+  const missing = 4 - filledCount();
+  const full = missing === 0;
+  const button = $('addAll');
+  const label = $('pickLabel');
+
+  if (missing === 4) label.textContent = 'Pick 4 photos';
+  else if (missing > 0) label.textContent = `Add ${missing} more`;
+
+  button.classList.toggle('btn-primary', missing > 0);
+  button.classList.toggle('btn-ghost', missing === 0);
+
+  // Before the print is full: the single preview and the pick button. Once it is
+  // full: the coverflow of designs takes over the stage.
+  $('singleWrap').classList.toggle('hidden', full);
+  $('coverflow').classList.toggle('hidden', !full);
+  $('cfLabel').classList.toggle('hidden', !full);
+  $('cfHint').classList.toggle('hidden', !full);
+  $('swapAll').classList.toggle('hidden', !full);
+}
+
+// ---------------------------------------------------------------- coverflow
+
+// The coverflow scrolls on a continuous position (cfPos, in card units). A flick
+// picks a target card from the release speed, then cfPos eases to it — a smooth,
+// decelerating glide with no overshoot, so it settles without bouncing. cfIndex
+// is the settled selection that Save/Print use.
+let cfDesigns = [];
+let cfPos = 0;      // continuous centre position
+let cfIndex = -1;   // the design currently under the centre (drives label + print)
+let cfTarget = 0;   // the card the glide is easing to
+let cfRaf = null;
+let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
+let manip = null;   // a two-finger direct-manipulation of one photo in flight
+
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
+
+/** Paint a card's face (the design) and its frosted mirror from current state. */
+function paintCard(card, design) {
+  const face = card.querySelector('canvas.cf-face');
+  const mirror = card.querySelector('canvas.cf-mirror');
+  const dispScale = Number(card.dataset.scale);
+  composePage(face, state, dispScale * DPR, design);
+  mirror.width = face.width;
+  mirror.height = face.height;
+  const mctx = mirror.getContext('2d');
+  mctx.setTransform(1, 0, 0, 1, 0, 0);
+  mctx.clearRect(0, 0, mirror.width, mirror.height);
+  mctx.translate(0, mirror.height);
+  mctx.scale(1, -1);
+  mctx.drawImage(face, 0, 0);
+}
+
+/** Repaint every card from current state — after an edit changes a shared photo. */
+function repaintDeck() {
+  const cards = [...$('cfTrack').children];
+  cards.forEach((card, i) => { if (cfDesigns[i]) paintCard(card, cfDesigns[i]); });
+}
+
+/** Horizontal distance between neighbouring cards, in CSS px. Kept wide relative
+ *  to the card so the side photos always peek out beside the centre one. */
+function cfSpacing() {
+  const cf = $('coverflow');
+  return Math.min(180, (cf.clientWidth || 320) * 0.42);
+}
+
+/** Lay the cards out in a coverflow fan around the continuous position cfPos. */
+function positionCards() {
+  const cards = [...$('cfTrack').children];
+  const spacing = cfSpacing();
+  cards.forEach((card, i) => {
+    const offset = i - cfPos;
+    const abs = Math.abs(offset);
+    // First neighbour sits a full step out; the rest compress into a stacked deck.
+    const mag = Math.min(abs, 1) * spacing + Math.max(0, abs - 1) * spacing * 0.34;
+    const x = Math.sign(offset) * mag;
+    const ry = Math.max(-58, Math.min(58, -offset * 50));
+    const scale = Math.max(0.62, 1 - abs * 0.10);
+    // Real 3D depth (translateZ) does the stacking: the closer a card is to the
+    // centre, the further forward it sits, so it rises to the front smoothly as it
+    // reaches the middle instead of popping via a z-index swap.
+    const depth = -abs * 130;
+    // translateY(-100%) lifts the card fully above its `top` anchor, so its
+    // bottom edge sits exactly on the baseline (the glass line) — the same line
+    // for every card regardless of height, so landscape and portrait bottoms
+    // align and the reflection reads as a single sheet of glass. The reflection
+    // falls into the space below the baseline.
+    card.style.transform =
+      `translate(-50%, -100%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
+    // Fully opaque — no see-through — so the front card cleanly covers the rest.
+    // Cards well off the stage are hidden outright.
+    card.style.opacity = abs > 2.6 ? '0' : '1';
+    card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
+  });
+}
+
+/** The centred card changed — update the label and the warmed print. */
+function setCurrent(index) {
+  const i = clampPos(index);
+  if (i === cfIndex || !cfDesigns[i]) return;
+  cfIndex = i;
+  const d = cfDesigns[i];
+  state.designKey = d.key;
+  $('cfTitle').textContent = d.sub ? `${d.title} · ${d.sub}` : d.title;
+  $('cfCount').textContent = `${i + 1} / ${cfDesigns.length}`;
+  lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print
+  printGeneration += 1;
+  // Never warm mid-gesture: exportPrint is a heavy 300 DPI render that would
+  // block the main thread and make the swipe stutter. It runs once we settle.
+  if (!cfBusy) warmPrint();
+}
+
+/** Ease one frame toward cfTarget. Monotonic — it decelerates in, never past. */
+function glideStep() {
+  const EASE = 0.28; // fraction of the remaining gap closed per frame
+  cfPos += (cfTarget - cfPos) * EASE;
+  setCurrent(Math.round(cfPos));
+  positionCards();
+  if (Math.abs(cfTarget - cfPos) < 0.003) {
+    cfPos = cfTarget;
+    positionCards();
+    setCurrent(cfPos);
+    cfRaf = null;
+    cfBusy = false;
+    warmPrint(); // settled — now it is safe to render the print ahead of time
+    return;
+  }
+  cfRaf = requestAnimationFrame(glideStep);
+}
+
+/** Glide to a card index with a smooth, settling ease. */
+function glideTo(index) {
+  cfTarget = clampPos(Math.round(index));
+  if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
+}
+
+function stopSpring() {
+  if (cfRaf != null) {
+    cancelAnimationFrame(cfRaf);
+    cfRaf = null;
+  }
+}
+
+/** Rebuild the cards from the current photos, keeping the guest's chosen design. */
+function rebuildCoverflow() {
+  stopSpring();
+  cfBusy = false; // a rebuild is not a gesture — let it warm the print normally
+  const base = LAYOUTS[state.layoutId];
+  cfDesigns = designVariants(base, state.photos);
+  let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
+  if (idx < 0) idx = 0;
+
+  const track = $('cfTrack');
+  track.innerHTML = '';
+  // Fit each card inside a box while keeping its true paper aspect: the display
+  // size comes from ONE scale for both axes, so nothing is squished. A landscape
+  // sheet fits by width, a portrait sheet by height. Big box → big photos.
+  const boxH = Math.min(window.innerHeight * 0.37, 350);
+  // boxW caps a landscape card's width — keep it tighter so its side photos show.
+  const boxW = Math.min(window.innerWidth * 0.55, 300);
+
+  cfDesigns.forEach((design) => {
+    const card = document.createElement('div');
+    card.className = 'cf-card';
+    const dispScale = Math.min(boxH / design.page.h, boxW / design.page.w);
+    const w = Math.round(design.page.w * dispScale);
+    const h = Math.round(design.page.h * dispScale);
+    card.dataset.scale = String(dispScale);
+
+    // The design itself (the "face")…
+    const face = document.createElement('canvas');
+    face.className = 'cf-face';
+    face.style.width = `${w}px`;
+    face.style.height = `${h}px`;
+    card.appendChild(face);
+
+    // …and its frosted-glass reflection: a vertically-flipped copy just below,
+    // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
+    // a crisp mirror. Flipping in the bitmap (not via a CSS transform) keeps it
+    // sitting cleanly below the card in the 3D stack.
+    const mirror = document.createElement('canvas');
+    mirror.className = 'cf-mirror';
+    mirror.style.width = `${w}px`;
+    mirror.style.height = `${h}px`;
+    card.appendChild(mirror);
+
+    paintCard(card, design);
+    track.appendChild(card);
+  });
+
+  cfPos = idx;
+  cfIndex = -1; // force the label to refresh
+  setCurrent(idx);
+  positionCards();
+}
+
+// ------------------------------------------------ direct photo manipulation
+
+/** Map a client point onto the centred card's page coordinates (that card is
+ *  un-rotated and unscaled, so the mapping is a plain rect scale). */
+function pageFromClient(card, clientX, clientY, design) {
+  const rect = card.querySelector('canvas.cf-face').getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  return {
+    x: ((clientX - rect.left) / rect.width) * design.page.w,
+    y: ((clientY - rect.top) / rect.height) * design.page.h,
+    pxPerPage: rect.width / design.page.w, // client px per page unit
+  };
+}
+
+/** The design cell (and its photo) under a page point — or the biggest filled
+ *  cell as a sensible default when the fingers land on a gap. */
+function cellAt(design, x, y) {
+  const hit = design.cells.find((c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h && state.photos[c.photo]);
+  if (hit) return hit;
+  return design.cells
+    .filter((c) => state.photos[c.photo])
+    .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
+}
+
+/** Outline the photo being manipulated on the centred face, as live feedback. */
+function drawEditHighlight(card, cell) {
+  const face = card.querySelector('canvas.cf-face');
+  const s = Number(card.dataset.scale) * DPR;
+  const ctx = face.getContext('2d');
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const x = cell.x * s;
+  const y = cell.y * s;
+  const w = cell.w * s;
+  const h = cell.h * s;
+  ctx.lineWidth = Math.max(2, 3 * DPR);
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 6 * DPR;
+  ctx.strokeRect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth);
+  ctx.restore();
+}
+
+/** Re-render the centred card (and its mirror) mid-gesture, with the outline. */
+function renderCentre() {
+  const i = clampPos(Math.round(cfPos));
+  const card = $('cfTrack').children[i];
+  if (!card || !cfDesigns[i]) return;
+  paintCard(card, cfDesigns[i]);
+  if (manip) drawEditHighlight(card, manip.cell);
+}
+
+function bindCoverflow() {
+  const cf = $('coverflow');
+  const pointers = new Map();
+  let swipeId = null;    // the pointer driving a one-finger browse
+  let dragging = false;
+  let startX = 0;
+  let startPos = 0;
+  let moved = 0;
+  let lastT = 0;
+  let velMs = 0; // smoothed velocity in card-units per millisecond
+
+  // Two fingers on the centred card grab the photo under them and pan/zoom/rotate
+  // it directly. One finger still browses the deck, so there is no gesture clash.
+  const beginManip = () => {
+    dragging = false; // a browse never becomes a manipulation half-way
+    swipeId = null;
+    stopSpring();
+    cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before editing
+    positionCards();
+    const i = clampPos(Math.round(cfPos));
+    const design = cfDesigns[i];
+    const card = $('cfTrack').children[i];
+    if (!design || !card) return;
+    const [a, b] = [...pointers.values()];
+    const midX = (a.clientX + b.clientX) / 2;
+    const midY = (a.clientY + b.clientY) / 2;
+    const p = pageFromClient(card, midX, midY, design);
+    if (!p) return;
+    const cell = cellAt(design, p.x, p.y);
+    if (!cell || !state.photos[cell.photo]) return;
+    manip = {
+      photo: cell.photo,
+      cell,
+      pxPerPage: p.pxPerPage,
+      baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
+      baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
+      baseMidX: midX,
+      baseMidY: midY,
+      t0: { ...state.photos[cell.photo].transform },
+    };
+    cfBusy = true;
+    clearTimeout(warmTimer);
+    renderCentre();
+  };
+
+  const updateManip = () => {
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const ang = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX);
+    const midX = (a.clientX + b.clientX) / 2;
+    const midY = (a.clientY + b.clientY) / 2;
+    const { t0, cell, pxPerPage } = manip;
+    const dxPage = (midX - manip.baseMidX) / pxPerPage;
+    const dyPage = (midY - manip.baseMidY) / pxPerPage;
+    const next = {
+      zoom: t0.zoom * (dist / manip.baseDist),
+      rot: t0.rot + ((ang - manip.baseAng) * 180) / Math.PI,
+      dx: t0.dx + dxPage / cell.w,
+      dy: t0.dy + dyPage / cell.h,
+    };
+    state.photos[manip.photo].transform = clampTransform(next, cell.w, cell.h, state.photos[manip.photo].bitmap, cell.fit);
+    renderCentre();
+  };
+
+  const endManip = () => {
+    manip = null;
+    repaintDeck(); // the edited photo is shared — refresh the whole deck, no outline
+    cfBusy = false;
+    lastPrintBlob = null; // the crop changed — re-warm Save/Print
+    printGeneration += 1;
+    warmPrint();
+  };
+
+  cf.addEventListener('pointerdown', (event) => {
+    if (!cfDesigns.length) return;
+    pointers.set(event.pointerId, event);
+    try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
+
+    if (pointers.size >= 2) { beginManip(); return; }
+
+    // First finger: a possible browse (or a tap).
+    swipeId = event.pointerId;
+    dragging = true;
+    startX = event.clientX;
+    startPos = cfPos;
+    moved = 0;
+    lastT = event.timeStamp;
+    velMs = 0;
+    cfBusy = true;
+    clearTimeout(warmTimer); // cancel any warm queued before the gesture began
+    stopSpring(); // grab it wherever it is — like catching a spinning wheel
+  });
+
+  cf.addEventListener('pointermove', (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, event);
+
+    if (manip) { if (pointers.size >= 2) updateManip(); return; }
+    if (!dragging || event.pointerId !== swipeId) return;
+
+    const dx = event.clientX - startX;
+    moved = Math.max(moved, Math.abs(dx));
+    const newPos = clampPos(startPos - dx / cfSpacing());
+    const dt = Math.max(1, event.timeStamp - lastT);
+    velMs = 0.7 * ((newPos - cfPos) / dt) + 0.3 * velMs; // smooth, so a flick reads clean
+    cfPos = newPos;
+    lastT = event.timeStamp;
+    setCurrent(Math.round(cfPos));
+    positionCards();
+  });
+
+  const end = (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+
+    if (manip) {
+      if (pointers.size < 2) endManip();
+      return;
+    }
+    if (!dragging || event.pointerId !== swipeId) return;
+    dragging = false;
+    swipeId = null;
+
+    // Release speed in card-units per frame. If the finger paused before lifting,
+    // it is not a flick — ignore the now-stale speed.
+    const idle = event.timeStamp - lastT;
+    const v = idle > 60 ? 0 : velMs * 16;
+    const from = Math.round(cfPos);
+    // A quick flick counts even when the finger barely travelled — that is what
+    // makes a small flick feel responsive.
+    const isFlick = Math.abs(v) > 0.012;
+
+    if (!isFlick && moved < 6) {
+      // A tap: jump to the card under the finger, or settle to the nearest.
+      const card = event.target.closest('.cf-card');
+      const i = card ? [...$('cfTrack').children].indexOf(card) : -1;
+      glideTo(i >= 0 ? i : from);
+      return;
+    }
+
+    if (isFlick) {
+      // The release speed picks the target (faster → further); a small flick still
+      // always advances one, a hard one at most two, so it never flies across.
+      const capped = Math.max(-0.9, Math.min(0.9, v));
+      let target = Math.round(cfPos + capped * 5);
+      if (v > 0 && target <= from) target = from + 1;
+      if (v < 0 && target >= from) target = from - 1;
+      target = Math.max(from - 2, Math.min(from + 2, target));
+      glideTo(target);
+    } else {
+      // A slow drag: settle to whichever card is nearest.
+      glideTo(from);
+    }
+  };
+  cf.addEventListener('pointerup', end);
+  cf.addEventListener('pointercancel', end);
+}
+
+function renderSlots() {
+  const container = $('slots');
+  if (!container.childElementCount) {
+    for (let i = 0; i < 4; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'slot';
+      btn.dataset.index = String(i);
+      btn.addEventListener('click', () => onSlotTap(i));
+      container.appendChild(btn);
+    }
+  }
+
+  [...container.children].forEach((btn, i) => {
+    const photo = state.photos[i];
+    btn.classList.toggle('filled', Boolean(photo));
+    btn.innerHTML = '';
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = String(i + 1);
+    if (!photo) {
+      btn.textContent = String(i + 1);
+      btn.disabled = true;
+      btn.setAttribute('aria-label', `Photo ${i + 1}, empty`);
+      return;
+    }
+    btn.disabled = false;
+    const thumb = document.createElement('canvas');
+    thumb.width = 120;
+    thumb.height = 160;
+    drawSinglePhoto(thumb, photo, state.filterId);
+    btn.appendChild(thumb);
+    btn.appendChild(num);
+    btn.setAttribute('aria-label', `Adjust photo ${i + 1}`);
+  });
+}
+
+// ---------------------------------------------------------------- controls
+
+// ---------------------------------------------------------------- picking
+
+function onSlotTap(index) {
+  // Empty slots are placeholders now — the one button above fills them.
+  if (state.photos[index]) openEditor(index);
+}
+
+function pickInto(index) {
+  pendingSlot = index;
+  $('fileOne').value = '';
+  $('fileOne').click();
+}
+
+async function acceptFiles(files, startIndex = null) {
+  const chosen = [...files];
+  const list = chosen.slice(0, 4);
+  if (!list.length) return;
+
+  if (startIndex === null && replaceAllNext) {
+    state.photos = [null, null, null, null];
+    overflowCursor = 0;
+  }
+  replaceAllNext = false;
+
+  const tooMany = chosen.length > 4;
+  toast(tooMany ? 'A print holds 4 — using the first four you picked.' : list.length > 1 ? 'Loading your photos…' : 'Loading…', tooMany ? 3200 : 1400);
+
+  let cursor = startIndex;
+  for (const file of list) {
+    try {
+      const bitmap = await loadPhoto(file);
+      const slot = cursor !== null ? cursor : nextOpenSlot();
+      state.photos[slot] = { bitmap, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } };
+      cursor = null; // an explicit slot only claims the first file
+      scheduleRender();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  // Do not talk over the "only four fit" notice — that one is news.
+  if (filledCount() === 4 && !tooMany) toast('Looking good — print it, or save it to your phone.', 2400);
+}
+
+let overflowCursor = 0;
+
+function nextOpenSlot() {
+  const open = state.photos.findIndex((p) => !p);
+  if (open !== -1) return open;
+  const slot = overflowCursor % 4;
+  overflowCursor += 1;
+  return slot;
+}
+
+// ---------------------------------------------------------------- editor
+
+const crop = { dragging: false, startX: 0, startY: 0, baseDx: 0, baseDy: 0, pinchDist: 0, baseZoom: 1 };
+
+function cellFor(index) {
+  const layout = resolveLayout(state);
+  return layout.cells.find((c) => c.photo === index) || layout.cells[0];
+}
+
+function openEditor(index) {
+  editorIndex = index;
+  $('editorIndex').textContent = String(index + 1);
+  updateHeroButton();
+  $('editor').classList.remove('hidden');
+  sizeCropCanvas();
+  $('zoom').value = String(state.photos[index].transform.zoom);
+  drawCrop();
+}
+
+function closeEditor() {
+  editorIndex = null;
+  $('editor').classList.add('hidden');
+  scheduleRender();
+}
+
+function sizeCropCanvas() {
+  const cell = cellFor(editorIndex);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssWidth = Math.min(320, window.innerWidth * 0.74);
+  const canvas = $('cropCanvas');
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${Math.round((cssWidth * cell.h) / cell.w)}px`;
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(((cssWidth * cell.h) / cell.w) * dpr);
+}
+
+function drawCrop() {
+  if (editorIndex === null) return;
+  const photo = state.photos[editorIndex];
+  if (!photo) return;
+  const canvas = $('cropCanvas');
+  photo.transform = clampTransform(photo.transform, canvas.width, canvas.height, photo.bitmap);
+  drawSinglePhoto(canvas, photo, state.filterId);
+}
+
+function bindCropGestures() {
+  const canvas = $('cropCanvas');
+  const pointers = new Map();
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (editorIndex === null) return;
+    canvas.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, event);
+    const t = state.photos[editorIndex].transform;
+    if (pointers.size === 1) {
+      crop.dragging = true;
+      crop.startX = event.clientX;
+      crop.startY = event.clientY;
+      crop.baseDx = t.dx;
+      crop.baseDy = t.dy;
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      crop.pinchDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      crop.baseZoom = t.zoom;
+    }
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (editorIndex === null || !pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, event);
+    const photo = state.photos[editorIndex];
+    const rect = canvas.getBoundingClientRect();
+
+    if (pointers.size >= 2) {
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      if (crop.pinchDist > 0) {
+        photo.transform.zoom = Math.min(4, Math.max(1, (crop.baseZoom * dist) / crop.pinchDist));
+        $('zoom').value = String(Math.min(3, photo.transform.zoom));
+      }
+    } else if (crop.dragging) {
+      photo.transform.dx = crop.baseDx + (event.clientX - crop.startX) / rect.width;
+      photo.transform.dy = crop.baseDy + (event.clientY - crop.startY) / rect.height;
+    }
+    drawCrop();
+  });
+
+  const release = (event) => {
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) crop.pinchDist = 0;
+    if (pointers.size === 0) crop.dragging = false;
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+}
+
+// ---------------------------------------------------------------- printing
+
+/** POST the page with a progress bar — uploads matter on a cellular booth. */
+function uploadPrint(path, blob, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', path);
+    request.timeout = 120_000;
+    request.setRequestHeader('content-type', blob.type || 'image/png');
+    if (accessKey) request.setRequestHeader('x-booth-key', accessKey);
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    });
+    request.addEventListener('load', () => {
+      try {
+        resolve({ status: request.status, data: JSON.parse(request.responseText) });
+      } catch {
+        reject(new Error('The booth sent back something unreadable.'));
+      }
+    });
+    request.addEventListener('error', () => reject(new Error('network')));
+    request.addEventListener('timeout', () => reject(new Error('network')));
+    request.send(blob);
+  });
+}
+
+const WAITING = ['awaiting-approval', 'pending', 'claimed', 'printing'];
+
+/** Turn a job record into what the guest sees. */
+function showJob(job) {
+  if (job.status === 'awaiting-approval') {
+    return showResult({
+      emoji: '👀',
+      title: 'Waiting for the host',
+      body: 'Your print is in the queue — the booth host taps print. Stay close to the tray.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (WAITING.includes(job.status)) {
+    return showResult({
+      emoji: '📡',
+      title: 'Sending it to the booth',
+      body: 'The printer is picking up your photos now.',
+      image: job.image,
+      busy: true,
+    });
+  }
+  if (job.status === 'failed') {
+    return showResult({
+      emoji: '🙃',
+      title: 'The printer said no',
+      body: `${job.error || 'Printing failed.'} You can still save the photo to your phone.`,
+      image: job.image,
+    });
+  }
+  if (job.status === 'rejected') {
+    return showResult({
+      emoji: '🤷',
+      title: 'The host skipped this one',
+      body: 'Ask them why. You can still save it to your phone.',
+      image: job.image,
+    });
+  }
+  return showResult({
+    emoji: '🎉',
+    title: session.dryRun ? 'Saved (dry run)' : 'Printing now!',
+    body: session.dryRun
+      ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
+      : `${job.copies} ${job.copies === 1 ? 'copy' : 'copies'} on the way${job.cupsJobId ? ` · job ${job.cupsJobId}` : ''}. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
+    image: job.image,
+  });
+}
+
+/** Follow a job until the printer has actually taken it. */
+async function trackJob(job) {
+  const deadline = Date.now() + 120_000;
+  let current = job;
+  while (WAITING.includes(current.status) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch(`/api/job?id=${encodeURIComponent(current.id)}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      current = data.job;
+    } catch {
+      return;
+    }
+    showJob(current);
+  }
+}
+
+function showResult({ emoji, title, body, image, busy }) {
+  $('resultEmoji').textContent = emoji;
+  $('resultTitle').textContent = title;
+  $('resultBody').textContent = body;
+  $('result').classList.remove('hidden');
+  $('resultDone').disabled = Boolean(busy);
+  const img = $('resultImage');
+  if (image) {
+    img.src = image;
+    img.classList.remove('hidden');
+  } else {
+    img.classList.add('hidden');
+  }
+}
+
+async function doPrint() {
+  if (filledCount() < 4) {
+    toast('Four photos first.');
+    return;
+  }
+  showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 300 DPI.', busy: true });
+
+  let result;
+  try {
+    result = await exportPrint(state);
+  } catch (err) {
+    showResult({ emoji: '😵', title: 'Could not build the print', body: err.message });
+    return;
+  }
+  lastPrintBlob = result.blob;
+
+  const params = new URLSearchParams({
+    layout: state.layoutId,
+    copies: String(state.copies),
+    guest: '',
+    orient: resolveLayout(state).page.w > resolveLayout(state).page.h ? 'landscape' : 'portrait',
+  });
+
+  try {
+    const { status, data } = await uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
+      showResult({
+        emoji: '📤',
+        title: 'Sending to the booth…',
+        body: `${Math.round(fraction * 100)}% uploaded`,
+        busy: true,
+      });
+    });
+
+    if (status === 401) {
+      accessKey = '';
+      try {
+        localStorage.removeItem(KEY_STORAGE);
+      } catch {
+        /* nothing to clear */
+      }
+      showResult({
+        emoji: '🔑',
+        title: 'Scan the booth QR code',
+        body: 'This booth only prints for guests who came in through its QR code. Scan it and try again — your photos stay put.',
+      });
+      return;
+    }
+
+    if (status < 200 || status >= 300 || !data.ok) {
+      showResult({
+        emoji: '🙃',
+        title: 'The printer said no',
+        body: `${data.error || 'Printing failed.'} You can still save the photo to your phone.`,
+      });
+      return;
+    }
+
+    showJob(data.job);
+    trackJob(data.job);
+  } catch (err) {
+    showResult({
+      emoji: '📶',
+      title: err.message === 'network' ? 'Lost the connection' : 'Something went wrong',
+      body: 'Check your signal and try again — or save the photo to your phone.',
+    });
+  }
+}
+
+function printFile(blob) {
+  const extension = blob.type === 'image/png' ? 'png' : 'jpg';
+  return new File([blob], `photobooth-${Date.now()}.${extension}`, { type: blob.type || 'image/png' });
+}
+
+/** Last resort on desktop, or anywhere the share sheet is not offered. */
+function downloadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = printFile(blob).name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 20_000);
+}
+
+/**
+ * Hand the print to the phone's share sheet, where "Save Image" puts it in the
+ * Photos app. A download link would only drop it in Files, which is not where
+ * anyone looks for a photo.
+ */
+let saveObjectUrl = null;
+
+function isTouchDevice() {
+  return 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+}
+
+/** The share sheet's "Save Image" also lands in Photos — kept as the fallback. */
+async function shareToPhotos(blob) {
+  const file = printFile(blob);
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      toast('Saved to your phone.', 2400);
+      return true;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return true; // guest closed the sheet
+      if (err && err.name === 'NotAllowedError') {
+        toast('Tap Share once more.', 2600);
+        return true;
+      }
+    }
+  }
+  downloadBlob(blob);
+  toast('Saved to your downloads.');
+  return true;
+}
+
+async function buildPrintBlob() {
+  if (lastPrintBlob) return lastPrintBlob;
+  toast('Getting your photo ready…', 1200);
+  try {
+    lastPrintBlob = (await exportPrint(state)).blob;
+    return lastPrintBlob;
+  } catch (err) {
+    toast(err.message || 'Could not build the photo.');
+    return null;
+  }
+}
+
+const DEFAULT_HASHTAG = '#bff2026';
+
+/** A web-sized JPEG of the print — small and quick to hand off to the app. */
+async function buildShareBlob() {
+  const layout = resolveLayout(state);
+  const scale = Math.min(1, 1200 / Math.max(layout.page.w, layout.page.h));
+  const canvas = document.createElement('canvas');
+  composePage(canvas, state, scale);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+}
+
+/**
+ * Hand the photo to the Facebook app, where the guest is already signed in. The
+ * share sheet is the only door a website has to the installed app — Apple and
+ * Facebook don't expose a link that jumps straight into the app's composer — so
+ * tapping Facebook there opens the app's own post screen with the photo attached
+ * and #bff2026 pre-filled (the guest types their own words in front). On a desktop
+ * with no app to share to, it falls back to Facebook's web share for the link.
+ */
+async function shareToFacebook() {
+  if (filledCount() < 4) {
+    toast('Four photos first.');
+    return;
+  }
+  const caption = session.shareHashtag || DEFAULT_HASHTAG;
+  const blob = await buildShareBlob();
+  if (!blob) return;
+  const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: caption });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // guest backed out — leave it
+      // any other error → fall through to the desktop link share
+    }
+  }
+
+  // Desktop / no app share available: open Facebook's web share for the booth link.
+  const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.origin)}&hashtag=${encodeURIComponent(caption)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/**
+ * On a phone, show the finished photo big and let the guest press-and-hold it —
+ * iOS and Android both offer "Save to Photos" / "Download image" from that, and
+ * it goes straight to the camera roll with no share sheet in the way. On a
+ * desktop, where there is no long-press, go straight to share/download.
+ */
+async function savePhoto() {
+  if (filledCount() < 4) {
+    toast('Four photos first.');
+    return;
+  }
+  const blob = await buildPrintBlob();
+  if (!blob) return;
+
+  if (!isTouchDevice()) {
+    await shareToPhotos(blob);
+    return;
+  }
+
+  if (saveObjectUrl) URL.revokeObjectURL(saveObjectUrl);
+  saveObjectUrl = URL.createObjectURL(blob);
+  $('saveImage').src = saveObjectUrl;
+  $('saveSheet').classList.remove('hidden');
+}
+
+function closeSaveSheet() {
+  $('saveSheet').classList.add('hidden');
+  if (saveObjectUrl) {
+    URL.revokeObjectURL(saveObjectUrl);
+    saveObjectUrl = null;
+  }
+}
+
+function resetBooth() {
+  state.photos = [null, null, null, null];
+  lastPrintBlob = null;
+  overflowCursor = 0;
+  replaceAllNext = false;
+  $('result').classList.add('hidden');
+  scheduleRender();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---------------------------------------------------------------- session
+
+async function loadSession() {
+  try {
+    const response = await fetch('/api/session');
+    const data = await response.json();
+    Object.assign(session, data, { online: true });
+  } catch {
+    session.online = false;
+  }
+
+  $('boothName').textContent = session.boothName;
+  document.title = session.boothName;
+  if (session.message) $('boothMessage').textContent = session.message;
+  $('version').textContent = session.version ? `v${session.version}` : '';
+  state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
+
+  if (session.keyRequired && !accessKey) {
+    showProblem('Scan the booth QR code to unlock printing — you can still save to your phone.');
+  }
+
+  if (!session.printingEnabled || !session.online) {
+    $('printBtn').classList.add('hidden');
+    $('saveBtn').classList.remove('btn-ghost');
+    $('saveBtn').classList.add('btn-primary');
+    $('saveBtn').textContent = 'Save to phone';
+    $('saveBtn').style.flex = '1';
+  }
+  scheduleRender();
+  if (session.online && session.printingEnabled) refreshPrinter();
+}
+
+/** A one-line warning, shown only when something would stop a print. */
+function showProblem(message) {
+  const el = $('printProblem');
+  el.textContent = message;
+  el.classList.toggle('hidden', !message);
+}
+
+/** No status chatter — the guest only hears about the printer when it matters. */
+async function refreshPrinter() {
+  try {
+    const data = await (await fetch('/api/printers')).json();
+    if (data.remote && !data.agentOnline) {
+      showProblem('The booth printer is offline right now. You can still save to your phone.');
+      return;
+    }
+    if (!data.printers.length) {
+      showProblem('No printer is set up at the booth yet. You can still save to your phone.');
+      return;
+    }
+    showProblem('');
+  } catch {
+    showProblem('Cannot reach the booth right now. You can still save to your phone.');
+  }
+}
+
+// ---------------------------------------------------------------- wiring
+
+function openPicker(replaceAll) {
+  replaceAllNext = replaceAll;
+  $('filePicker').value = '';
+  $('filePicker').click();
+}
+
+function bind() {
+  $('addAll').addEventListener('click', () => openPicker(filledCount() === 4));
+  $('swapAll').addEventListener('click', () => openPicker(true)); // starts a fresh set of 4
+  $('filePicker').addEventListener('change', (event) => acceptFiles(event.target.files));
+  $('fileOne').addEventListener('change', (event) => {
+    const slot = pendingSlot;
+    pendingSlot = null;
+    acceptFiles(event.target.files, slot);
+  });
+
+  $('printBtn').addEventListener('click', doPrint);
+  $('saveBtn').addEventListener('click', savePhoto);
+  $('fbBtn').addEventListener('click', shareToFacebook);
+  $('resultSave').addEventListener('click', savePhoto);
+  $('saveClose').addEventListener('click', closeSaveSheet);
+  $('saveShare').addEventListener('click', async () => {
+    const blob = await buildPrintBlob();
+    if (blob) await shareToPhotos(blob);
+  });
+  $('resultDone').addEventListener('click', resetBooth);
+
+  $('editorClose').addEventListener('click', closeEditor);
+  $('editorDone').addEventListener('click', closeEditor);
+  $('editor').addEventListener('click', (event) => {
+    if (event.target === $('editor')) closeEditor();
+  });
+  $('zoom').addEventListener('input', (event) => {
+    if (editorIndex === null) return;
+    state.photos[editorIndex].transform.zoom = Number(event.target.value);
+    drawCrop();
+  });
+  $('rotateBtn').addEventListener('click', () => {
+    if (editorIndex === null) return;
+    const t = state.photos[editorIndex].transform;
+    t.rot = (t.rot + 90) % 360;
+    drawCrop();
+  });
+  $('resetBtn').addEventListener('click', () => {
+    if (editorIndex === null) return;
+    state.photos[editorIndex].transform = { zoom: 1, dx: 0, dy: 0, rot: 0 };
+    $('zoom').value = '1';
+    drawCrop();
+  });
+  $('replaceBtn').addEventListener('click', () => {
+    const index = editorIndex;
+    closeEditor();
+    pickInto(index);
+  });
+  $('removeBtn').addEventListener('click', () => {
+    if (editorIndex === null) return;
+    state.photos[editorIndex] = null;
+    closeEditor();
+  });
+  $('moveLeft').addEventListener('click', () => swapEditor(-1));
+  $('moveRight').addEventListener('click', () => swapEditor(1));
+  $('makeHero').addEventListener('click', makeHero);
+
+  bindCropGestures();
+  bindCoverflow();
+  window.addEventListener('resize', scheduleRender);
+}
+
+/** Move the photo being edited to the front, so it becomes the big hero. */
+function makeHero() {
+  if (editorIndex === null || editorIndex === 0) return;
+  const [moved] = state.photos.splice(editorIndex, 1);
+  state.photos.unshift(moved);
+  editorIndex = 0;
+  $('editorIndex').textContent = '1';
+  updateHeroButton();
+  sizeCropCanvas();
+  drawCrop();
+  scheduleRender();
+}
+
+/** The front photo is already the hero — hide the button there. */
+function updateHeroButton() {
+  const btn = document.getElementById('makeHero');
+  if (btn) btn.classList.toggle('hidden', editorIndex === 0);
+}
+
+function swapEditor(direction) {
+  if (editorIndex === null) return;
+  const target = (editorIndex + direction + 4) % 4;
+  const photos = state.photos;
+  [photos[editorIndex], photos[target]] = [photos[target], photos[editorIndex]];
+  editorIndex = target;
+  $('editorIndex').textContent = String(target + 1);
+  updateHeroButton();
+  if (!photos[target]) {
+    closeEditor();
+    return;
+  }
+  sizeCropCanvas();
+  drawCrop();
+  scheduleRender();
+}
+
+bind();
+loadSession();
+scheduleRender();
+
+</script>
+</body>
+</html>
