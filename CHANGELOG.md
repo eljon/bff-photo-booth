@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.26.0 — 2026-08-25
+
+**Coverflow reflections — the cards slide on dark glossy glass.**
+
+- Each card now casts a faded mirror reflection below it (`-webkit-box-reflect`),
+  so the deck looks like it glides across a glossy black surface — the classic
+  Cover Flow look. The reflection tilts and recedes in 3D along with its card.
+- Made room for the mirror: the cards sit a little higher and a touch smaller so
+  the reflections aren't clipped, and the deck is taller to hold them.
+
 ## 1.25.2 — 2026-08-25
 
 **Coverflow: scale the centre card back so the side photos show.**

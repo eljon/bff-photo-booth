@@ -248,8 +248,10 @@ function positionCards() {
     // centre, the further forward it sits, so it rises to the front smoothly as it
     // reaches the middle instead of popping via a z-index swap.
     const depth = -abs * 130;
+    // Anchor the card above the vertical centre (−70% not −50%) so its mirror
+    // reflection has room to fall into the space below it without being clipped.
     card.style.transform =
-      `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
+      `translate(-50%, -70%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
     // Fully opaque — no see-through — so the front card cleanly covers the rest.
     // Cards well off the stage are hidden outright.
     card.style.opacity = abs > 2.6 ? '0' : '1';
@@ -317,8 +319,8 @@ function rebuildCoverflow() {
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
-  const boxH = Math.min(window.innerHeight * 0.46, 430);
-  const boxW = Math.min(window.innerWidth * 0.72, 370);
+  const boxH = Math.min(window.innerHeight * 0.37, 350);
+  const boxW = Math.min(window.innerWidth * 0.66, 340);
 
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');

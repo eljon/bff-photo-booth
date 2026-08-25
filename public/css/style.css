@@ -77,8 +77,8 @@ body {
 .coverflow {
   position: relative;
   width: 100%;
-  height: 52vh;
-  max-height: 480px;
+  height: 62vh;
+  max-height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -117,6 +117,10 @@ body {
   display: block;
   border-radius: 6px;
   background: #fff;
+  /* Mirror the photo below itself, faded — the cards look like they slide on
+     dark glossy glass (classic Cover Flow). It transforms with the card, so the
+     reflection tilts and recedes in 3D along with it. */
+  -webkit-box-reflect: below 3px linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.16) 22%, rgba(0, 0, 0, 0) 46%);
 }
 .cf-label {
   text-align: center;
