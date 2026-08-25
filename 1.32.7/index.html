@@ -1317,7 +1317,7 @@ function scheduleRender() {
 }
 
 function previewScale(layout) {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
   const cssWidth = Math.min(300, window.innerWidth * 0.78);
   return Math.min(1, (cssWidth * dpr) / layout.page.w);
 }
@@ -1403,7 +1403,9 @@ let peekRaf = null; // the spring-back animation after a pinch is released
 let introRaf = null; // the intro sweep played each time the photos are completed
 let wasComplete = false; // were all 4 photos filled on the previous render?
 
-const DPR = Math.min(2, window.devicePixelRatio || 1);
+// Render display canvases at the screen's true pixel density (phones are 3×), so
+// the coverflow is crisp at rest. Capped at 3 to bound memory on any extreme DPR.
+const DPR = Math.min(3, window.devicePixelRatio || 1);
 const clampPos = (p) => Math.max(0, Math.min(cfDesigns.length - 1, p));
 
 /** Paint a card's face (the design) and its frosted mirror from current state. */
@@ -2021,7 +2023,7 @@ function closeEditor() {
 
 function sizeCropCanvas() {
   const cell = cellFor(editorIndex);
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
   const cssWidth = Math.min(320, window.innerWidth * 0.74);
   const canvas = $('cropCanvas');
   canvas.style.width = `${cssWidth}px`;

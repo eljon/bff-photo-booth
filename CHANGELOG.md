@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.8 — 2026-08-25
+
+**Sharp coverflow on retina phones — no more soft preview.**
+
+- The on-screen canvases (coverflow cards, the single preview, the crop editor)
+  were rendered at a fixed 2× pixel density, but modern phones are 3×. On those
+  screens the browser was upscaling a 2×-density bitmap to fill a 3× display, so
+  the picture looked soft the moment the photos were chosen — before any pinch.
+  Raised the render density cap to the screen's true value (up to 3×), so the
+  deck is crisp at rest. Measured: the centre card now renders at 100% of screen
+  resolution instead of 67%.
+- **Print output was never affected** by this — the print is a separate
+  full-resolution 300 DPI render, independent of the on-screen density. This
+  change is display-only.
+
 ## 1.32.7 — 2026-08-25
 
 **Killed the pause at the far end of the intro.**
