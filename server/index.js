@@ -117,6 +117,7 @@ try {
 /** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
 const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
+const PRINT_MS = 30 * 1000; // assumed time one print takes — drives the queue ETA
 const hits = new Map(); // ip -> print timestamps
 const agentWaiters = new Set(); // long-poll resolvers waiting for work
 
@@ -415,6 +416,66 @@ function imageUrl(job) {
   return `/prints/${path.basename(job.file)}?t=${job.token}`;
 }
 
+// A job still occupies the printer while it is waiting to print or physically
+// printing. A 'queued' job has been handed to the printer and prints for about
+// PRINT_MS; after that it has dropped off the line. Anything failed or rejected
+// never counts.
+function jobOccupying(job, now) {
+  switch (job.status) {
+    case 'awaiting-approval':
+    case 'pending':
+    case 'claimed':
+    case 'printing':
+      return true;
+    case 'queued':
+      return now - (job.printedAt || job.createdAt) < PRINT_MS;
+    default:
+      return false;
+  }
+}
+
+// A virtual FIFO schedule of the printer: one print at a time, PRINT_MS each.
+// Returns the occupying jobs (oldest first) and a map of job id → epoch ms when
+// that job finishes printing. A job already handed to the printer runs from when
+// it started; one still waiting starts as soon as the printer is next free.
+function printSchedule(now) {
+  const active = [...jobs.values()]
+    .filter((job) => jobOccupying(job, now))
+    .sort((a, b) => a.createdAt - b.createdAt);
+  const finishAt = new Map();
+  let free = now;
+  active.forEach((job, i) => {
+    // Only the job at the head of the line is actually on the printer, so it is
+    // anchored to when it started (accounting for time already elapsed). Every
+    // other job — even ones already handed to CUPS — physically prints in turn,
+    // starting when the printer next frees up.
+    const onPrinter = i === 0 && (job.status === 'queued' || job.status === 'printing') && job.printedAt;
+    const start = onPrinter ? job.printedAt : Math.max(free, now);
+    const end = start + PRINT_MS;
+    free = Math.max(free, end);
+    finishAt.set(job.id, end);
+  });
+  return { active, finishAt };
+}
+
+// The guest-facing queue standing of one job: its place in line (1 = next) and
+// roughly how long until it prints. null once the job is done, failed, rejected,
+// or has finished its print window.
+function queueInfo(job, now = Date.now()) {
+  if (!jobOccupying(job, now)) return null;
+  const { active, finishAt } = printSchedule(now);
+  const idx = active.findIndex((j) => j.id === job.id);
+  if (idx < 0) return null;
+  const readyAt = finishAt.get(job.id);
+  return {
+    position: idx + 1,
+    ahead: idx,
+    total: active.length,
+    etaSeconds: Math.max(0, Math.round((readyAt - now) / 1000)),
+    readyAt,
+  };
+}
+
 function publicJob(job) {
   return {
     id: job.id,
@@ -427,6 +488,7 @@ function publicJob(job) {
     createdAt: job.createdAt,
     guest: job.guest || null,
     image: imageUrl(job),
+    queue: queueInfo(job),
   };
 }
 

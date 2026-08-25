@@ -44,6 +44,36 @@ test('accepts a composed print and writes it to the prints folder', async (t) =>
   assert.equal(served.headers.get('content-type'), 'image/png');
 });
 
+test('reports a live queue position and ETA for each print', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+
+  const submit = () => fetch(`${booth.base}/api/print?layout=grid`, {
+    method: 'POST',
+    headers: { 'content-type': 'image/png' },
+    body: makePng(),
+  }).then((r) => r.json());
+
+  const a = await submit();
+  const b = await submit();
+  const c = await submit();
+
+  // Each print lines up behind the ones before it, 30s apart.
+  assert.equal(a.job.queue.position, 1);
+  assert.equal(b.job.queue.position, 2);
+  assert.equal(c.job.queue.position, 3);
+  assert.equal(c.job.queue.total, 3);
+
+  assert.ok(a.job.queue.etaSeconds <= 30 && a.job.queue.etaSeconds >= 25, `a ETA ${a.job.queue.etaSeconds}`);
+  assert.ok(b.job.queue.etaSeconds <= 60 && b.job.queue.etaSeconds >= 55, `b ETA ${b.job.queue.etaSeconds}`);
+  assert.ok(c.job.queue.etaSeconds <= 90 && c.job.queue.etaSeconds >= 85, `c ETA ${c.job.queue.etaSeconds}`);
+
+  // The same standing is available by polling /api/job.
+  const polled = await (await fetch(`${booth.base}/api/job?id=${b.job.id}`)).json();
+  assert.equal(polled.job.queue.position, 2);
+  assert.ok(polled.job.queue.readyAt > Date.now());
+});
+
 test('rejects bodies that are not images', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

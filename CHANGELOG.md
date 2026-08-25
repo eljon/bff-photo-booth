@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.33.0 — 2026-08-25
+
+**Live queue position after you print.**
+
+- Tap Print and the booth now tells you where you stand: "You're number X in the
+  queue. Your print will be ready in about Y." Both the position and the ETA
+  update live — the countdown ticks down every second, and the position refreshes
+  from the booth as prints ahead of you finish — until it's your turn, when it
+  hands off to the usual "Printing now!" screen.
+- The booth models the printer as one print at a time, ~30 seconds each (a single
+  `PRINT_MS` knob), and reports each job's place in line and finish time on
+  `/api/job` and `/api/queue` — so the number you see reflects the real queue on
+  the host, not a guess on the phone.
+
 ## 1.32.11 — 2026-08-25
 
 **Simpler intro: one swipe to the centre.**

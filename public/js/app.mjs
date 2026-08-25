@@ -64,6 +64,8 @@ let replaceAllNext = false;
 let lastPrintBlob = null;
 let printGeneration = 0; // bumped whenever the page changes, so stale renders are dropped
 let warmTimer = null;
+let queuePoll = null; // re-fetches queue standing from the booth
+let queueTick = null; // ticks the countdown down between fetches
 
 // ---------------------------------------------------------------- utilities
 
@@ -1016,6 +1018,82 @@ async function trackJob(job) {
   }
 }
 
+// Statuses where a live queue standing (position + ETA) makes sense: the print
+// is on its way to the printer, not awaiting the host, failed, or rejected.
+const QUEUEABLE = ['pending', 'claimed', 'printing', 'queued'];
+
+function clearQueueTimers() {
+  if (queuePoll) { clearInterval(queuePoll); queuePoll = null; }
+  if (queueTick) { clearInterval(queueTick); queueTick = null; }
+}
+
+/** Human ETA from a live remaining-seconds count. Coarse on purpose. */
+function etaText(seconds) {
+  if (seconds <= 5) return 'any moment now';
+  if (seconds < 60) return 'in less than a minute';
+  const mins = Math.round(seconds / 60);
+  return `in about ${mins} minute${mins === 1 ? '' : 's'}`;
+}
+
+/** True while the job is still meaningfully waiting to print (worth a countdown). */
+function stillWaiting(job) {
+  const q = job.queue;
+  return Boolean(q && QUEUEABLE.includes(job.status) && q.readyAt && q.readyAt - Date.now() > 5000);
+}
+
+/** "You're number X in the queue. Ready in about Y." — recomputed live from
+ *  readyAt so the countdown ticks without hammering the booth. */
+function showQueue(job) {
+  const q = job.queue;
+  const seconds = Math.max(0, Math.round((q.readyAt - Date.now()) / 1000));
+  showResult({
+    emoji: '🧾',
+    title: q.position <= 1 ? "You're next in line" : `You're number ${q.position} in the queue`,
+    body: `Your print will be ready ${etaText(seconds)}.`,
+    image: job.image,
+    busy: true,
+  });
+}
+
+/** Show the live queue standing after a print is accepted, refreshing the
+ *  position from the booth and ticking the ETA down, until it is this guest's
+ *  turn — then hand off to the normal "printing now / done" flow. */
+function trackQueue(job) {
+  clearQueueTimers();
+  let current = job;
+
+  if (!stillWaiting(current)) {
+    showJob(current);
+    trackJob(current);
+    return;
+  }
+
+  showQueue(current);
+  // A local 1s ticker keeps the countdown smooth between booth polls.
+  queueTick = setInterval(() => {
+    if (stillWaiting(current)) showQueue(current);
+  }, 1000);
+
+  const deadline = Date.now() + 15 * 60_000;
+  queuePoll = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/job?id=${encodeURIComponent(current.id)}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      current = data.job;
+    } catch {
+      return; // a blip — keep the last standing on screen and try again
+    }
+    if (stillWaiting(current) && Date.now() < deadline) {
+      showQueue(current); // refreshed position/readyAt from the booth
+    } else {
+      clearQueueTimers();
+      showJob(current); // your turn: printing now, done, failed, or rejected
+      trackJob(current);
+    }
+  }, 2500);
+}
+
 function showResult({ emoji, title, body, image, busy }) {
   $('resultEmoji').textContent = emoji;
   $('resultTitle').textContent = title;
@@ -1036,6 +1114,7 @@ async function doPrint() {
     toast('Four photos first.');
     return;
   }
+  clearQueueTimers(); // a fresh print supersedes any queue standing on screen
   showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 300 DPI.', busy: true });
 
   let result;
@@ -1088,8 +1167,7 @@ async function doPrint() {
       return;
     }
 
-    showJob(data.job);
-    trackJob(data.job);
+    trackQueue(data.job);
   } catch (err) {
     showResult({
       emoji: '📶',
@@ -1238,6 +1316,7 @@ function closeSaveSheet() {
 }
 
 function resetBooth() {
+  clearQueueTimers();
   state.photos = [null, null, null, null];
   lastPrintBlob = null;
   overflowCursor = 0;
