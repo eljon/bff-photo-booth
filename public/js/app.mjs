@@ -861,12 +861,35 @@ async function buildPrintBlob() {
 
 const DEFAULT_HASHTAG = '#bff2026';
 
+/** A web-sized JPEG of the print — small and quick to upload for the share link. */
+async function buildShareBlob() {
+  const layout = resolveLayout(state);
+  const scale = Math.min(1, 1200 / Math.max(layout.page.w, layout.page.h));
+  const canvas = document.createElement('canvas');
+  composePage(canvas, state, scale);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+}
+
+/** Park the photo on the booth so Facebook can show it, and get back its id. */
+async function uploadShare(blob) {
+  const headers = { 'content-type': blob.type || 'image/jpeg' };
+  if (accessKey) headers['x-booth-key'] = accessKey;
+  const res = await fetch(`/api/share?origin=${encodeURIComponent(location.origin)}`, {
+    method: 'POST',
+    headers,
+    body: blob,
+  });
+  if (!res.ok) throw new Error('share upload failed');
+  const data = await res.json();
+  if (!data || !data.id) throw new Error('share upload failed');
+  return data.id;
+}
+
 /**
- * Share the finished photo to Facebook. On a phone this opens the share sheet
- * with the image attached and the caption pre-filled to the event hashtag; the
- * guest can type their own words in front of it before posting. On a desktop
- * (no file share) it falls back to Facebook's web share dialog for the booth
- * link and copies the caption so it can be pasted in.
+ * Go straight to Facebook — no OS share sheet. The photo is parked on the booth
+ * so it has a public link; that link (which carries the photo as its preview and
+ * the #bff2026 hashtag) is handed to Facebook's share dialog, where the guest can
+ * type their own words in front of the hashtag before posting.
  */
 async function shareToFacebook() {
   if (filledCount() < 4) {
@@ -874,30 +897,27 @@ async function shareToFacebook() {
     return;
   }
   const caption = session.shareHashtag || DEFAULT_HASHTAG;
-  const blob = await buildPrintBlob();
-  if (!blob) return;
-  const file = printFile(blob);
-
-  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+  // Open the Facebook tab now, on the tap, so the browser does not block it as a
+  // popup while we render and upload.
+  const win = window.open('', '_blank');
+  if (win) {
     try {
-      await navigator.share({ files: [file], text: caption });
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // guest closed the sheet
-      // any other error → fall back to the web share dialog below
-    }
+      win.document.write('<!doctype html><meta charset="utf-8"><title>Facebook</title><body style="margin:0;background:#15111b;color:#fff;font:16px/1.5 -apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">Opening Facebook…</body>');
+    } catch { /* cross-origin once it navigates — fine */ }
   }
 
-  // Desktop / no file sharing: open Facebook's share dialog for the booth link
-  // and put the caption on the clipboard so the guest can paste it in.
   try {
-    await navigator.clipboard.writeText(caption);
-    toast('Caption copied — paste it into your post.', 2600);
+    const blob = await buildShareBlob();
+    if (!blob) throw new Error('render');
+    const id = await uploadShare(blob);
+    const pageUrl = `${location.origin}/s/${id}`;
+    const share = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}&hashtag=${encodeURIComponent(caption)}`;
+    if (win) win.location.href = share;
+    else window.open(share, '_blank', 'noopener,noreferrer'); // popup was blocked — try again now
   } catch {
-    /* clipboard blocked — the guest can still type the hashtag */
+    if (win) win.close();
+    toast('Could not reach Facebook — save the photo and post it yourself.', 3200);
   }
-  const share = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.origin + location.pathname)}&hashtag=${encodeURIComponent(caption)}`;
-  window.open(share, '_blank', 'noopener,noreferrer');
 }
 
 /**

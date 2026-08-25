@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.22.0 — 2026-08-25
+
+**Facebook: straight to the share dialog, no OS share sheet.**
+
+- The Facebook button now goes directly to Facebook's share dialog — no native
+  share sheet to open and no "select Facebook" step. The photo appears in the
+  post preview and the caption is pre-filled to `#bff2026`; the guest can type
+  their own words in front of the hashtag before posting.
+- How it works: the booth briefly hosts the photo at a short-lived public link
+  (`/s/<id>`, an Open Graph page so Facebook can render the preview; it expires
+  after two hours and is capped in memory) and hands that link to Facebook. This
+  is the only way to skip the OS share sheet and still keep the photo in the post
+  — so Facebook sharing needs the booth reachable from the internet (the tunnel/
+  public link, which is already how guests connect).
+
 ## 1.21.1 — 2026-08-25
 
 **Coverflow: the centre photo stays on top through the swipe.**

@@ -89,6 +89,22 @@ try {
 const jobs = new Map();
 const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
 const hits = new Map(); // ip -> print timestamps
+
+/**
+ * id -> { buf, type, origin, created }. Photos a guest chose to share to
+ * Facebook, held in memory just long enough for Facebook's scraper to fetch the
+ * link preview. Public by design (that is the whole point of a share link), so
+ * ids are random and the store is small and short-lived.
+ */
+const shares = new Map();
+const MAX_SHARES = 60;
+const SHARE_TTL_MS = 2 * 60 * 60 * 1000; // two hours — long enough to post, then gone
+
+function pruneShares() {
+  const now = Date.now();
+  for (const [id, s] of shares) if (now - s.created > SHARE_TTL_MS) shares.delete(id);
+  while (shares.size > MAX_SHARES) shares.delete(shares.keys().next().value);
+}
 const agentWaiters = new Set(); // long-poll resolvers waiting for work
 
 /** What the Mac-side agent last told us about itself. */
@@ -172,6 +188,22 @@ function imageKind(buf) {
   if (buf.length > 8 && buf.subarray(0, 8).equals(PNG_MAGIC)) return 'png';
   if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
   return null;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/** A guest-supplied origin is only trusted if it is a bare http(s) origin. */
+function safeOrigin(value) {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
 }
 
 /** Constant-time compare that tolerates length differences. */
@@ -652,7 +684,77 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, job: publicJob(job) });
   }
 
+  // Park a photo the guest wants to post to Facebook, so we can hand Facebook a
+  // public link that shows it (see the /s/ share page). Returns just an id.
+  if (url.pathname === '/api/share' && req.method === 'POST') {
+    if (rateLimited(req)) {
+      return sendJson(res, 429, { ok: false, error: 'One moment — try that again in a bit.' });
+    }
+    const body = await readBody(req);
+    const kind = imageKind(body);
+    if (!kind) return sendJson(res, 400, { ok: false, error: 'Expected a PNG or JPEG image body.' });
+    pruneShares();
+    const id = crypto.randomUUID().replace(/-/g, '');
+    shares.set(id, {
+      buf: body,
+      type: kind === 'png' ? 'image/png' : 'image/jpeg',
+      origin: safeOrigin(url.searchParams.get('origin')),
+      created: Date.now(),
+    });
+    return sendJson(res, 200, { ok: true, id });
+  }
+
   return sendJson(res, 404, { ok: false, error: 'No such endpoint.' });
+}
+
+/** Base URL Facebook should use for absolute og:image links. */
+function shareBase(req, share) {
+  if (share && share.origin) return share.origin;
+  const host = req.headers.host || `localhost:${activePort()}`;
+  const proto = req.headers['x-forwarded-proto'] || (/^(localhost|127\.|\[?::1)/.test(host) ? 'http' : 'https');
+  return `${proto}://${host}`;
+}
+
+/**
+ * The public share page. Facebook fetches /s/{id} and reads its Open Graph tags
+ * to build the link preview (the guest's photo as og:image); a person who opens
+ * it just sees the photo. /s/{id}/img serves the image bytes.
+ */
+function handleShare(req, res, url) {
+  pruneShares();
+  const match = url.pathname.match(/^\/s\/([a-f0-9]{16,40})(\/img)?$/i);
+  const share = match ? shares.get(match[1].toLowerCase()) : null;
+  if (!match || !share) {
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('This shared photo has expired.');
+    return;
+  }
+
+  if (match[2]) {
+    res.writeHead(200, { 'content-type': share.type, 'content-length': share.buf.length, 'cache-control': 'public, max-age=3600' });
+    res.end(req.method === 'HEAD' ? undefined : share.buf);
+    return;
+  }
+
+  const cfg = config.load();
+  const imgUrl = `${shareBase(req, share)}/s/${match[1].toLowerCase()}/img`;
+  const title = escapeHtml(cfg.boothName || 'Photo Booth');
+  const desc = escapeHtml(cfg.shareHashtag || '#bff2026');
+  const html = `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+<meta property="og:image" content="${imgUrl}">
+<meta property="og:image:alt" content="${title}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${imgUrl}">
+<title>${title}</title>
+<style>html,body{margin:0;height:100%;background:#15111b;display:flex;align-items:center;justify-content:center}img{max-width:100%;max-height:100vh}</style>
+</head><body><img src="${imgUrl}" alt="${title}"></body></html>`;
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+  res.end(req.method === 'HEAD' ? undefined : html);
 }
 
 // ---------------------------------------------------------------- static
@@ -706,6 +808,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
     if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
+    else if (url.pathname.startsWith('/s/') && (req.method === 'GET' || req.method === 'HEAD')) handleShare(req, res, url);
     else if (req.method === 'GET' || req.method === 'HEAD') await serveStatic(req, res, url);
     else res.writeHead(405).end('Method not allowed');
   } catch (err) {
