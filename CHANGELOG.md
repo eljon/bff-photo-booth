@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.30.2 — 2026-08-25
+
+**Coverflow bounces at the ends, like an iOS list.**
+
+- Dragging past the first or last design now rubber-bands — it follows your
+  finger with easing resistance that gives less the further you pull — and
+  springs back to the edge when you let go. A hard flick into an end bounces off
+  it instead of dead-stopping. The settle between cards is unchanged (still no
+  bounce there).
+
 ## 1.30.1 — 2026-08-25
 
 **The Pages preview shows the real version number.**

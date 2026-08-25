@@ -298,7 +298,12 @@ function setCurrent(index) {
   if (!cfBusy) warmPrint();
 }
 
-/** Ease one frame toward cfTarget. Monotonic — it decelerates in, never past. */
+// When a glide should bounce off an end, it first eases to a point just past the
+// edge (cfTarget), then — because cfBounceBack is set — eases back to the edge.
+let cfBounceBack = null;
+
+/** Ease one frame toward cfTarget. Monotonic between cards; the only overshoot
+ *  is a deliberate end-of-list bounce, driven by cfBounceBack. */
 function glideStep() {
   const EASE = 0.28; // fraction of the remaining gap closed per frame
   cfPos += (cfTarget - cfPos) * EASE;
@@ -306,6 +311,13 @@ function glideStep() {
   positionCards();
   if (Math.abs(cfTarget - cfPos) < 0.003) {
     cfPos = cfTarget;
+    if (cfBounceBack !== null) {
+      // Reached the overshoot point — now spring back to the edge.
+      cfTarget = cfBounceBack;
+      cfBounceBack = null;
+      cfRaf = requestAnimationFrame(glideStep);
+      return;
+    }
     positionCards();
     setCurrent(cfPos);
     cfRaf = null;
@@ -318,11 +330,26 @@ function glideStep() {
 
 /** Glide to a card index with a smooth, settling ease. */
 function glideTo(index) {
+  cfBounceBack = null;
   cfTarget = clampPos(Math.round(index));
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
 }
 
+/** Bounce off an end: overshoot a touch past the edge, then spring back to it —
+ *  the iOS "you've hit the end of the list" feel. */
+function bounceEdge(edge) {
+  cfBounceBack = edge;
+  cfTarget = edge + (edge === 0 ? -0.3 : 0.3);
+  if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
+}
+
+/** Rubber-band resistance for dragging past an end: the further past, the less
+ *  it gives, asymptoting to MAX_OVER cards — so the end feels elastic, not walled. */
+const MAX_OVER = 0.55;
+const rubber = (over) => over / (1 + over / MAX_OVER);
+
 function stopSpring() {
+  cfBounceBack = null;
   if (cfRaf != null) {
     cancelAnimationFrame(cfRaf);
     cfRaf = null;
@@ -496,7 +523,11 @@ function bindCoverflow() {
 
     const dx = event.clientX - startX;
     moved = Math.max(moved, Math.abs(dx));
-    const newPos = clampPos(startPos - dx / cfSpacing());
+    // Rubber-band past the ends instead of hard-stopping: drag beyond the first
+    // or last design and it follows with easing resistance (iOS end-of-list feel).
+    const raw = startPos - dx / cfSpacing();
+    const max = cfDesigns.length - 1;
+    const newPos = raw < 0 ? -rubber(-raw) : raw > max ? max + rubber(raw - max) : raw;
     const dt = Math.max(1, event.timeStamp - lastT);
     velMs = 0.7 * ((newPos - cfPos) / dt) + 0.3 * velMs; // smooth, so a flick reads clean
     cfPos = newPos;
@@ -538,13 +569,17 @@ function bindCoverflow() {
       // The release speed picks the target (faster → further); a small flick still
       // always advances one, a hard one at most two, so it never flies across.
       const capped = Math.max(-0.9, Math.min(0.9, v));
-      let target = Math.round(cfPos + capped * 5);
-      if (v > 0 && target <= from) target = from + 1;
-      if (v < 0 && target >= from) target = from - 1;
-      target = Math.max(from - 2, Math.min(from + 2, target));
-      glideTo(target);
+      let rawTarget = Math.round(cfPos + capped * 5);
+      if (v > 0 && rawTarget <= from) rawTarget = from + 1;
+      if (v < 0 && rawTarget >= from) rawTarget = from - 1;
+      const max = cfDesigns.length - 1;
+      const target = Math.max(from - 2, Math.min(from + 2, rawTarget));
+      // Flicking past an end (there was momentum beyond it) bounces off it.
+      if (target <= 0 && rawTarget < 0) bounceEdge(0);
+      else if (target >= max && rawTarget > max) bounceEdge(max);
+      else glideTo(target);
     } else {
-      // A slow drag: settle to whichever card is nearest.
+      // A slow drag: settle to the nearest card — springs back if past an end.
       glideTo(from);
     }
   };
