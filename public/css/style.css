@@ -141,19 +141,14 @@ body {
   mask-image: linear-gradient(to bottom, #000 0%, transparent 38%);
 }
 /* The paper: a pinch scales/rotates/moves this (a view only), around its centre,
-   without disturbing the card's coverflow position. */
+   without disturbing the card's coverflow position. It holds both the print face
+   and its reflection, so a pinch zooms them together; the container keeps its
+   overflow clipping, so the deck's clean left/right edges stay put. */
 .cf-paper {
-  transform-origin: center center;
-  will-change: transform, filter;
-}
-/* While a pinch is zooming the paper, let it spill past the deck and above the
-   label, and drop the reflections so the focus is the enlarged print. */
-.coverflow.cf-peeking {
-  overflow: visible;
   position: relative;
-  z-index: 5;
+  transform-origin: center center;
+  will-change: transform;
 }
-.coverflow.cf-peeking .cf-mirror { opacity: 0; }
 .cf-label {
   text-align: center;
   margin: 12px 0 2px;

@@ -391,17 +391,18 @@ function rebuildCoverflow() {
     face.style.width = `${w}px`;
     face.style.height = `${h}px`;
     paper.appendChild(face);
-    card.appendChild(paper);
 
     // …and its frosted-glass reflection: a vertically-flipped copy just below,
     // blurred and faded by CSS so it reads as a soft, hazy reflection rather than
-    // a crisp mirror. Flipping in the bitmap (not via a CSS transform) keeps it
-    // sitting cleanly below the card in the 3D stack.
+    // a crisp mirror. It lives INSIDE the paper, so a pinch zooms the reflection
+    // right along with the print. Flipping in the bitmap (not via a CSS transform)
+    // keeps it sitting cleanly below the card.
     const mirror = document.createElement('canvas');
     mirror.className = 'cf-mirror';
     mirror.style.width = `${w}px`;
     mirror.style.height = `${h}px`;
-    card.appendChild(mirror);
+    paper.appendChild(mirror);
+    card.appendChild(paper);
 
     paintCard(card, design);
     track.appendChild(card);
@@ -433,20 +434,21 @@ function paperShadow(scale) {
   return `drop-shadow(0 ${dy}px ${blur}px rgba(0, 0, 0, ${alpha}))`;
 }
 
-/** Drop the peek: spring the paper back to its resting size and tidy up. */
-function endPeek(paper) {
-  const cf = $('coverflow');
+/** Drop the peek: spring the paper back to its resting size and tidy up. The
+ *  shadow rides the face (not the paper) so it never darkens the reflection. */
+function endPeek(paper, face) {
   const ease = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
-  paper.style.transition = `transform 0.28s ${ease}, filter 0.28s ${ease}`;
+  paper.style.transition = `transform 0.28s ${ease}`;
   paper.style.transform = '';
-  paper.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
+  face.style.transition = `filter 0.28s ${ease}`;
+  face.style.filter = 'drop-shadow(0 0 0 rgba(0, 0, 0, 0))'; // shrink the shadow away
   clearTimeout(manip && manip.timer);
   const done = () => {
     paper.style.transition = '';
-    paper.style.filter = '';
-    cf.classList.remove('cf-peeking');
+    face.style.transition = '';
+    face.style.filter = '';
   };
-  // Give the spring time to land, then remove the "peeking" chrome.
+  // Give the spring time to land, then clean up the inline styles.
   const timer = setTimeout(done, 320);
   paper.addEventListener('transitionend', () => { clearTimeout(timer); done(); }, { once: true });
 }
@@ -474,12 +476,14 @@ function bindCoverflow() {
     positionCards();
     const paper = centrePaper();
     if (!paper) return;
+    const face = paper.querySelector('canvas.cf-face');
     const [a, b] = [...pointers.values()];
     paper.style.transition = ''; // follow the fingers with no lag
-    paper.style.filter = paperShadow(1); // a grounded shadow to start
-    cf.classList.add('cf-peeking'); // let the enlarged paper spill past the deck
+    face.style.transition = '';
+    face.style.filter = paperShadow(1); // a grounded shadow to start
     manip = {
       paper,
+      face,
       baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
       baseAng: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX),
       baseMidX: (a.clientX + b.clientX) / 2,
@@ -501,12 +505,12 @@ function bindCoverflow() {
     const tx = midX - manip.baseMidX;
     const ty = midY - manip.baseMidY;
     manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
-    manip.paper.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
+    manip.face.style.filter = paperShadow(scale); // shadow grows and softens as it lifts
   };
 
   const endManip = () => {
-    const { paper } = manip;
-    endPeek(paper);
+    const { paper, face } = manip;
+    endPeek(paper, face);
     manip = null;
     cfBusy = false;
   };

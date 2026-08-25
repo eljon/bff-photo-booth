@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.30.4 — 2026-08-25
+
+**Fix: pinch-zoom no longer drops the reflection or the deck's edges.**
+
+- While pinching, the reflection now stays and zooms with the print (the mirror
+  moved inside the zoomed "paper"), instead of vanishing. And the coverflow keeps
+  its overflow clipping, so the clean left/right edges of the deck no longer
+  disappear during a pinch. The lift shadow now rides the print face alone, so it
+  never darkens the reflection.
+
 ## 1.30.3 — 2026-08-25
 
 **Pinch-zoom the print and it casts a lifting shadow.**
