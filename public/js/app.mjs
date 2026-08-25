@@ -211,7 +211,6 @@ function updatePickButton() {
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
   $('cfLabel').classList.toggle('hidden', !full);
-  $('cfHint').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
 }
 

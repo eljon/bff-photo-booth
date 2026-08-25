@@ -167,14 +167,6 @@ body {
   color: var(--ink);
 }
 .cf-label .cf-count { color: var(--ink-dim); font-weight: 500; font-size: 12px; margin-left: 6px; }
-.cf-hint {
-  text-align: center;
-  margin: 2px 0 0;
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
-  color: var(--ink-dim);
-  opacity: 0.75;
-}
 
 /* ---------------------------------------------------------------- panels */
 

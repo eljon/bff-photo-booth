@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.32.6 — 2026-08-25
+
+**Removed the "Pinch to zoom" hint line under the coverflow.**
+
+- Dropped the instructional caption ("Pinch to zoom in on the print · drag to
+  move · twist to rotate") from beneath the design picker, along with its markup
+  and styles.
+
 ## 1.32.5 — 2026-08-25
 
 **Pinch zooms out, too — not just in.**
