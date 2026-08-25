@@ -84,7 +84,10 @@ body {
   justify-content: center;
   perspective: 1100px;
   overflow: hidden;
-  touch-action: none;             /* we own the gesture — a swipe never scrolls the page */
+  /* Vertical page scroll is allowed here by default; only the picture cards
+     (.cf-card, below) lock it, so touching the reflection or the empty margins
+     scrolls the page while a swipe/pinch on a picture does not. */
+  touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
@@ -112,6 +115,9 @@ body {
   /* Scale and rotate pivot about the bottom-centre, so shrinking a side card or
      tilting it keeps its bottom edge pinned to the glass line. */
   transform-origin: 50% 100%;
+  /* We own the gesture on a picture — a swipe or pinch here never scrolls the
+     page (the container allows vertical scroll everywhere else). */
+  touch-action: none;
   will-change: transform, opacity;
   cursor: pointer;
 }

@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.31.2 — 2026-08-25
+
+**Vertical scroll is only blocked over the pictures.**
+
+- The coverflow used to swallow vertical page scroll across its whole area. Now
+  only the picture cards lock scrolling (so a swipe or pinch on a print still
+  works); touching the reflection area or the empty margins scrolls the page as
+  normal. The gesture handler ignores touches that don't start on a picture, and
+  `touch-action` is `pan-y` on the container, `none` on the cards.
+
 ## 1.31.1 — 2026-08-25
 
 **Pinch: the reflection now behaves like a real mirror on the glass.**

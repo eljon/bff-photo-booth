@@ -528,6 +528,11 @@ function bindCoverflow() {
 
   cf.addEventListener('pointerdown', (event) => {
     if (!cfDesigns.length) return;
+    // Only a touch that starts on a picture drives the deck; a touch on the
+    // reflection or the empty margins is left to the browser, so the page can
+    // scroll vertically there. (The reflection is pointer-events:none, so those
+    // touches surface on the container, not a card.)
+    if (!event.target.closest('.cf-card')) return;
     pointers.set(event.pointerId, event);
     try { cf.setPointerCapture(event.pointerId); } catch { /* fine */ }
 
