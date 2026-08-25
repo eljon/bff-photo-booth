@@ -236,7 +236,6 @@ let cfDesigns = [];
 let cfPos = 0;      // continuous centre position
 let cfIndex = -1;   // the design currently under the centre (drives label + print)
 let cfTarget = 0;   // the card the glide is easing to
-let cfTopIndex = 0; // the card that owns the top layer — the last one settled at centre
 let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
 
@@ -252,32 +251,23 @@ function cfSpacing() {
 function positionCards() {
   const cards = [...$('cfTrack').children];
   const spacing = cfSpacing();
-  // The top layer belongs to the card at the centre, and it keeps it until the
-  // NEXT card is right at the centre — not merely near it. So the current photo
-  // stays in front through the whole swipe and the hand-off happens only when the
-  // incoming card is dead-centre (the glide settles exactly on it). Derived from
-  // position, not a settle event, so nothing can clobber it.
-  const nearest = Math.round(cfPos);
-  if (Math.abs(cfPos - nearest) < 0.02) cfTopIndex = nearest;
   cards.forEach((card, i) => {
     const offset = i - cfPos;
     const abs = Math.abs(offset);
     // First neighbour sits a full step out; the rest compress into a stacked deck.
     const mag = Math.min(abs, 1) * spacing + Math.max(0, abs - 1) * spacing * 0.34;
     const x = Math.sign(offset) * mag;
-    const ry = Math.max(-55, Math.min(55, -offset * 44));
-    const scale = Math.max(0.6, 1 - abs * 0.16);
-    // Per-card perspective(): the tilt is self-contained, so cards are flat layers
-    // and z-index (below) decides the stacking — not a shared-3D depth crossover.
+    const ry = Math.max(-58, Math.min(58, -offset * 50));
+    const scale = Math.max(0.62, 1 - abs * 0.10);
+    // Real 3D depth (translateZ) does the stacking: the closer a card is to the
+    // centre, the further forward it sits, so it rises to the front smoothly as it
+    // reaches the middle instead of popping via a z-index swap.
+    const depth = -abs * 130;
     card.style.transform =
-      `translate(-50%, -50%) translateX(${x}px) perspective(1100px) rotateY(${ry}deg) scale(${scale})`;
-    // Cards are fully opaque — no see-through — so the top card cleanly covers
-    // the ones behind it. Only cards well off the stage are hidden outright.
+      `translate(-50%, -50%) translateX(${x}px) translateZ(${depth}px) rotateY(${ry}deg) scale(${scale})`;
+    // Fully opaque — no see-through — so the front card cleanly covers the rest.
+    // Cards well off the stage are hidden outright.
     card.style.opacity = abs > 2.6 ? '0' : '1';
-    // The top layer belongs to the current centre card (see cfTopIndex above),
-    // so it stays in front through the whole swipe; the incoming card takes over
-    // only once it is almost centred.
-    card.style.zIndex = i === cfTopIndex ? '1000' : String(100 - Math.round(abs * 10));
     card.style.pointerEvents = abs > 1.6 ? 'none' : 'auto';
   });
 }
@@ -307,7 +297,7 @@ function glideStep() {
   positionCards();
   if (Math.abs(cfTarget - cfPos) < 0.003) {
     cfPos = cfTarget;
-    positionCards(); // cfTopIndex follows cfPos in positionCards
+    positionCards();
     setCurrent(cfPos);
     cfRaf = null;
     cfBusy = false;
@@ -361,7 +351,6 @@ function rebuildCoverflow() {
   });
 
   cfPos = idx;
-  cfTopIndex = idx; // the shown card owns the top layer
   cfIndex = -1; // force the label to refresh
   setCurrent(idx);
   positionCards();

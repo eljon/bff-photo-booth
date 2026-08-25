@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.24.0 — 2026-08-25
+
+**Coverflow: a smooth, cover-flow-style hand-off — no more pop.**
+
+- Replaced the hard z-index swap (which flipped the front card in a single frame,
+  a visible pop) with continuous 3D depth. As a card nears the centre it rises to
+  the front gradually, and the two centre cards meet at a clean vertical spine
+  where the hand-off happens edge-to-edge, like turning a page. The current photo
+  leads until the spine; then the incoming one takes over smoothly.
+- Trade-off worth knowing: a smooth hand-off happens where the cards meet (about
+  mid-swipe), not at dead-centre — holding strictly until dead-centre is exactly
+  what forced the hard pop.
+
 ## 1.23.2 — 2026-08-25
 
 **Coverflow layering, actually fixed (the real cause).**

@@ -82,18 +82,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  perspective: 1100px;
   overflow: hidden;
   touch-action: none;             /* we own the gesture — a swipe never scrolls the page */
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
-/* No shared 3D context (no preserve-3d): each card carries its own perspective()
-   for the tilt, so the cards stack as flat layers and z-index alone decides which
-   is in front. That is what keeps the centre photo on top through a swipe. */
+/* Shared 3D space: cards stack by real depth (translateZ), so as a card nears the
+   centre it rises smoothly to the front — the hand-off happens continuously where
+   the cards meet, with no hard z-index pop. */
 .cf-track {
   position: absolute;
   inset: 0;
+  transform-style: preserve-3d;
 }
 
 /* Position is driven every frame by JS, so no CSS transition here — it would lag
