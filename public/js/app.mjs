@@ -164,6 +164,7 @@ function renderAll() {
   }
   $('printBtn').disabled = !full || !session.printingEnabled;
   $('saveBtn').disabled = !full;
+  $('fbBtn').disabled = !full;
   renderSlots();
   warmPrint();
 }
@@ -852,6 +853,47 @@ async function buildPrintBlob() {
   }
 }
 
+const DEFAULT_HASHTAG = '#bff2026';
+
+/**
+ * Share the finished photo to Facebook. On a phone this opens the share sheet
+ * with the image attached and the caption pre-filled to the event hashtag; the
+ * guest can type their own words in front of it before posting. On a desktop
+ * (no file share) it falls back to Facebook's web share dialog for the booth
+ * link and copies the caption so it can be pasted in.
+ */
+async function shareToFacebook() {
+  if (filledCount() < 4) {
+    toast('Four photos first.');
+    return;
+  }
+  const caption = session.shareHashtag || DEFAULT_HASHTAG;
+  const blob = await buildPrintBlob();
+  if (!blob) return;
+  const file = printFile(blob);
+
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: caption });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // guest closed the sheet
+      // any other error → fall back to the web share dialog below
+    }
+  }
+
+  // Desktop / no file sharing: open Facebook's share dialog for the booth link
+  // and put the caption on the clipboard so the guest can paste it in.
+  try {
+    await navigator.clipboard.writeText(caption);
+    toast('Caption copied — paste it into your post.', 2600);
+  } catch {
+    /* clipboard blocked — the guest can still type the hashtag */
+  }
+  const share = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.origin + location.pathname)}&hashtag=${encodeURIComponent(caption)}`;
+  window.open(share, '_blank', 'noopener,noreferrer');
+}
+
 /**
  * On a phone, show the finished photo big and let the guest press-and-hold it —
  * iOS and Android both offer "Save to Photos" / "Download image" from that, and
@@ -972,6 +1014,7 @@ function bind() {
 
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
+  $('fbBtn').addEventListener('click', shareToFacebook);
   $('resultSave').addEventListener('click', savePhoto);
   $('saveClose').addEventListener('click', closeSaveSheet);
   $('saveShare').addEventListener('click', async () => {

@@ -286,7 +286,17 @@ body {
   backdrop-filter: blur(8px);
 }
 .actionbar .btn-primary { flex: 1; }
-.actionbar .btn-ghost { flex: 0 0 96px; }
+.actionbar .btn-ghost { flex: 0 0 84px; }
+.btn-fb {
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #1877f2;
+  color: #fff;
+}
+.btn-fb svg { display: block; }
 
 /* ---------------------------------------------------------------- sheet */
 

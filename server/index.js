@@ -486,6 +486,7 @@ async function handleApi(req, res, url) {
       message: cfg.message,
       maxCopies: cfg.maxCopies,
       defaultCopies: cfg.copies,
+      shareHashtag: cfg.shareHashtag, // Facebook caption; client defaults to #bff2026
       printingEnabled: cfg.printingEnabled,
       requireApproval: cfg.requireApproval,
       keyRequired: guestKeyRequired(),

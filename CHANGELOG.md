@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.21.0 — 2026-08-25
+
+**Share on Facebook.**
+
+- New Facebook button in the action bar. On a phone it opens the share sheet with
+  the photo attached and the caption pre-filled to `#bff2026` — the guest can type
+  their own words in front of the hashtag before posting.
+- On desktop (no file sharing) it falls back to Facebook's web share dialog for
+  the booth link with the `#bff2026` hashtag, and copies the caption to paste in.
+- The hashtag defaults to `#bff2026` and can be overridden per booth with
+  `shareHashtag` in the session config.
+
 ## 1.20.3 — 2026-08-25
 
 **Fix: no more stutter mid-swipe on the coverflow.**
