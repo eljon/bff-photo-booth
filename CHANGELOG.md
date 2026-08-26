@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.45.1 — 2026-08-26
+
+**Tagline tweak.**
+
+- The header line changed from "Pick 4 photos. Take it home." (now redundant
+  with Step 1) to **"Make a strip. Take it home."**
+
 ## 1.45.0 — 2026-08-26
 
 **Friendly step-by-step guidance.**

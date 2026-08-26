@@ -17,7 +17,7 @@ const DEFAULTS = {
   maxCopies: 3,
   requireApproval: false,   // host taps "Print" on /host before anything reaches the queue
   printingEnabled: true,    // false => download-only mode (no printer at the party)
-  message: 'Pick 4 photos. Take it home.',
+  message: 'Make a strip. Take it home.',
   // Off by default: guests scan and print, nothing in the way. Turn it on and
   // only phones that came in through the QR link can print.
   guestKeyRequired: false,
