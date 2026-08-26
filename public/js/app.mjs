@@ -1071,6 +1071,28 @@ function renderJob(job) {
     updateQueuePill(job);
     return;
   }
+  const copies = (n) => (job.copies === 1 ? n[0] : n[1]);
+  // If the transmit animation is still on screen, carry it straight through the
+  // printing and done states — same canvas, only the words change — so there's no
+  // flicker between "Sending" and "Printing now".
+  if (sendRaf != null && (job.status === 'printing' || job.status === 'claimed')) {
+    setAnimPhase('printing');
+    setResultText('🖨️', session.dryRun ? 'Printing (dry run)' : 'Printing now!',
+      session.dryRun
+        ? 'Dry-run mode — nothing goes to a real printer.'
+        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} coming out now. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`);
+    $('resultDone').disabled = false;
+    return;
+  }
+  if (sendRaf != null && (job.status === 'done' || job.status === 'queued')) {
+    setAnimPhase('done');
+    setResultText('🎉', session.dryRun ? 'Saved (dry run)' : 'All done!',
+      session.dryRun
+        ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
+        : `${copies(['Your print is', 'Your prints are'])} ready — ${session.remote ? 'collect it from the booth.' : 'grab it from the tray.'}`);
+    $('resultDone').disabled = false;
+    return;
+  }
   if (stillWaiting(job)) showQueue(job);
   else showJob(job);
   // Done is always live on a real job: it minimises an active one, or closes a
@@ -1159,6 +1181,24 @@ function showResult({ emoji, title, body, image, busy }) {
 // 1/0 bits that fly into a little printer, which glows as it receives them.
 let sendRaf = null;
 let sendUrl = null;
+let animPhase = 'sending'; // sending → printing → done, all in the one canvas
+let animPhaseAt = 0;       // ts when the current phase began (0 = capture next frame)
+
+/** Update just the modal's text, leaving the live canvas in place (no swap). */
+function setResultText(emoji, title, body) {
+  $('resultEmoji').textContent = emoji;
+  $('resultTitle').textContent = title;
+  $('resultBody').textContent = body;
+  $('result').classList.remove('hidden');
+  $('resultImage').classList.add('hidden');
+}
+
+/** Move the running transmit animation to its next phase (no restart, no swap). */
+function setAnimPhase(phase) {
+  if (sendRaf == null || phase === animPhase) return;
+  animPhase = phase;
+  animPhaseAt = 0;
+}
 
 function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
@@ -1198,6 +1238,33 @@ function drawPrinter(ctx, cx, top, w, glow) {
   const pw = w * 0.6;
   ctx.fillStyle = '#f6f1ef';
   roundRect(ctx, cx - pw / 2, by + bodyH - 2, pw, 15 + glow * 7, 3); ctx.fill();
+}
+
+/** The printer, now feeding the ACTUAL print out of its slot (printing phase). */
+function drawPrinterPrinting(ctx, img, cx, top, w, pk, H) {
+  drawPrinter(ctx, cx, top, w, 0.55); // active printer: body + green status light + glow
+  const iw = img.naturalWidth || 3, ih = img.naturalHeight || 4, ar = iw / ih;
+  const bodyH = 62, slotY = top + bodyH - 2;
+  const availH = H - slotY - 6;
+  let paperW = w * 0.62, paperH = paperW / ar;
+  if (paperH > availH) { paperH = availH; paperW = paperH * ar; }
+  const eh = Math.max(0, pk * paperH); // how far the print has emerged
+  if (eh < 1) return;
+  const x0 = cx - paperW / 2;
+  ctx.fillStyle = '#f6f1ef';
+  roundRect(ctx, x0 - 2, slotY, paperW + 4, eh + 2, 3); ctx.fill();
+  // the photo on the paper — revealed top-first as it feeds out
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, slotY, paperW, eh); ctx.clip();
+  ctx.drawImage(img, 0, 0, iw, Math.max(1, ih * (eh / paperH)), x0, slotY, paperW, eh);
+  ctx.restore();
+  // glowing print-head line at the leading edge
+  ctx.save();
+  ctx.strokeStyle = 'rgba(60,255,110,0.9)';
+  ctx.shadowColor = 'rgba(60,255,110,0.9)';
+  ctx.shadowBlur = 6; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x0, slotY + eh); ctx.lineTo(x0 + paperW, slotY + eh); ctx.stroke();
+  ctx.restore();
 }
 
 function stopSendAnim() {
@@ -1255,66 +1322,78 @@ function startSendAnim(img) {
   }
 
   const T = 3200;      // full cycle (ms)
-  const DISS = 0.62;   // the dissolve line sweeps top→bottom over this fraction of the cycle
+  const DISS = 0.62;   // the dissolve sweeps bottom→top over this fraction of the cycle
   const TRAVEL = 0.33; // a bit takes this fraction of the cycle to reach the printer
   let t0 = null, glow = 0;
+  animPhase = 'sending';
+  animPhaseAt = 0;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `700 ${Math.max(8, ch * 0.95)}px ui-monospace, "SF Mono", monospace`;
-  const step = (ts) => {
-    if (t0 == null) t0 = ts;
-    const t = ((ts - t0) / T) % 1; // 0..1 within the cycle
-    const diss = Math.min(1, t / DISS); // how far the dissolve has climbed
-    // The line starts at the BOTTOM and sweeps UP: the photo disintegrates from
-    // the bottom edge (nearest the printer) upward.
-    const yLine = py0 + (1 - diss) * ph;
-    ctx.clearRect(0, 0, W, H);
-    glow *= 0.9;
 
-    // The still-intact photo is everything ABOVE the line.
+  // The photo + streaming bits (everything above the printer). `mult` fades the
+  // whole scene, used to cross-fade cleanly into the printing phase.
+  const drawUpper = (now, mult) => {
+    const t = (now / T) % 1;
+    const diss = Math.min(1, t / DISS);
+    const yLine = py0 + (1 - diss) * ph; // line starts at the bottom, sweeps up
     if (diss < 1) {
       ctx.save();
       ctx.beginPath();
-      ctx.rect(px0, py0, pw, yLine - py0);
+      ctx.rect(px0, py0, pw, yLine - py0); // intact photo is ABOVE the line
       ctx.clip();
+      ctx.globalAlpha = mult;
       ctx.drawImage(img, px0, py0, pw, ph);
       ctx.restore();
-      // a glowing scan edge where the photo is turning to data
       if (diss > 0.002) {
         ctx.save();
+        ctx.globalAlpha = mult;
         ctx.strokeStyle = 'rgba(60,255,120,0.9)';
         ctx.shadowColor = 'rgba(60,255,120,0.9)';
-        ctx.shadowBlur = 8;
-        ctx.lineWidth = 2;
+        ctx.shadowBlur = 8; ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(px0, yLine);
-        ctx.lineTo(px0 + pw, yLine);
-        ctx.stroke();
+        ctx.moveTo(px0, yLine); ctx.lineTo(px0 + pw, yLine); ctx.stroke();
         ctx.restore();
       }
     }
-
-    // Bits: a cell converts once the line reaches its row (bottom rows first),
-    // then streams down to the printer — Matrix green.
     ctx.shadowColor = 'rgba(60,255,110,0.9)';
     for (const cell of cells) {
-      const tm = (1 - cell.rowFrac) * DISS; // bottom (rowFrac→1) dissolves first
-      if (t <= tm) continue;                // still photo
-      const k = (t - tm) / TRAVEL;          // 0 (just released) → 1 (absorbed)
-      if (k >= 1) continue;                 // already received by the printer
+      const tm = (1 - cell.rowFrac) * DISS; // bottom rows dissolve first
+      if (t <= tm) continue;
+      const k = (t - tm) / TRAVEL;
+      if (k >= 1) continue;
       const e = k * k * (3 - 2 * k);
       const x = cell.hx + (cell.tx - cell.hx) * e + Math.sin(k * 7 + cell.wob * 9) * 3.5 * (1 - e);
       const y = cell.hy + (mouthY - cell.hy) * e;
-      ctx.globalAlpha = Math.min(1, (1 - k) * 1.6);
-      // a fresh bit flares near-white, then settles to matrix green as it falls
-      ctx.fillStyle = k < 0.12 ? '#d8ffe4' : '#38ff74';
+      ctx.globalAlpha = Math.min(1, (1 - k) * 1.6) * mult;
+      ctx.fillStyle = k < 0.12 ? '#d8ffe4' : '#38ff74'; // white flare → matrix green
       ctx.shadowBlur = 7;
       ctx.fillText(cell.char, x, y);
       if (k > 0.9) glow = 1;
     }
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
-    drawPrinter(ctx, mouthX, mouthY, printerW, glow);
+  };
+
+  const step = (ts) => {
+    if (t0 == null) t0 = ts;
+    ctx.clearRect(0, 0, W, H);
+    glow *= 0.9;
+    if (animPhase === 'sending') {
+      drawUpper(ts - t0, 1);
+      drawPrinter(ctx, mouthX, mouthY, printerW, glow);
+    } else {
+      // printing / done: the last bits fade out, then the printer glides up to
+      // centre and feeds the actual print out — all in this same canvas.
+      if (animPhaseAt === 0) animPhaseAt = ts;
+      const since = ts - animPhaseAt;
+      const cf = Math.min(1, since / 320);
+      if (cf < 1) drawUpper(ts - t0, 1 - cf); // last bits arriving at the printer
+      const rise = Math.min(1, Math.max(0, (since - 300) / 500));
+      const pTop = mouthY - rise * (mouthY - H * 0.28); // printer rises after the hand-off
+      const pk = Math.min(1, Math.max(0, (since - 320) / 800)); // print emerges
+      drawPrinterPrinting(ctx, img, mouthX, pTop, printerW, pk, H);
+    }
     sendRaf = requestAnimationFrame(step);
   };
   sendRaf = requestAnimationFrame(step);

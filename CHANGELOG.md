@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.40.1 — 2026-08-26
+
+**One continuous animation from "Sending" through "Printing".**
+
+- The transmit animation and the "Printing now" screen are now one unbroken beat in
+  the same popup — no flicker where one screen vanished before the next appeared.
+  The bits finish streaming in, then the printer glides to the centre and feeds the
+  actual print out (with a green print-head edge); only the wording changes from
+  "Sending…" to "Printing now!" to "All done!".
+
 ## 1.40.0 — 2026-08-26
 
 **Self-healing booth, and a Matrix-style transmit animation.**
