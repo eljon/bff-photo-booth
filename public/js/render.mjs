@@ -220,10 +220,25 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
 // cell at this resolution.
 export const PRINT_SCALE = 2;
 
-/** Render the print-resolution page and hand back a file ready for the queue. */
-export async function exportPrint(state) {
-  const canvas = document.createElement('canvas');
-  composePage(canvas, state, PRINT_SCALE);
+/** Render the print-resolution page and hand back a file ready for the queue.
+ *  `rotateForPaper` turns a landscape composition 90° into a portrait bitmap:
+ *  4×6 photo paper feeds one way (portrait), and borderless is only offered at
+ *  that size, so a wide design must be rotated to fill the sheet or it prints
+ *  sideways. The saved-to-phone image is NOT rotated — it keeps its true look. */
+export async function exportPrint(state, { rotateForPaper = false } = {}) {
+  const page = document.createElement('canvas');
+  composePage(page, state, PRINT_SCALE);
+
+  let canvas = page;
+  if (rotateForPaper && page.width > page.height) {
+    canvas = document.createElement('canvas');
+    canvas.width = page.height;
+    canvas.height = page.width;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(Math.PI / 2); // 90° clockwise: long edge now runs down the 6" side
+    ctx.drawImage(page, -page.width / 2, -page.height / 2);
+  }
 
   let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('This browser could not render the print.');

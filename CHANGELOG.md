@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.38.1 — 2026-08-25
+
+**Fix: landscape prints came out sideways.**
+
+- The printer's only borderless size is portrait 4×6 (`4x6.Fullbleed`; there's no
+  landscape variant), so a landscape design was being placed upright on a portrait
+  sheet and printed sideways. The print now rotates a landscape composition 90° to
+  fill the portrait sheet — so it comes out correctly (turn the print to view it
+  landscape). The saved-to-phone image is untouched and keeps its true landscape
+  orientation.
+
 ## 1.38.0 — 2026-08-25
 
 **Done keeps your photos, and minimises the queue instead of closing it.**

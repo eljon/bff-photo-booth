@@ -1167,18 +1167,21 @@ async function doPrint() {
 
   let result;
   try {
-    result = await exportPrint(state);
+    // Rotate a landscape design onto portrait 4×6 paper so it never prints
+    // sideways. (Save-to-phone keeps the true orientation — it uses lastPrintBlob,
+    // warmed separately, which we deliberately don't overwrite here.)
+    result = await exportPrint(state, { rotateForPaper: true });
   } catch (err) {
     showResult({ emoji: '😵', title: 'Could not build the print', body: err.message });
     return;
   }
-  lastPrintBlob = result.blob;
 
   const params = new URLSearchParams({
     layout: state.layoutId,
     copies: String(state.copies),
     guest: '',
-    orient: resolveLayout(state).page.w > resolveLayout(state).page.h ? 'landscape' : 'portrait',
+    // The uploaded print is always portrait now (landscape gets rotated above).
+    orient: result.width > result.height ? 'landscape' : 'portrait',
   });
 
   try {
