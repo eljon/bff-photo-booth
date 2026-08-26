@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.43.0 — 2026-08-26
+
+**A modern gradient on the primary buttons.**
+
+- The flat pink Print / Pick button is now a living multi-colour gradient —
+  violet → fuchsia → coral — that slowly drifts, with white text and a colour-
+  matched glow. (Reduced-motion users get the same gradient, held still.)
+
 ## 1.42.0 — 2026-08-26
 
 **Cleaner design-picker screen and a clearer "Replace photos" button.**

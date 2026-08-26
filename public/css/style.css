@@ -314,7 +314,25 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .btn:disabled { opacity: 0.45; cursor: default; }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
+/* Modern multi-colour gradient CTA — a living violet→fuchsia→coral blend that
+   slowly drifts, replacing the flat pink. White text with a faint shadow keeps
+   it legible across every stop, and the glow is tinted to match. */
+.btn-primary {
+  color: #fff;
+  text-shadow: 0 1px 2px #0000005c;
+  background: linear-gradient(115deg, #6a5cff 0%, #a24bff 32%, #ff4d97 64%, #ff7a4d 100%);
+  background-size: 220% 220%;
+  box-shadow: 0 10px 26px -8px #a24bffaa, 0 4px 12px -6px #ff4d97aa;
+  animation: btnGrad 9s ease-in-out infinite;
+}
+.btn-primary:disabled { animation: none; }
+@keyframes btnGrad {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary { animation: none; }
+}
 .btn-ghost { background: #ffffff12; color: var(--ink); }
 .btn-ghost.danger { color: var(--accent); }
 .btn-add { width: 100%; margin-top: 14px; background: #ffffff12; color: var(--ink); }
