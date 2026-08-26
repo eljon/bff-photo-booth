@@ -1730,7 +1730,8 @@ async function loadSession() {
 
   $('boothName').textContent = session.boothName;
   document.title = session.boothName;
-  if (session.message) $('boothMessage').textContent = session.message;
+  const msgEl = $('boothMessage');
+  if (msgEl && session.message) msgEl.textContent = session.message;
   $('version').textContent = session.version ? `v${session.version}` : '';
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 

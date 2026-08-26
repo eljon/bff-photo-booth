@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.45.2 — 2026-08-26
+
+**Removed the header tagline.**
+
+- Deleted the subtitle line under the title entirely — the Step 1 guide already
+  tells the guest what to do, so the header is just the booth name now.
+
 ## 1.45.1 — 2026-08-26
 
 **Tagline tweak.**
