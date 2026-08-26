@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.46.1 — 2026-08-26
+
+**The filmstrip stays throughout.**
+
+- The header filmstrip now stays on every screen instead of only the welcome
+  screen. On the busier picking/arranging screens it shrinks to a slimmer band
+  so the steps still clear the action bar. (Placeholder for now — easy to swap
+  for real content later.)
+
 ## 1.46.0 — 2026-08-26
 
 **A little filmstrip in the header, and clearer step progress.**

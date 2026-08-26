@@ -87,9 +87,15 @@ body {
 .booth-strip i:nth-child(2) { background: #4b90e6; }
 .booth-strip i:nth-child(3) { background: #8fd694; }
 .booth-strip i:nth-child(4) { background: #e6c34e; }
-/* Only the welcome screen is bare enough to need it; once the guest is picking
-   or arranging, the header is full — hide it so the steps clear the action bar. */
-body:not(.is-empty) .booth-strip { display: none; }
+/* It stays through the whole flow. On the busier picking/arranging screens it
+   shrinks to a slimmer band so the steps still clear the action bar. */
+body:not(.is-empty) .booth-strip {
+  height: 30px;
+  margin-top: 10px;
+  gap: 5px;
+  padding: 0 10px;
+}
+body:not(.is-empty) .booth-strip i { width: 16px; height: 13px; }
 
 /* ---------------------------------------------------------------- preview */
 
@@ -120,8 +126,8 @@ body:not(.is-empty) .booth-strip { display: none; }
 .coverflow {
   position: relative;
   width: 100%;
-  height: 46vh;
-  max-height: 440px;
+  height: 42vh;
+  max-height: 410px;
   display: flex;
   align-items: center;
   justify-content: center;
