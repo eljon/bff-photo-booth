@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.37.0 — 2026-08-25
+
+**Borderless that actually works — plus photo-paper mode.**
+
+- The booth now auto-selects the printer's own borderless page size. When
+  borderless is on, it reads the printer's sizes and maps the 4×6 you're printing
+  to its full-bleed variant (e.g. Canon's `4x6.Fullbleed`), matched by dimensions
+  regardless of orientation. No dropdown fiddling — the default config prints
+  borderless 4×6 on its own.
+- Prints now go out in **photo-paper mode** (`MediaType=photographic`) at **High**
+  quality. Without this a photo prints in plain-paper mode, which is a big part of
+  the grainy/washed look — this is a quality fix as much as a borderless one.
+- Still sends the zero-margin borderless request too, so driverless/AirPrint
+  queues are covered as well as PPD drivers.
+
 ## 1.36.1 — 2026-08-25
 
 **Borderless via zero media margins (works on AirPrint/driverless queues).**

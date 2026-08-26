@@ -102,12 +102,20 @@ async function printJob(job) {
     return { ok: false, error: wanted ? `this Mac has no printer called "${wanted}"` : 'no printer is set up on this Mac' };
   }
 
-  const options = cups.buildPrintOptions({ borderless: job.borderless, fitToPage: job.fitToPage });
+  const options = cups.buildPrintOptions({ borderless: job.borderless, fitToPage: job.fitToPage, mediaType: job.mediaType });
+
+  // Borderless means this Mac's own full-bleed page size for the requested size.
+  let media = job.media;
+  if (job.borderless && media && !cups.isBorderlessMedia(media)) {
+    const { options: sizes } = await cups.mediaOptions(match.name);
+    const bl = cups.borderlessFor(sizes, media);
+    if (bl) media = bl;
+  }
 
   const result = await cups.print(file, {
     printer: match.name,
     copies: job.copies,
-    media: job.media,
+    media,
     options,
   });
   if (!result.ok) return { ok: false, error: result.error };

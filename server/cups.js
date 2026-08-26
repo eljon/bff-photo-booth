@@ -144,6 +144,22 @@ function parseMediaOptions(stdout) {
   return [];
 }
 
+/** Given a printer's page-size options and a requested size (e.g. "Custom.4x6in"
+ *  or "4x6"), return the id of the borderless variant of that same size — matched
+ *  by its dimensions regardless of order — or null. So "4x6"/"6x4"/"Custom.4x6in"
+ *  all resolve to "4x6.Fullbleed" when the driver offers it. */
+function borderlessFor(options, requested) {
+  const dims = (id) => (String(id || '').match(/\d+/g) || []).map(Number).sort((a, b) => a - b).join('x');
+  // Base name: drop the borderless suffix, a leading "Custom.", a trailing "in".
+  const base = (id) => String(id || '').toLowerCase()
+    .replace(/\.(fullbleed|bl|fb)$/i, '').replace(/^custom\./, '').replace(/in$/, '');
+  const wantDims = dims(requested);
+  const wantBase = base(requested);
+  const hit = (options || []).find((o) =>
+    o.borderless && (((wantDims && dims(o.id) === wantDims)) || base(o.id) === wantBase));
+  return hit ? hit.id : null;
+}
+
 /** The page sizes a printer supports, borderless variants flagged. */
 async function mediaOptions(printer) {
   if (!printer) return { options: [], error: 'no printer' };
@@ -164,8 +180,12 @@ async function mediaOptions(printer) {
  * over-run) so no white edge shows. All of this takes precedence over fit-to-page,
  * which instead shrinks the image into the printable area, leaving a border.
  */
-function buildPrintOptions({ borderless = false, fitToPage = false } = {}) {
-  const options = { 'print-quality': '5' };
+function buildPrintOptions({ borderless = false, fitToPage = false, mediaType = '' } = {}) {
+  const options = { 'print-quality': '5', cupsPrintQuality: 'High' };
+  // Photo paper mode — without it a photo prints in plain-paper mode and looks
+  // grainy/washed. `mediaType` is a driver value (e.g. "photographic"); CUPS
+  // ignores it on queues that don't have it.
+  if (mediaType) options.MediaType = mediaType;
   if (borderless) {
     options['print-scaling'] = 'fill';
     options['media-left-margin'] = '0';
@@ -185,5 +205,5 @@ async function cancel(jobId) {
 
 module.exports = {
   available, listPrinters, parsePrinters, listJobs, print,
-  buildPrintOptions, mediaOptions, parseMediaOptions, isBorderlessMedia, cancel, run,
+  buildPrintOptions, mediaOptions, parseMediaOptions, isBorderlessMedia, borderlessFor, cancel, run,
 };

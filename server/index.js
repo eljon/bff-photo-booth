@@ -412,9 +412,20 @@ async function dispatchToPrinter(job) {
     return;
   }
 
-  const options = cups.buildPrintOptions({ borderless: cfg.borderless, fitToPage: cfg.fitToPage });
+  const options = cups.buildPrintOptions({ borderless: cfg.borderless, fitToPage: cfg.fitToPage, mediaType: cfg.mediaType });
 
-  const result = await cups.print(job.file, { printer: name, copies: job.copies, media: job.media || cfg.media, options });
+  // Borderless on this printer means its own full-bleed page size (e.g.
+  // 4x6.Fullbleed). Auto-pick it for the requested size so borderless just works.
+  let media = job.media || cfg.media;
+  if (cfg.borderless && !cups.isBorderlessMedia(media)) {
+    try {
+      const { options: sizes } = await cups.mediaOptions(name);
+      const bl = cups.borderlessFor(sizes, media);
+      if (bl) { console.log(`  · borderless: ${media} → ${bl}`); media = bl; }
+    } catch { /* fall back to the requested size */ }
+  }
+
+  const result = await cups.print(job.file, { printer: name, copies: job.copies, media, options });
   if (!result.ok) {
     job.status = 'failed';
     job.error = result.error;
@@ -591,6 +602,7 @@ async function handleAgentApi(req, res, url) {
         copies: job.copies,
         printer: job.printer || cfg.printer,
         media: job.media || cfg.media,
+        mediaType: cfg.mediaType,
         borderless: cfg.borderless,
         fitToPage: cfg.fitToPage,
         layout: job.layout,

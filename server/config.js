@@ -10,7 +10,8 @@ const DEFAULTS = {
   boothName: 'BFF Photo Booth',
   printer: null,            // null => the Mac's default destination
   media: 'Custom.4x6in',    // paper size passed to lp
-  borderless: true,         // fill the sheet edge-to-edge (print-scaling=fill), no white margin
+  mediaType: 'photographic', // MediaType for lp — photo paper mode (else plain, grainy)
+  borderless: true,         // fill the sheet edge-to-edge, and auto-pick the printer's borderless size
   fitToPage: true,          // only used when borderless is off: shrink to the printable area
   copies: 1,
   maxCopies: 3,

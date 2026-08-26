@@ -20,14 +20,14 @@ test('recognises a printer while it is mid-print (not just idle)', () => {
 });
 
 test('borderless prints fill the sheet; otherwise fit-to-page applies', () => {
-  const borderless = cups.buildPrintOptions({ borderless: true, fitToPage: true });
+  const borderless = cups.buildPrintOptions({ borderless: true, fitToPage: true, mediaType: 'photographic' });
   assert.equal(borderless['print-scaling'], 'fill');
   // Zero media margins = the IPP borderless request (works on driverless/AirPrint queues).
   assert.equal(borderless['media-left-margin'], '0');
   assert.equal(borderless['media-right-margin'], '0');
-  assert.equal(borderless['media-top-margin'], '0');
-  assert.equal(borderless['media-bottom-margin'], '0');
   assert.equal(borderless['fit-to-page'], undefined); // borderless wins over fit-to-page
+  assert.equal(borderless.cupsPrintQuality, 'High'); // high quality for photo prints
+  assert.equal(borderless.MediaType, 'photographic'); // photo paper mode, not plain
 
   const bordered = cups.buildPrintOptions({ borderless: false, fitToPage: true });
   assert.equal(bordered['fit-to-page'], 'true');
@@ -58,6 +58,17 @@ test('reads a printer\'s page sizes from lpoptions output, marking default + bor
   assert.equal(fb.isDefault, true);
   assert.equal(fb.borderless, true);
   assert.equal(opts.find((o) => o.id === '4x6').borderless, false);
+});
+
+test('auto-picks the borderless variant of a size (real Canon G4010 list)', () => {
+  // The exact PageSize list a Canon G4010 reports.
+  const raw = 'PageSize/Media Size: 3.5x5 3.5x5.Fullbleed 4x6 4x6.Fullbleed 55x91mm 55x91mm.Fullbleed 5x5 5x5.Fullbleed 5x7 5x7.Fullbleed 8x10 8x10.Fullbleed *A4 A4.Fullbleed A5 Legal Letter Letter.Fullbleed Postcard Postcard.Fullbleed';
+  const options = cups.parseMediaOptions(raw);
+  assert.equal(cups.borderlessFor(options, 'Custom.4x6in'), '4x6.Fullbleed');
+  assert.equal(cups.borderlessFor(options, 'Custom.6x4in'), '4x6.Fullbleed'); // order-independent
+  assert.equal(cups.borderlessFor(options, '5x7'), '5x7.Fullbleed');
+  assert.equal(cups.borderlessFor(options, 'Letter'), 'Letter.Fullbleed');
+  assert.equal(cups.borderlessFor(options, '2x6'), null); // no borderless 2x6 offered
 });
 
 test('parses idle, printing, and disabled printers together', () => {
