@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.42.0 — 2026-08-26
+
+**Cleaner design-picker screen and a clearer "Replace photos" button.**
+
+- Removed the design-name line under the coverflow (e.g. "Big #3 · on top") — it
+  overlapped the "Looking good" toast and added noise.
+- Renamed "Swap all 4 photos" to **Replace photos**, and redesigned it: it's now
+  a bright, frosted centred pill (with a ↻ icon) that clearly stands out from the
+  dark stage instead of blending in, and it sits well clear of the sticky action
+  bar so the Print button never crowds or covers it. The coverflow is slightly
+  shorter to guarantee that spacing on smaller screens.
+
 ## 1.41.1 — 2026-08-26
 
 **The floating queue widget is now a round, light bubble.**

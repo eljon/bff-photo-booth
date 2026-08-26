@@ -77,8 +77,8 @@ body {
 .coverflow {
   position: relative;
   width: 100%;
-  height: 62vh;
-  max-height: 560px;
+  height: 56vh;
+  max-height: 520px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,15 +159,6 @@ body {
   transform-origin: center center;
   will-change: transform;
 }
-.cf-label {
-  text-align: center;
-  margin: 12px 0 2px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.cf-label .cf-count { color: var(--ink-dim); font-weight: 500; font-size: 12px; margin-left: 6px; }
-
 /* ---------------------------------------------------------------- panels */
 
 .panel {
@@ -197,8 +188,29 @@ body {
 
 /* ---------------------------------------------------------------- slots */
 
-.pick { margin-top: 16px; }
+.pick { margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hint.problem { color: var(--accent); }
+
+/* "Replace photos" — a bright, standout pill that clearly lifts off the dark
+   stage (the old ghost button blended in), and a centred pill rather than a
+   full-width bar so it never crowds the sticky action bar below. */
+.btn-replace {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px;
+  padding: 12px 24px;
+  border-radius: 999px;
+  background: #ffffff33;
+  border: 1px solid #ffffff8c;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 20px #0007;
+  backdrop-filter: blur(6px);
+}
+.btn-replace:active { transform: scale(0.97); }
+.btn-replace-ico { font-size: 19px; line-height: 1; }
 
 /* The one button lives on top of the print itself, so there is never an empty
    grid sitting next to a button asking to fill it. */
