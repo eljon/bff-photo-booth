@@ -107,7 +107,13 @@
   </div>
 </div>
 
-<button class="queue-pill hidden" id="queuePill" type="button" aria-label="Show print status"></button>
+<button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
+  <span class="qw-icon" id="qwIcon">🧾</span>
+  <span class="qw-body">
+    <span class="qw-title" id="qwTitle"></span>
+    <span class="qw-sub" id="qwSub"></span>
+  </span>
+</button>
 
 <input id="filePicker" type="file" accept="image/*" multiple hidden>
 <input id="fileOne" type="file" accept="image/*" hidden>

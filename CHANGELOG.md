@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.41.0 — 2026-08-26
+
+**The minimized queue is now a floating widget.**
+
+- Tapping Done while your print is still in line no longer collapses it to a
+  small pill. Instead it becomes a larger floating card — a receipt icon, your
+  place in line ("#2 in line" / "You're next"), and the ETA ("Ready in about
+  1 min") on its own line — that gently bobs above the action bar so it's easy
+  to spot. It still updates live and reopens the full status when tapped.
+  (Reduced-motion users get the same card without the bob.)
+
 ## 1.40.3 — 2026-08-26
 
 **Fix: the Print button no longer stretches tall.**

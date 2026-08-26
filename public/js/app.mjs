@@ -1049,19 +1049,30 @@ function showQueue(job) {
   });
 }
 
-/** Text for the collapsed queue pill. */
+/** Fill the collapsed floating queue widget (icon + title + subline). */
 function updateQueuePill(job) {
-  const pill = $('queuePill');
+  let icon = '🧾', title = '', sub = '';
   if (stillWaiting(job)) {
     const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
-    pill.textContent = `🧾 #${job.queue.position} in line · ${etaText(seconds).replace(/^in /, '')}`;
+    icon = '🧾';
+    title = job.queue.position <= 1 ? "You're next" : `#${job.queue.position} in line`;
+    sub = `Ready ${etaText(seconds)}`;
   } else if (isActiveJob(job)) {
-    pill.textContent = '🖨️ Printing your photo…';
+    icon = '🖨️';
+    title = 'Printing now';
+    sub = 'Your photo is coming out';
   } else if (job && (job.status === 'failed' || job.status === 'rejected')) {
-    pill.textContent = '⚠️ Print issue · tap to view';
+    icon = '⚠️';
+    title = 'Print issue';
+    sub = 'Tap to view';
   } else {
-    pill.textContent = '🎉 Printed! · tap to view';
+    icon = '🎉';
+    title = 'Printed!';
+    sub = 'Tap to view';
   }
+  $('qwIcon').textContent = icon;
+  $('qwTitle').textContent = title;
+  $('qwSub').textContent = sub;
 }
 
 /** Render the current job either as the full modal or, if collapsed, the pill. */
