@@ -201,17 +201,21 @@ function warmPrint() {
 function updatePickButton() {
   const missing = 4 - filledCount();
   const full = missing === 0;
+  const empty = missing === 4; // nothing picked yet — the clean opening screen
   const button = $('addAll');
   const label = $('pickLabel');
 
-  if (missing === 4) label.textContent = 'Pick 4 photos';
+  if (empty) label.textContent = 'Take or Choose 4 Photos';
   else if (missing > 0) label.textContent = `Add ${missing} more`;
 
   button.classList.toggle('btn-primary', missing > 0);
   button.classList.toggle('btn-ghost', missing === 0);
 
-  // Before the print is full: the single preview and the pick button. Once it is
-  // full: the coverflow of designs takes over the stage.
+  // The opening screen is just the one button — no placeholder grid, no action
+  // bar. (`is-empty` on <body> hides those and centres the button.) Once a photo
+  // is in, the preview grid returns; once all four are in, the coverflow takes
+  // over the stage.
+  document.body.classList.toggle('is-empty', empty);
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);

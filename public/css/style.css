@@ -252,6 +252,21 @@ body {
   backdrop-filter: blur(6px);
 }
 
+/* The opening screen: just the pick button. Strip the placeholder grid card and
+   its overlay chrome so nothing frames the button, hide the action bar, and
+   centre the button in the stage. */
+body.is-empty #preview { display: none; }
+body.is-empty .paper-shadow { background: none; box-shadow: none; padding: 0; }
+body.is-empty .pick-overlay {
+  position: static;
+  inset: auto;
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+}
+body.is-empty .stage { min-height: 56vh; justify-content: center; }
+body.is-empty .actionbar { display: none; }
+
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
 
 .slot {

@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.44.0 — 2026-08-26
+
+**A clean opening screen — just one button.**
+
+- On load the app now shows only the pick button, centred. The placeholder
+  photo grid (the numbered 1–4 cells) and the bottom action bar (Save / Facebook
+  / Print) are hidden until there's something to act on — they return the moment
+  a photo is added. The button reads **"Take or Choose 4 Photos"**.
+
 ## 1.43.1 — 2026-08-26
 
 **A darker, more neutral app background.**
