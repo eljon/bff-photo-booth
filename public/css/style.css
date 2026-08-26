@@ -328,19 +328,6 @@ body:not(.is-empty) .booth-strip i { width: 16px; height: 13px; }
    welcome screen it's centred with the button; over the coverflow it sits above. */
 .stage > .step-guide { margin: 2px 0 10px; }
 body.is-empty .stage > .step-guide { margin: 0 0 22px; }
-/* The print step is a single slim line just above the action bar — a small
-   progress bar and one short label — so the bottom of the screen stays light. */
-.step-line {
-  margin: 2px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 13px;
-  color: var(--ink-dim);
-}
-.step-line b { color: var(--ink); font-weight: 700; }
-.step-line .step-prog { margin-top: 0; }
-.step-line .step-prog i { width: 16px; height: 4px; }
 
 /* The one button lives on top of the print itself, so there is never an empty
    grid sitting next to a button asking to fill it. */
@@ -395,7 +382,6 @@ body.is-empty .pick-overlay {
   backdrop-filter: none;
 }
 body.is-empty .stage { min-height: 56vh; justify-content: center; }
-body.is-empty .actionbar { display: none; }
 
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
 
@@ -486,21 +472,73 @@ body.is-empty .actionbar { display: none; }
 
 .version { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.08em; margin: 0; }
 
-.spacer { height: calc(var(--bar-h) + env(safe-area-inset-bottom) + 20px); }
+.spacer { height: calc(env(safe-area-inset-bottom) + 14px); }
 
-.actionbar {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
+/* ------------------------------------------------------------- commit control
+   A single check button that, when tapped, splits into Save (left) and Print
+   (right) — the two buttons emerge from where the check was and spread apart. */
+.commit {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  height: 54px;
+}
+.check-btn {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 16px;
+  color: #fff;
+  background: var(--grad);
+  box-shadow: 0 10px 26px -8px #a24bffaa, 0 4px 12px -6px #ff4d97aa;
+  cursor: pointer;
+  z-index: 2;
+  transition: opacity 0.28s ease, transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.check-btn:active { filter: brightness(0.94); }
+.check-btn svg { display: block; }
+
+.commit-pair {
+  position: absolute;
+  inset: 0;
   display: flex;
   gap: 10px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, #0c0c0f00, #0c0c0fe6 22%, var(--bg) 60%);
-  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s ease;
 }
-.actionbar { align-items: stretch; }
-.actionbar .btn { white-space: nowrap; } /* never wrap to a taller button and stretch the row */
-.actionbar .btn-primary { flex: 1; }
-.actionbar .btn-ghost { flex: 0 0 auto; } /* sized to its "Save/Share" label */
+.commit-pair .btn { flex: 1; height: 54px; white-space: nowrap; }
+.commit-save { background: #ffffff14; color: var(--ink); }
+.commit-print {
+  color: #fff;
+  text-shadow: 0 1px 2px #0000005c;
+  background: var(--grad);
+  background-size: 220% 220%;
+  box-shadow: 0 8px 20px -8px #a24bffaa;
+}
+/* Closed: the two buttons sit collapsed over the centre (where the check is). */
+.commit-save { transform: translateX(calc(50% + 5px)); transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.commit-print { transform: translateX(calc(-50% - 5px)); transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Open: check shrinks away at the centre, the pair fades in and spreads apart. */
+.commit.open .check-btn { opacity: 0; transform: translateX(-50%) scale(0.4); pointer-events: none; }
+.commit.open .commit-pair { opacity: 1; pointer-events: auto; }
+.commit.open .commit-save,
+.commit.open .commit-print { transform: translateX(0); }
+
+/* Save-only booths (no printer): no split — the check reveals a full-width Save. */
+.commit.save-only .commit-print { display: none; }
+.commit.save-only .commit-save { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .check-btn, .commit-pair, .commit-save, .commit-print { transition: none; }
+}
 
 /* ---------------------------------------------------------------- sheet */
 

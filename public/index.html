@@ -52,19 +52,21 @@
     <button class="btn btn-replace hidden" id="swapAll" type="button">
       <span class="btn-replace-ico" aria-hidden="true">↻</span> Replace photos
     </button>
-    <p class="step-line hidden" id="stepGuidePrint">
-      <span class="step-prog" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="done"></i></span>
-      <span><b>Step 3</b> · Print or save your photo</span>
-    </p>
+
+    <div class="commit hidden" id="commit">
+      <button class="check-btn" id="checkBtn" type="button" aria-label="Looks good — show save and print">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-11"/></svg>
+      </button>
+      <div class="commit-pair" id="commitPair">
+        <button class="btn commit-save" id="saveBtn" type="button">Save/Share</button>
+        <button class="btn commit-print" id="printBtn" type="button">Print</button>
+      </div>
+    </div>
+
     <p class="hint problem hidden" id="printProblem"></p>
   </section>
 
   <div class="spacer"></div>
-</div>
-
-<div class="actionbar">
-  <button class="btn btn-ghost" id="saveBtn" type="button">Save/Share</button>
-  <button class="btn btn-primary" id="printBtn" type="button" disabled>Print</button>
 </div>
 
 <div class="sheet hidden" id="editor" role="dialog" aria-modal="true" aria-label="Adjust photo">

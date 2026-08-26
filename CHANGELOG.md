@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.49.0 — 2026-08-26
+
+**A check button that splits into Save and Print.**
+
+- Save and Print no longer sit in a bar at the bottom. Instead, once your layout
+  is chosen, a single gradient **check (✓) button** appears below the photo. Tap
+  it and it splits open — **Save/Share** slides out to the left and **Print** to
+  the right, both emerging from where the check was. Choosing a fresh set of
+  photos resets it back to the check. (Save-only booths reveal just Save.)
+
 ## 1.48.0 — 2026-08-26
 
 **Simpler action bar.**

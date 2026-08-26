@@ -158,6 +158,8 @@ function renderAll() {
   const full = filledCount() === 4;
   const justCompleted = full && !wasComplete; // the set went from incomplete → full
   wasComplete = full;
+  // A fresh set starts collapsed to the check button again.
+  if (justCompleted) $('commit').classList.remove('open');
   state.subtitle = `${session.boothName} · ${todayStamp()}`;
   updatePickButton();
   if (full) {
@@ -232,7 +234,7 @@ function updatePickButton() {
   $('seg1').classList.toggle('done', step >= 1);
   $('seg2').classList.toggle('done', step >= 2);
   $('seg3').classList.toggle('done', step >= 3);
-  $('stepGuidePrint').classList.toggle('hidden', !full);
+  $('commit').classList.toggle('hidden', !full);
 }
 
 // ---------------------------------------------------------------- coverflow
@@ -1696,11 +1698,9 @@ async function loadSession() {
   // Print vs save-only — toggled BOTH ways, so when the booth comes back after a
   // restart or a dropped tunnel, printing turns itself back on with no refresh.
   const canPrint = session.online && session.printingEnabled;
-  $('printBtn').classList.toggle('hidden', !canPrint);
-  $('saveBtn').classList.toggle('btn-ghost', canPrint);
-  $('saveBtn').classList.toggle('btn-primary', !canPrint);
+  // No printer → the check reveals just Save (full width), no Print half.
+  $('commit').classList.toggle('save-only', !canPrint);
   $('saveBtn').textContent = canPrint ? 'Save/Share' : 'Save / Share to phone';
-  $('saveBtn').style.flex = canPrint ? '' : '1';
 
   if (!session.online) {
     showProblem('Reconnecting to the booth… you can still save the photo to your phone.');
@@ -1761,6 +1761,7 @@ function bind() {
     acceptFiles(event.target.files, slot);
   });
 
+  $('checkBtn').addEventListener('click', () => $('commit').classList.add('open'));
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
   $('resultSave').addEventListener('click', savePhoto);
