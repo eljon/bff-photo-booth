@@ -1236,6 +1236,8 @@ function startSendAnim(img) {
   const cw = pw / cols, ch = ph / rows;
 
   const mouthX = W / 2, mouthY = H * 0.66, printerW = 116;
+  // One bit per grid cell, carrying that pixel's colour. Each cell converts when
+  // the dissolve line reaches its row, then streams down to the printer.
   const cells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -1243,46 +1245,69 @@ function startSendAnim(img) {
       cells.push({
         hx: px0 + c * cw + cw / 2,
         hy: py0 + r * ch + ch / 2,
+        rowFrac: (r + 0.5) / rows, // where down the photo this cell sits (0 top → 1 bottom)
         col: `rgb(${px[i]},${px[i + 1]},${px[i + 2]})`,
         char: ((c + r) & 1) ? '1' : '0',
-        phase: (r / rows) * 0.45 + (((c * 7 + r * 13) % 10) / 10) * 0.55, // top rows peel first
-        tx: mouthX + (((c * 5 + r * 3) % 11) / 11 - 0.5) * printerW * 0.7,
+        wob: ((c * 5 + r * 3) % 11) / 11,
+        tx: mouthX + ((((c * 5 + r * 3) % 11) / 11) - 0.5) * printerW * 0.7,
       });
     }
   }
 
-  const T = 2200; // cycle length (ms)
+  const T = 3200;      // full cycle (ms)
+  const DISS = 0.62;   // the dissolve line sweeps top→bottom over this fraction of the cycle
+  const TRAVEL = 0.33; // a bit takes this fraction of the cycle to reach the printer
   let t0 = null, glow = 0;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.font = `700 ${Math.max(8, ch * 0.95)}px ui-monospace, "SF Mono", monospace`;
   const step = (ts) => {
     if (t0 == null) t0 = ts;
-    const now = ts - t0;
+    const t = ((ts - t0) / T) % 1; // 0..1 within the cycle
+    const diss = Math.min(1, t / DISS); // how far the dissolve line has swept down
+    const yLine = py0 + diss * ph;
     ctx.clearRect(0, 0, W, H);
-    glow *= 0.92;
-    ctx.font = `700 ${Math.max(8, ch * 0.95)}px ui-monospace, "SF Mono", monospace`;
-    for (const cell of cells) {
-      const u = ((now / T) + cell.phase) % 1;
-      if (u < 0.14) {
-        // still part of the photo (a colour tile)
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = cell.col;
-        ctx.fillRect(cell.hx - cw / 2 + 0.4, cell.hy - ch / 2 + 0.4, cw - 0.8, ch - 0.8);
-      } else if (u < 0.84) {
-        // in flight as a 1/0, streaming toward the printer
-        const k = (u - 0.14) / 0.70;
-        const e = k * k * (3 - 2 * k);
-        const x = cell.hx + (cell.tx - cell.hx) * e + Math.sin(k * 7 + cell.phase * 9) * 3.5 * (1 - e);
-        const y = cell.hy + (mouthY - cell.hy) * e;
-        ctx.globalAlpha = Math.min(1, (1 - k) * 1.5);
-        ctx.fillStyle = cell.col;
-        ctx.shadowColor = 'rgba(255,92,122,0.85)';
-        ctx.shadowBlur = 6;
-        ctx.fillText(cell.char, x, y);
-        ctx.shadowBlur = 0;
-        if (k > 0.9) glow = 1;
+    glow *= 0.9;
+
+    // The still-intact part of the ACTUAL photo — everything below the line.
+    if (diss < 1) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(px0, yLine, pw, (py0 + ph) - yLine);
+      ctx.clip();
+      ctx.drawImage(img, px0, py0, pw, ph);
+      ctx.restore();
+      // a glowing scan edge where it's turning to data
+      if (diss > 0.002) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,92,122,0.9)';
+        ctx.shadowColor = 'rgba(255,92,122,0.9)';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px0, yLine);
+        ctx.lineTo(px0 + pw, yLine);
+        ctx.stroke();
+        ctx.restore();
       }
-      // else: gone — leaving a hole in the photo (the dissolve)
+    }
+
+    // Bits: a cell converts once the line passes its row, then streams down.
+    for (const cell of cells) {
+      const tm = cell.rowFrac * DISS; // moment this row turns to bits
+      if (t <= tm) continue;          // still photo
+      const k = (t - tm) / TRAVEL;    // 0 (just released) → 1 (absorbed)
+      if (k >= 1) continue;           // already received by the printer
+      const e = k * k * (3 - 2 * k);
+      const x = cell.hx + (cell.tx - cell.hx) * e + Math.sin(k * 7 + cell.wob * 9) * 3.5 * (1 - e);
+      const y = cell.hy + (mouthY - cell.hy) * e;
+      ctx.globalAlpha = Math.min(1, (1 - k) * 1.6);
+      ctx.fillStyle = cell.col;
+      ctx.shadowColor = 'rgba(255,92,122,0.85)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(cell.char, x, y);
+      ctx.shadowBlur = 0;
+      if (k > 0.9) glow = 1;
     }
     ctx.globalAlpha = 1;
     drawPrinter(ctx, mouthX, mouthY, printerW, glow);

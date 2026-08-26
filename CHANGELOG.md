@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.39.1 — 2026-08-25
+
+**Show the actual photo disintegrating, top to bottom.**
+
+- The transmit animation now draws your real print and sweeps a glowing scan line
+  down it: above the line the photo has turned into streaming 1s and 0s heading
+  for the printer, below the line it's still the photo. So you watch the picture
+  itself dissolve into data from the top down, rather than just seeing loose bits.
+
 ## 1.39.0 — 2026-08-25
 
 **A "transmitting" animation while your photo is sent.**
