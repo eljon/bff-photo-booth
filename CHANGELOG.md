@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.41.1 — 2026-08-26
+
+**The floating queue widget is now a round, light bubble.**
+
+- Reshaped from a dark card to a bright circular badge that stands out against
+  the stage instead of blending in. It shows an icon, your place in line
+  ("#2 in line"), and the ETA below it ("2 min"), and now sits in the coverflow
+  reflection area on the right rather than centred over the action bar. Still
+  bobs gently and reopens the full status when tapped.
+
 ## 1.41.0 — 2026-08-26
 
 **The minimized queue is now a floating widget.**

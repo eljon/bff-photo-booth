@@ -361,69 +361,54 @@ body {
 
 /* Collapsed print-status chip — shown when the guest taps Done while a print is
    still in the queue, so they can keep browsing and watch their place. */
+/* A round, light badge floating in the reflection area to the right of the
+   coverflow. It reads as a bright bubble against the dark stage — icon on top,
+   the place in line, then the ETA. */
 .queue-widget {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--bar-h) + 20px + env(safe-area-inset-bottom));
-  z-index: 15;
+  position: absolute;
+  right: 5%;
+  bottom: 7%;
+  z-index: 20;
+  width: 108px;
+  height: 108px;
+  padding: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 13px;
-  width: min(300px, calc(100vw - 32px));
-  padding: 14px 20px;
-  text-align: left;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: linear-gradient(160deg, #2c2438, var(--card));
-  color: var(--ink);
+  justify-content: center;
+  gap: 1px;
+  border-radius: 50%;
+  border: 1px solid #ffffffcc;
+  background: radial-gradient(120% 120% at 50% 22%, #ffffff, #eef1f8 72%, #dfe4f0);
+  color: #241d2e;
   font: inherit;
+  text-align: center;
   cursor: pointer;
-  /* Float: gentle bob, with the shadow softening as it lifts. translateX keeps
-     it centred; the keyframes carry the vertical drift. */
-  transform: translateX(-50%);
+  /* Gentle bob, shadow softening as it lifts, so it feels like it's hovering. */
   animation: qwFloat 3.4s ease-in-out infinite;
 }
 @keyframes qwFloat {
-  0%, 100% {
-    transform: translateX(-50%) translateY(0);
-    box-shadow: 0 12px 26px #0009;
-  }
-  50% {
-    transform: translateX(-50%) translateY(-9px);
-    box-shadow: 0 22px 34px #0007;
-  }
+  0%, 100% { transform: translateY(0); box-shadow: 0 10px 22px #000a; }
+  50% { transform: translateY(-8px); box-shadow: 0 18px 30px #0007; }
 }
-.queue-widget:active { animation-play-state: paused; filter: brightness(0.94); }
-.qw-icon {
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  font-size: 24px;
-  border-radius: 50%;
-  background: #ffffff10;
-  border: 1px solid var(--line);
-}
-.qw-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.queue-widget:active { animation-play-state: paused; filter: brightness(0.95); }
+.qw-icon { font-size: 26px; line-height: 1; margin-bottom: 3px; }
 .qw-title {
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.2px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .qw-sub {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-dim);
+  font-weight: 600;
+  line-height: 1.1;
+  color: #6b6076;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 @media (prefers-reduced-motion: reduce) {
-  .queue-widget { animation: none; box-shadow: 0 12px 26px #0009; }
+  .queue-widget { animation: none; box-shadow: 0 10px 22px #000a; }
 }
 
 .sheet-card {

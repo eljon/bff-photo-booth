@@ -1049,26 +1049,33 @@ function showQueue(job) {
   });
 }
 
-/** Fill the collapsed floating queue widget (icon + title + subline). */
+/** Compact ETA for the small round widget: "2 min", "<1 min", or "now". */
+function compactEta(seconds) {
+  if (seconds <= 5) return 'now';
+  if (seconds < 60) return '<1 min';
+  return `${Math.round(seconds / 60)} min`;
+}
+
+/** Fill the collapsed round queue widget (icon + place + ETA). */
 function updateQueuePill(job) {
   let icon = '🧾', title = '', sub = '';
   if (stillWaiting(job)) {
     const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
     icon = '🧾';
-    title = job.queue.position <= 1 ? "You're next" : `#${job.queue.position} in line`;
-    sub = `Ready ${etaText(seconds)}`;
+    title = `#${job.queue.position} in line`;
+    sub = compactEta(seconds);
   } else if (isActiveJob(job)) {
     icon = '🖨️';
-    title = 'Printing now';
-    sub = 'Your photo is coming out';
+    title = 'Printing';
+    sub = 'now';
   } else if (job && (job.status === 'failed' || job.status === 'rejected')) {
     icon = '⚠️';
-    title = 'Print issue';
-    sub = 'Tap to view';
+    title = 'Issue';
+    sub = 'tap';
   } else {
     icon = '🎉';
-    title = 'Printed!';
-    sub = 'Tap to view';
+    title = 'Printed';
+    sub = 'tap';
   }
   $('qwIcon').textContent = icon;
   $('qwTitle').textContent = title;

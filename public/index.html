@@ -31,6 +31,11 @@
 
     <div class="coverflow hidden" id="coverflow" aria-label="Choose a design — swipe left or right">
       <div class="cf-track" id="cfTrack"></div>
+      <button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
+        <span class="qw-icon" id="qwIcon">🧾</span>
+        <span class="qw-title" id="qwTitle"></span>
+        <span class="qw-sub" id="qwSub"></span>
+      </button>
     </div>
 
     <p class="cf-label hidden" id="cfLabel"><span id="cfTitle"></span> <span class="cf-count" id="cfCount"></span></p>
@@ -106,14 +111,6 @@
     </div>
   </div>
 </div>
-
-<button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
-  <span class="qw-icon" id="qwIcon">🧾</span>
-  <span class="qw-body">
-    <span class="qw-title" id="qwTitle"></span>
-    <span class="qw-sub" id="qwSub"></span>
-  </span>
-</button>
 
 <input id="filePicker" type="file" accept="image/*" multiple hidden>
 <input id="fileOne" type="file" accept="image/*" hidden>
