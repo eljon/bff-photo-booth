@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.45.0 — 2026-08-26
+
+**Friendly step-by-step guidance.**
+
+- A little "Step N of 3" guide now follows the guest through the flow:
+  **Step 1 — Choose or take your 4 photos** on the welcome screen beside the
+  button; **Step 2 — Swipe to choose your favourite layout** above the design
+  coverflow; **Step 3 — Print or save your photo** just above the action bar.
+  Each shows a three-dot progress indicator. The coverflow was trimmed a touch
+  so all three fit comfortably above the sticky buttons.
+
 ## 1.44.0 — 2026-08-26
 
 **A clean opening screen — just one button.**

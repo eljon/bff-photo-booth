@@ -219,6 +219,19 @@ function updatePickButton() {
   $('singleWrap').classList.toggle('hidden', full);
   $('coverflow').classList.toggle('hidden', !full);
   $('swapAll').classList.toggle('hidden', !full);
+
+  // Friendly step-by-step guide. Choosing photos is step 1; once all four are in
+  // and the layouts appear, the top line advances to step 2 (swipe) and the
+  // print step (3) surfaces above the action bar.
+  const step = full ? 2 : 1;
+  $('stepKicker').textContent = `Step ${step} of 3`;
+  $('stepText').textContent = full
+    ? 'Swipe to choose your favourite layout'
+    : 'Choose or take your 4 photos';
+  $('dot1').classList.toggle('on', step === 1);
+  $('dot2').classList.toggle('on', step === 2);
+  $('dot3').classList.remove('on');
+  $('stepGuidePrint').classList.toggle('hidden', !full);
 }
 
 // ---------------------------------------------------------------- coverflow
