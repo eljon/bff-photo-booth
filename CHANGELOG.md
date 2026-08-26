@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.47.0 — 2026-08-26
+
+**Less bottom-heavy — the design coverflow sits lower, in easy thumb reach.**
+
+- Step 3 is now a single slim line ("Step 3 · Print or save your photo") instead
+  of a tall stacked block, and the version number moved up next to the title,
+  freeing space at the bottom.
+- The layout now flexes to fill the screen, and the design cards drop into the
+  lower-middle of the viewport (a comfortable swipe zone) instead of being pinned
+  high — with a shorter reflection below. It adapts to both tall and short
+  screens without the steps ever colliding with the action bar.
+
 ## 1.46.1 — 2026-08-26
 
 **The filmstrip stays throughout.**
