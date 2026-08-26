@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.43.1 — 2026-08-26
+
+**A darker, more neutral app background.**
+
+- Swapped the dark-violet background (and its violet top glow) for a deep,
+  near-black neutral. The cards, reflections, and the new gradient Print button
+  stand out more against it. Panels, borders, overlays, the PWA theme colour and
+  the status-bar tint were all shifted to match.
+
 ## 1.43.0 — 2026-08-26
 
 **A modern gradient on the primary buttons.**

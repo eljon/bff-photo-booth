@@ -3,7 +3,7 @@
   "short_name": "Photo Booth",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#15111b",
-  "theme_color": "#15111b",
+  "background_color": "#0c0c0f",
+  "theme_color": "#0c0c0f",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }

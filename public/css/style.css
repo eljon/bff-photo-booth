@@ -1,8 +1,8 @@
 :root {
-  --bg: #15111b;
-  --bg-soft: #1e1826;
-  --card: #241d2e;
-  --line: #372c45;
+  --bg: #0c0c0f;
+  --bg-soft: #16161a;
+  --card: #1c1b21;
+  --line: #2e2c36;
   --ink: #f6f1ef;
   --ink-dim: #b3a7bd;
   --accent: #ff5c7a;
@@ -28,7 +28,7 @@ html, body {
 body {
   min-height: 100dvh;
   background:
-    radial-gradient(120% 60% at 50% 0%, #2a1f36 0%, transparent 60%),
+    radial-gradient(120% 60% at 50% 0%, #1a1a20 0%, transparent 60%),
     var(--bg);
 }
 
@@ -222,7 +222,7 @@ body {
   justify-content: center;
   padding: 14px;
   border-radius: 4px;
-  background: #15111ba6;
+  background: #0c0c0fa6;
   backdrop-filter: blur(1.5px);
   transition: background 0.18s ease;
 }
@@ -247,7 +247,7 @@ body {
   padding: 9px 15px;
   font-size: 13px;
   border-radius: 999px;
-  background: #15111bd9;
+  background: #0c0c0fd9;
   color: var(--ink);
   backdrop-filter: blur(6px);
 }
@@ -356,7 +356,7 @@ body {
   display: flex;
   gap: 10px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, #15111b00, #15111be6 22%, var(--bg) 60%);
+  background: linear-gradient(180deg, #0c0c0f00, #0c0c0fe6 22%, var(--bg) 60%);
   backdrop-filter: blur(8px);
 }
 .actionbar { align-items: stretch; }
