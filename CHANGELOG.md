@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.39.0 — 2026-08-25
+
+**A "transmitting" animation while your photo is sent.**
+
+- Tap Print and, while the photo uploads to the booth, it now dissolves into a
+  stream of glowing 1s and 0s that fly down into a little printer — which lights
+  up green and feeds paper as it receives them. A playful "beaming it over" beat
+  that fills the send. It ends the moment the booth has the print and hands off to
+  the live queue / "Printing now" screen.
+- Respects reduced-motion (stays still, with the upload % as text), and is drawn
+  on a canvas so it costs nothing when not sending.
+
 ## 1.38.1 — 2026-08-25
 
 **Fix: landscape prints came out sideways.**

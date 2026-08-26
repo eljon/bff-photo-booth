@@ -1096,6 +1096,7 @@ function restoreQueue() {
 /** Dismiss the result entirely, KEEPING the current photos/design on screen. */
 function closeResult() {
   clearQueueTimers();
+  stopSendAnim();
   queueMinimized = false;
   currentJob = null;
   $('result').classList.add('hidden');
@@ -1139,6 +1140,7 @@ function trackQueue(job) {
 }
 
 function showResult({ emoji, title, body, image, busy }) {
+  stopSendAnim(); // any non-sending result screen ends the transmit animation
   $('resultEmoji').textContent = emoji;
   $('resultTitle').textContent = title;
   $('resultBody').textContent = body;
@@ -1151,6 +1153,160 @@ function showResult({ emoji, title, body, image, busy }) {
   } else {
     img.classList.add('hidden');
   }
+}
+
+// ---- "sending to the printer" animation: the print dissolves into streaming
+// 1/0 bits that fly into a little printer, which glows as it receives them.
+let sendRaf = null;
+let sendUrl = null;
+
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawPrinter(ctx, cx, top, w, glow) {
+  const bodyH = 62;
+  const bx = cx - w / 2;
+  const by = top;
+  if (glow > 0.03) {
+    ctx.save();
+    ctx.shadowColor = `rgba(255,92,122,${glow})`;
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = `rgba(255,92,122,${glow * 0.35})`;
+    roundRect(ctx, bx, by + 4, w, bodyH, 12); ctx.fill();
+    ctx.restore();
+  }
+  // intake slot (bits land here)
+  ctx.fillStyle = '#0d0a12';
+  roundRect(ctx, cx - w * 0.4, by - 2, w * 0.8, 7, 3); ctx.fill();
+  // body
+  ctx.fillStyle = '#2c2438';
+  roundRect(ctx, bx, by + 4, w, bodyH, 12); ctx.fill();
+  ctx.strokeStyle = '#4a3d5e'; ctx.lineWidth = 1;
+  roundRect(ctx, bx, by + 4, w, bodyH, 12); ctx.stroke();
+  // status light — green once bits are arriving
+  ctx.fillStyle = glow > 0.25 ? '#5ad1a5' : '#4a3d5e';
+  ctx.beginPath(); ctx.arc(bx + w - 15, by + bodyH - 12, 3.5, 0, Math.PI * 2); ctx.fill();
+  // emerging print, nudged out as it receives
+  const pw = w * 0.6;
+  ctx.fillStyle = '#f6f1ef';
+  roundRect(ctx, cx - pw / 2, by + bodyH - 2, pw, 15 + glow * 7, 3); ctx.fill();
+}
+
+function stopSendAnim() {
+  if (sendRaf != null) { cancelAnimationFrame(sendRaf); sendRaf = null; }
+  if (sendUrl) { URL.revokeObjectURL(sendUrl); sendUrl = null; }
+  $('sendAnim').classList.add('hidden');
+}
+
+/** Show the transmit animation for the just-built print `img` (an <img>). */
+function startSendAnim(img) {
+  stopSendAnim();
+  const canvas = $('sendAnim');
+  canvas.classList.remove('hidden');
+  $('resultImage').classList.add('hidden');
+
+  const W = 190, H = 240;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Fit the photo into the top ~55% of the canvas.
+  const pad = 8;
+  const ar = (img.naturalWidth || 3) / (img.naturalHeight || 4);
+  let pw = W - pad * 2, ph = pw / ar;
+  const maxH = H * 0.5;
+  if (ph > maxH) { ph = maxH; pw = ph * ar; }
+  const px0 = (W - pw) / 2, py0 = pad;
+
+  // Sample the photo into a small grid of colour cells.
+  const cols = 20;
+  const rows = Math.max(6, Math.round(cols / ar));
+  const off = document.createElement('canvas'); off.width = cols; off.height = rows;
+  const octx = off.getContext('2d'); octx.drawImage(img, 0, 0, cols, rows);
+  const px = octx.getImageData(0, 0, cols, rows).data;
+  const cw = pw / cols, ch = ph / rows;
+
+  const mouthX = W / 2, mouthY = H * 0.66, printerW = 116;
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const i = (r * cols + c) * 4;
+      cells.push({
+        hx: px0 + c * cw + cw / 2,
+        hy: py0 + r * ch + ch / 2,
+        col: `rgb(${px[i]},${px[i + 1]},${px[i + 2]})`,
+        char: ((c + r) & 1) ? '1' : '0',
+        phase: (r / rows) * 0.45 + (((c * 7 + r * 13) % 10) / 10) * 0.55, // top rows peel first
+        tx: mouthX + (((c * 5 + r * 3) % 11) / 11 - 0.5) * printerW * 0.7,
+      });
+    }
+  }
+
+  const T = 2200; // cycle length (ms)
+  let t0 = null, glow = 0;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const step = (ts) => {
+    if (t0 == null) t0 = ts;
+    const now = ts - t0;
+    ctx.clearRect(0, 0, W, H);
+    glow *= 0.92;
+    ctx.font = `700 ${Math.max(8, ch * 0.95)}px ui-monospace, "SF Mono", monospace`;
+    for (const cell of cells) {
+      const u = ((now / T) + cell.phase) % 1;
+      if (u < 0.14) {
+        // still part of the photo (a colour tile)
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = cell.col;
+        ctx.fillRect(cell.hx - cw / 2 + 0.4, cell.hy - ch / 2 + 0.4, cw - 0.8, ch - 0.8);
+      } else if (u < 0.84) {
+        // in flight as a 1/0, streaming toward the printer
+        const k = (u - 0.14) / 0.70;
+        const e = k * k * (3 - 2 * k);
+        const x = cell.hx + (cell.tx - cell.hx) * e + Math.sin(k * 7 + cell.phase * 9) * 3.5 * (1 - e);
+        const y = cell.hy + (mouthY - cell.hy) * e;
+        ctx.globalAlpha = Math.min(1, (1 - k) * 1.5);
+        ctx.fillStyle = cell.col;
+        ctx.shadowColor = 'rgba(255,92,122,0.85)';
+        ctx.shadowBlur = 6;
+        ctx.fillText(cell.char, x, y);
+        ctx.shadowBlur = 0;
+        if (k > 0.9) glow = 1;
+      }
+      // else: gone — leaving a hole in the photo (the dissolve)
+    }
+    ctx.globalAlpha = 1;
+    drawPrinter(ctx, mouthX, mouthY, printerW, glow);
+    sendRaf = requestAnimationFrame(step);
+  };
+  sendRaf = requestAnimationFrame(step);
+}
+
+/** Enter the "sending" screen with the transmit animation (or a static image if
+ *  the guest prefers reduced motion). */
+function beginSending(blob) {
+  $('resultEmoji').textContent = '📡';
+  $('resultTitle').textContent = 'Sending to the booth…';
+  $('resultBody').textContent = 'Beaming your photo over.';
+  $('result').classList.remove('hidden');
+  $('resultDone').disabled = true;
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return; // keep it still for reduced-motion; the % text carries the progress
+  }
+  sendUrl = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => { if (sendUrl) startSendAnim(img); }; // still sending?
+  img.src = sendUrl;
 }
 
 async function doPrint() {
@@ -1184,14 +1340,12 @@ async function doPrint() {
     orient: result.width > result.height ? 'landscape' : 'portrait',
   });
 
+  beginSending(result.blob); // the photo dissolves into bits streaming to the printer
+
   try {
     const { status, data } = await uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
-      showResult({
-        emoji: '📤',
-        title: 'Sending to the booth…',
-        body: `${Math.round(fraction * 100)}% uploaded`,
-        busy: true,
-      });
+      // Update just the progress line so the animation keeps running underneath.
+      $('resultBody').textContent = `Beaming your photo over — ${Math.round(fraction * 100)}%`;
     });
 
     if (status === 401) {
