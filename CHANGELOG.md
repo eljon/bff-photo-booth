@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.40.3 — 2026-08-26
+
+**Fix: the Print button no longer stretches tall.**
+
+- The v1.40.0 rewrite set the Save button's label to "Save to phone"
+  unconditionally. Beside Print it lives in a narrow fixed-width slot, so that
+  label wrapped onto three lines — and because the action bar is a flex row that
+  stretches its buttons to match the tallest one, the Print button grew tall to
+  match. The label beside Print is now just "Save" (the full "Save to phone" is
+  only used when it's the sole, full-width button), and the action-bar buttons no
+  longer wrap. All three buttons are back to equal height.
+
 ## 1.40.2 — 2026-08-26
 
 **The whole post-print flow is one continuous popup.**

@@ -1708,7 +1708,9 @@ async function loadSession() {
   $('printBtn').classList.toggle('hidden', !canPrint);
   $('saveBtn').classList.toggle('btn-ghost', canPrint);
   $('saveBtn').classList.toggle('btn-primary', !canPrint);
-  $('saveBtn').textContent = 'Save to phone';
+  // In the narrow ghost slot beside Print, keep it short ("Save") so it fits on
+  // one line; only the wide save-only button gets the full "Save to phone".
+  $('saveBtn').textContent = canPrint ? 'Save' : 'Save to phone';
   $('saveBtn').style.flex = canPrint ? '' : '1';
 
   if (!session.online) {

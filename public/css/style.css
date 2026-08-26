@@ -329,6 +329,8 @@ body {
   background: linear-gradient(180deg, #15111b00, #15111be6 22%, var(--bg) 60%);
   backdrop-filter: blur(8px);
 }
+.actionbar { align-items: stretch; }
+.actionbar .btn { white-space: nowrap; } /* never wrap to a taller button and stretch the row */
 .actionbar .btn-primary { flex: 1; }
 .actionbar .btn-ghost { flex: 0 0 84px; }
 .btn-fb {

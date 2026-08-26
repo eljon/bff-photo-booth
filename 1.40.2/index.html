@@ -339,6 +339,8 @@ body {
   background: linear-gradient(180deg, #15111b00, #15111be6 22%, var(--bg) 60%);
   backdrop-filter: blur(8px);
 }
+.actionbar { align-items: stretch; }
+.actionbar .btn { white-space: nowrap; } /* never wrap to a taller button and stretch the row */
 .actionbar .btn-primary { flex: 1; }
 .actionbar .btn-ghost { flex: 0 0 84px; }
 .btn-fb {
@@ -2933,7 +2935,9 @@ async function loadSession() {
   $('printBtn').classList.toggle('hidden', !canPrint);
   $('saveBtn').classList.toggle('btn-ghost', canPrint);
   $('saveBtn').classList.toggle('btn-primary', !canPrint);
-  $('saveBtn').textContent = 'Save to phone';
+  // In the narrow ghost slot beside Print, keep it short ("Save") so it fits on
+  // one line; only the wide save-only button gets the full "Save to phone".
+  $('saveBtn').textContent = canPrint ? 'Save' : 'Save to phone';
   $('saveBtn').style.flex = canPrint ? '' : '1';
 
   if (!session.online) {
