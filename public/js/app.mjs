@@ -171,7 +171,6 @@ function renderAll() {
   }
   $('printBtn').disabled = !full || !session.printingEnabled;
   $('saveBtn').disabled = !full;
-  $('fbBtn').disabled = !full;
   warmPrint();
 }
 
@@ -1641,49 +1640,6 @@ async function buildPrintBlob() {
   }
 }
 
-const DEFAULT_HASHTAG = '#bff2026';
-
-/** A web-sized JPEG of the print — small and quick to hand off to the app. */
-async function buildShareBlob() {
-  const layout = resolveLayout(state);
-  const scale = Math.min(1, 1200 / Math.max(layout.page.w, layout.page.h));
-  const canvas = document.createElement('canvas');
-  composePage(canvas, state, scale);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-}
-
-/**
- * Hand the photo to the Facebook app, where the guest is already signed in. The
- * share sheet is the only door a website has to the installed app — Apple and
- * Facebook don't expose a link that jumps straight into the app's composer — so
- * tapping Facebook there opens the app's own post screen with the photo attached
- * and #bff2026 pre-filled (the guest types their own words in front). On a desktop
- * with no app to share to, it falls back to Facebook's web share for the link.
- */
-async function shareToFacebook() {
-  if (filledCount() < 4) {
-    toast('Four photos first.');
-    return;
-  }
-  const caption = session.shareHashtag || DEFAULT_HASHTAG;
-  const blob = await buildShareBlob();
-  if (!blob) return;
-  const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
-
-  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], text: caption });
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // guest backed out — leave it
-      // any other error → fall through to the desktop link share
-    }
-  }
-
-  // Desktop / no app share available: open Facebook's web share for the booth link.
-  const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.origin)}&hashtag=${encodeURIComponent(caption)}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
 
 /**
  * On a phone, show the finished photo big and let the guest press-and-hold it —
@@ -1743,9 +1699,7 @@ async function loadSession() {
   $('printBtn').classList.toggle('hidden', !canPrint);
   $('saveBtn').classList.toggle('btn-ghost', canPrint);
   $('saveBtn').classList.toggle('btn-primary', !canPrint);
-  // In the narrow ghost slot beside Print, keep it short ("Save") so it fits on
-  // one line; only the wide save-only button gets the full "Save to phone".
-  $('saveBtn').textContent = canPrint ? 'Save' : 'Save to phone';
+  $('saveBtn').textContent = canPrint ? 'Save/Share' : 'Save / Share to phone';
   $('saveBtn').style.flex = canPrint ? '' : '1';
 
   if (!session.online) {
@@ -1809,7 +1763,6 @@ function bind() {
 
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
-  $('fbBtn').addEventListener('click', shareToFacebook);
   $('resultSave').addEventListener('click', savePhoto);
   $('saveClose').addEventListener('click', closeSaveSheet);
   $('saveShare').addEventListener('click', async () => {

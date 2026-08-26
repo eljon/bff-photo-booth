@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.48.0 — 2026-08-26
+
+**Simpler action bar.**
+
+- Removed the Facebook button. The action bar is now just Save and Print, and
+  the Save button is relabeled **Save/Share** (the OS share sheet, reachable from
+  the save screen, already covers Facebook and everywhere else). Print gets the
+  freed width.
+
 ## 1.47.0 — 2026-08-26
 
 **Less bottom-heavy — the design coverflow sits lower, in easy thumb reach.**
