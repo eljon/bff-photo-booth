@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.38.0 — 2026-08-25
+
+**Done keeps your photos, and minimises the queue instead of closing it.**
+
+- Tapping Done after a finished print no longer wipes the screen — your photos and
+  chosen design stay put, so you can print again or tweak without starting over.
+  (Use "Swap all 4 photos" for a fresh set.)
+- While a print is still in the queue or printing, Done now collapses the modal to
+  a small status pill ("🧾 #2 in line · about a minute") pinned above the bottom
+  bar, so you can keep browsing and still watch your place. Tap the pill to reopen
+  the full view; it updates live and turns into "🎉 Printed!" when it's ready.
+
 ## 1.37.0 — 2026-08-25
 
 **Borderless that actually works — plus photo-paper mode.**

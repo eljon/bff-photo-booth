@@ -357,6 +357,32 @@ body {
 .overlay { align-items: center; padding: 20px; }
 .hidden { display: none !important; }
 
+/* Collapsed print-status chip — shown when the guest taps Done while a print is
+   still in the queue, so they can keep browsing and watch their place. */
+.queue-pill {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--bar-h) + 14px + env(safe-area-inset-bottom));
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 11px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 10px 30px #0008;
+  cursor: pointer;
+}
+.queue-pill:active { transform: translateX(-50%) scale(0.97); }
+
 .sheet-card {
   width: 100%;
   max-width: 560px;

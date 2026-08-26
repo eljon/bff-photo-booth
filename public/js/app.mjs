@@ -66,6 +66,8 @@ let printGeneration = 0; // bumped whenever the page changes, so stale renders a
 let warmTimer = null;
 let queuePoll = null; // re-fetches queue standing from the booth
 let queueTick = null; // ticks the countdown down between fetches
+let currentJob = null; // the print the result modal / queue pill is showing
+let queueMinimized = false; // the modal is collapsed to the small queue pill
 
 // ---------------------------------------------------------------- utilities
 
@@ -952,8 +954,6 @@ function uploadPrint(path, blob, onProgress) {
   });
 }
 
-const WAITING = ['awaiting-approval', 'pending', 'claimed', 'printing'];
-
 /** Turn a job record into what the guest sees. */
 function showJob(job) {
   if (job.status === 'awaiting-approval') {
@@ -1012,24 +1012,6 @@ function showJob(job) {
   });
 }
 
-/** Follow a job until the printer has actually taken it. */
-async function trackJob(job) {
-  const deadline = Date.now() + 120_000;
-  let current = job;
-  while (WAITING.includes(current.status) && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    try {
-      const response = await fetch(`/api/job?id=${encodeURIComponent(current.id)}`);
-      if (!response.ok) return;
-      const data = await response.json();
-      current = data.job;
-    } catch {
-      return;
-    }
-    showJob(current);
-  }
-}
-
 function clearQueueTimers() {
   if (queuePoll) { clearInterval(queuePoll); queuePoll = null; }
   if (queueTick) { clearInterval(queueTick); queueTick = null; }
@@ -1041,6 +1023,11 @@ function etaText(seconds) {
   if (seconds < 60) return 'in less than a minute';
   const mins = Math.round(seconds / 60);
   return `in about ${mins} minute${mins === 1 ? '' : 's'}`;
+}
+
+/** A print still on its way to / through the printer (not finished/failed). */
+function isActiveJob(job) {
+  return Boolean(job) && ['awaiting-approval', 'pending', 'printing', 'claimed'].includes(job.status);
 }
 
 /** True while the job is waiting behind others (worth the numbered queue screen).
@@ -1057,47 +1044,96 @@ function showQueue(job) {
   showResult({
     emoji: '🧾',
     title: q.position <= 1 ? "You're next in line" : `You're number ${q.position} in the queue`,
-    body: `Your print will be ready ${etaText(seconds)}.`,
+    body: `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing — we'll keep your place.`,
     image: job.image,
-    busy: true,
   });
 }
 
-/** Show the live queue standing after a print is accepted, refreshing the
- *  position from the booth and ticking the ETA down, until it is this guest's
- *  turn — then hand off to the normal "printing now / done" flow. */
-function trackQueue(job) {
-  clearQueueTimers();
-  let current = job;
+/** Text for the collapsed queue pill. */
+function updateQueuePill(job) {
+  const pill = $('queuePill');
+  if (stillWaiting(job)) {
+    const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
+    pill.textContent = `🧾 #${job.queue.position} in line · ${etaText(seconds).replace(/^in /, '')}`;
+  } else if (isActiveJob(job)) {
+    pill.textContent = '🖨️ Printing your photo…';
+  } else if (job && (job.status === 'failed' || job.status === 'rejected')) {
+    pill.textContent = '⚠️ Print issue · tap to view';
+  } else {
+    pill.textContent = '🎉 Printed! · tap to view';
+  }
+}
 
-  if (!stillWaiting(current)) {
-    showJob(current);
-    trackJob(current);
+/** Render the current job either as the full modal or, if collapsed, the pill. */
+function renderJob(job) {
+  currentJob = job;
+  if (queueMinimized) {
+    updateQueuePill(job);
     return;
   }
+  if (stillWaiting(job)) showQueue(job);
+  else showJob(job);
+  // Done is always live on a real job: it minimises an active one, or closes a
+  // finished one. (The transient "Building…/Sending…" screens keep it disabled.)
+  $('resultDone').disabled = false;
+}
 
-  showQueue(current);
-  // A local 1s ticker keeps the countdown smooth between booth polls.
-  queueTick = setInterval(() => {
-    if (stillWaiting(current)) showQueue(current);
-  }, 1000);
+/** Collapse the modal to the small queue pill, leaving tracking running. */
+function minimizeQueue() {
+  queueMinimized = true;
+  $('result').classList.add('hidden');
+  $('queuePill').classList.remove('hidden');
+  updateQueuePill(currentJob);
+}
+
+/** Re-open the full modal from the pill. */
+function restoreQueue() {
+  queueMinimized = false;
+  $('queuePill').classList.add('hidden');
+  if (currentJob) renderJob(currentJob);
+}
+
+/** Dismiss the result entirely, KEEPING the current photos/design on screen. */
+function closeResult() {
+  clearQueueTimers();
+  queueMinimized = false;
+  currentJob = null;
+  $('result').classList.add('hidden');
+  $('queuePill').classList.add('hidden');
+}
+
+/** The result modal's Done button. */
+function onResultDone() {
+  if (isActiveJob(currentJob)) minimizeQueue(); // still printing → minimise, don't lose it
+  else closeResult(); // finished/failed → close, but keep the photos as they are
+}
+
+/** Track a print through the queue and printer, updating the modal (or the pill,
+ *  if collapsed) live, until it finishes. Never resets the guest's photos. */
+function trackQueue(job) {
+  clearQueueTimers();
+  queueMinimized = false;
+  $('queuePill').classList.add('hidden');
+  renderJob(job);
+
+  // A 1s ticker keeps the countdown smooth between booth polls.
+  queueTick = setInterval(() => { if (currentJob) renderJob(currentJob); }, 1000);
 
   const deadline = Date.now() + 15 * 60_000;
   queuePoll = setInterval(async () => {
+    let next;
     try {
-      const response = await fetch(`/api/job?id=${encodeURIComponent(current.id)}`);
+      const response = await fetch(`/api/job?id=${encodeURIComponent(currentJob.id)}`);
       if (!response.ok) return;
-      const data = await response.json();
-      current = data.job;
+      next = (await response.json()).job;
     } catch {
       return; // a blip — keep the last standing on screen and try again
     }
-    if (stillWaiting(current) && Date.now() < deadline) {
-      showQueue(current); // refreshed position/readyAt from the booth
-    } else {
+    renderJob(next);
+    if (!isActiveJob(next) || Date.now() >= deadline) {
+      // Finished (printed/failed/rejected): stop polling and the countdown, but
+      // leave the final state on screen — modal if open, pill if collapsed.
       clearQueueTimers();
-      showJob(current); // your turn: printing now, done, failed, or rejected
-      trackJob(current);
     }
   }, 2500);
 }
@@ -1122,8 +1158,12 @@ async function doPrint() {
     toast('Four photos first.');
     return;
   }
-  clearQueueTimers(); // a fresh print supersedes any queue standing on screen
-  showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 300 DPI.', busy: true });
+  // A fresh print supersedes any queue standing (and its collapsed pill) on screen.
+  clearQueueTimers();
+  currentJob = null;
+  queueMinimized = false;
+  $('queuePill').classList.add('hidden');
+  showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 600 DPI.', busy: true });
 
   let result;
   try {
@@ -1323,17 +1363,6 @@ function closeSaveSheet() {
   }
 }
 
-function resetBooth() {
-  clearQueueTimers();
-  state.photos = [null, null, null, null];
-  lastPrintBlob = null;
-  overflowCursor = 0;
-  replaceAllNext = false;
-  $('result').classList.add('hidden');
-  scheduleRender();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 // ---------------------------------------------------------------- session
 
 async function loadSession() {
@@ -1418,7 +1447,8 @@ function bind() {
     const blob = await buildPrintBlob();
     if (blob) await shareToPhotos(blob);
   });
-  $('resultDone').addEventListener('click', resetBooth);
+  $('resultDone').addEventListener('click', onResultDone);
+  $('queuePill').addEventListener('click', restoreQueue);
 
   $('editorClose').addEventListener('click', closeEditor);
   $('editorDone').addEventListener('click', closeEditor);
