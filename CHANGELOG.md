@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.40.2 — 2026-08-26
+
+**The whole post-print flow is one continuous popup.**
+
+- The queue screen ("You're number X in the queue") now shares the same canvas as
+  the sending and printing animations — no jump when you go from "Sending" to
+  waiting in line. Your print is shown held above the printer with a faint stack
+  behind it for the number of prints ahead of you; when it's your turn it feeds
+  straight out. Sending → in-queue → printing → done all flow in one modal, only
+  the wording changing.
+
 ## 1.40.1 — 2026-08-26
 
 **One continuous animation from "Sending" through "Printing".**

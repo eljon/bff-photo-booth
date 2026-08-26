@@ -1093,6 +1093,17 @@ function renderJob(job) {
     $('resultDone').disabled = false;
     return;
   }
+  if (sendRaf != null && stillWaiting(job)) {
+    // Waiting behind other prints — same canvas, the print held in line.
+    setAnimPhase('queue');
+    const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
+    setResultText('🧾',
+      job.queue.position <= 1 ? "You're next in line" : `You're number ${job.queue.position} in the queue`,
+      `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing — we'll keep your place.`);
+    $('resultDone').disabled = false;
+    return;
+  }
+  // Fallbacks (reduced-motion, or the animation already stopped): the plain screens.
   if (stillWaiting(job)) showQueue(job);
   else showJob(job);
   // Done is always live on a real job: it minimises an active one, or closes a
@@ -1181,8 +1192,7 @@ function showResult({ emoji, title, body, image, busy }) {
 // 1/0 bits that fly into a little printer, which glows as it receives them.
 let sendRaf = null;
 let sendUrl = null;
-let animPhase = 'sending'; // sending → printing → done, all in the one canvas
-let animPhaseAt = 0;       // ts when the current phase began (0 = capture next frame)
+let animPhase = 'sending'; // sending → queue → printing → done, all in one canvas
 
 /** Update just the modal's text, leaving the live canvas in place (no swap). */
 function setResultText(emoji, title, body) {
@@ -1197,7 +1207,6 @@ function setResultText(emoji, title, body) {
 function setAnimPhase(phase) {
   if (sendRaf == null || phase === animPhase) return;
   animPhase = phase;
-  animPhaseAt = 0;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -1267,6 +1276,34 @@ function drawPrinterPrinting(ctx, img, cx, top, w, pk, H) {
   ctx.restore();
 }
 
+/** The printer with the guest's print WAITING in line above it, a faint stack
+ *  behind for the number of jobs ahead — the queue phase. */
+function drawPrinterQueue(ctx, img, cx, top, w, H, ts) {
+  drawPrinter(ctx, cx, top, w, 0.28); // idle-but-connected: dim green light
+  const iw = img.naturalWidth || 3, ih = img.naturalHeight || 4, ar = iw / ih;
+  let sw = w * 0.52, sh = sw / ar;
+  const room = top - 8; // space above the printer's intake
+  if (sh > room) { sh = room; sw = sh * ar; }
+  const bob = Math.sin(ts / 520) * 2.5; // gentle "waiting" bob
+  const sx = cx - sw / 2, sy = top - sh - 7 + bob;
+  const pos = (currentJob && currentJob.queue && currentJob.queue.position) || 1;
+  const ahead = Math.min(3, Math.max(0, pos - 1));
+  // faint sheets behind = jobs ahead of you
+  for (let i = ahead; i >= 1; i--) {
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#f6f1ef';
+    roundRect(ctx, sx - i * 4, sy - i * 4, sw, sh, 3); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // your print, waiting
+  ctx.fillStyle = '#f6f1ef';
+  roundRect(ctx, sx - 2, sy - 2, sw + 4, sh + 4, 4); ctx.fill();
+  ctx.save();
+  ctx.beginPath(); ctx.rect(sx, sy, sw, sh); ctx.clip();
+  ctx.drawImage(img, sx, sy, sw, sh);
+  ctx.restore();
+}
+
 function stopSendAnim() {
   if (sendRaf != null) { cancelAnimationFrame(sendRaf); sendRaf = null; }
   if (sendUrl) { URL.revokeObjectURL(sendUrl); sendUrl = null; }
@@ -1326,7 +1363,6 @@ function startSendAnim(img) {
   const TRAVEL = 0.33; // a bit takes this fraction of the cycle to reach the printer
   let t0 = null, glow = 0;
   animPhase = 'sending';
-  animPhaseAt = 0;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `700 ${Math.max(8, ch * 0.95)}px ui-monospace, "SF Mono", monospace`;
@@ -1375,24 +1411,44 @@ function startSendAnim(img) {
     ctx.globalAlpha = 1;
   };
 
+  // Timers/positions that carry across phases — the whole post-tap flow is one
+  // continuous scene: sending → queue (waiting) → printing → done.
+  let prevPhase = 'sending';
+  let leftSending = 0; // ts we left 'sending' (fades the last bits in)
+  let printAt = 0;     // ts the print started emerging
+  let printerTop = mouthY; // eased each frame toward the phase's target position
+
   const step = (ts) => {
     if (t0 == null) t0 = ts;
+    if (animPhase !== prevPhase) {
+      if (prevPhase === 'sending') leftSending = ts;
+      if ((animPhase === 'printing' || animPhase === 'done') && printAt === 0) printAt = ts;
+      prevPhase = animPhase;
+    }
     ctx.clearRect(0, 0, W, H);
     glow *= 0.9;
+
+    // The printer sits low while receiving, then glides to centre to present the
+    // print / hold the queue — one smooth move, no matter which phase is next.
+    const targetTop = animPhase === 'sending' ? mouthY : H * 0.28;
+    printerTop += (targetTop - printerTop) * 0.12;
+
     if (animPhase === 'sending') {
       drawUpper(ts - t0, 1);
-      drawPrinter(ctx, mouthX, mouthY, printerW, glow);
+      drawPrinter(ctx, mouthX, printerTop, printerW, glow);
+      sendRaf = requestAnimationFrame(step);
+      return;
+    }
+
+    // Fade out the last streaming bits as we leave sending.
+    const cf = leftSending ? Math.min(1, (ts - leftSending) / 320) : 1;
+    if (cf < 1) drawUpper(ts - t0, 1 - cf);
+
+    if (animPhase === 'queue') {
+      drawPrinterQueue(ctx, img, mouthX, printerTop, printerW, H, ts);
     } else {
-      // printing / done: the last bits fade out, then the printer glides up to
-      // centre and feeds the actual print out — all in this same canvas.
-      if (animPhaseAt === 0) animPhaseAt = ts;
-      const since = ts - animPhaseAt;
-      const cf = Math.min(1, since / 320);
-      if (cf < 1) drawUpper(ts - t0, 1 - cf); // last bits arriving at the printer
-      const rise = Math.min(1, Math.max(0, (since - 300) / 500));
-      const pTop = mouthY - rise * (mouthY - H * 0.28); // printer rises after the hand-off
-      const pk = Math.min(1, Math.max(0, (since - 320) / 800)); // print emerges
-      drawPrinterPrinting(ctx, img, mouthX, pTop, printerW, pk, H);
+      const pk = printAt ? Math.min(1, Math.max(0, (ts - printAt) / 800)) : 0;
+      drawPrinterPrinting(ctx, img, mouthX, printerTop, printerW, pk, H);
     }
     sendRaf = requestAnimationFrame(step);
   };
