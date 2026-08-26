@@ -228,9 +228,11 @@ function updatePickButton() {
   $('stepText').textContent = full
     ? 'Swipe to choose your favourite layout'
     : 'Choose or take your 4 photos';
-  $('dot1').classList.toggle('on', step === 1);
-  $('dot2').classList.toggle('on', step === 2);
-  $('dot3').classList.remove('on');
+  // A progress bar fills left→right through the steps completed so far — reads as
+  // progress, not as swipeable pages.
+  $('seg1').classList.toggle('done', step >= 1);
+  $('seg2').classList.toggle('done', step >= 2);
+  $('seg3').classList.toggle('done', step >= 3);
   $('stepGuidePrint').classList.toggle('hidden', !full);
 }
 

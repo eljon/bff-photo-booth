@@ -16,13 +16,14 @@
 <div class="app">
   <header class="topbar">
     <h1 id="boothName">Photo Booth</h1>
+    <div class="booth-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   </header>
 
   <section class="stage" aria-label="Print preview">
     <div class="step-guide" id="stepGuide">
       <span class="step-kicker" id="stepKicker">Step 1 of 3</span>
       <span class="step-text" id="stepText">Choose or take your 4 photos</span>
-      <span class="step-dots" aria-hidden="true"><i id="dot1"></i><i id="dot2"></i><i id="dot3"></i></span>
+      <span class="step-prog" aria-hidden="true"><i id="seg1"></i><i id="seg2"></i><i id="seg3"></i></span>
     </div>
 
     <div class="paper-shadow" id="singleWrap">
@@ -51,7 +52,7 @@
     <div class="step-guide step-guide--print hidden" id="stepGuidePrint">
       <span class="step-kicker">Step 3 of 3</span>
       <span class="step-text">Print or save your photo</span>
-      <span class="step-dots" aria-hidden="true"><i></i><i></i><i class="on"></i></span>
+      <span class="step-prog" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="done"></i></span>
     </div>
     <p class="hint problem hidden" id="printProblem"></p>
   </section>

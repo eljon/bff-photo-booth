@@ -51,6 +51,46 @@ body {
 }
 .topbar p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
 
+/* A little filmstrip under the title — a wink at what the booth makes, and it
+   keeps the header from feeling bare now the tagline is gone. Pure CSS: a film
+   body with sprocket holes top and bottom and four tiny photo frames. */
+.booth-strip {
+  width: 176px;
+  height: 42px;
+  margin: 14px auto 0;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 7px;
+  background: #1b1b21;
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 20px -12px #000;
+  position: relative;
+}
+.booth-strip::before,
+.booth-strip::after {
+  content: "";
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  height: 4px;
+  border-radius: 2px;
+  /* sprocket holes punched into the film */
+  background: repeating-linear-gradient(90deg, var(--bg) 0 4px, transparent 4px 11px);
+}
+.booth-strip::before { top: 4px; }
+.booth-strip::after { bottom: 4px; }
+.booth-strip i { width: 21px; height: 18px; border-radius: 3px; display: block; }
+.booth-strip i:nth-child(1) { background: #d94b76; }
+.booth-strip i:nth-child(2) { background: #4b90e6; }
+.booth-strip i:nth-child(3) { background: #8fd694; }
+.booth-strip i:nth-child(4) { background: #e6c34e; }
+/* Only the welcome screen is bare enough to need it; once the guest is picking
+   or arranging, the header is full — hide it so the steps clear the action bar. */
+body:not(.is-empty) .booth-strip { display: none; }
+
 /* ---------------------------------------------------------------- preview */
 
 .stage { display: flex; flex-direction: column; align-items: center; }
@@ -241,13 +281,15 @@ body {
   color: var(--ink);
   text-wrap: balance;
 }
-.step-dots { display: flex; gap: 6px; margin-top: 2px; }
-.step-dots i {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #ffffff2e;
-  transition: background 0.2s ease, transform 0.2s ease;
+/* A segmented progress bar (not page dots): short bars that fill left→right for
+   each step completed, so it reads as "how far along", not a swipeable carousel. */
+.step-prog { display: flex; gap: 5px; margin-top: 5px; }
+.step-prog i {
+  width: 26px; height: 4px; border-radius: 2px;
+  background: #ffffff24;
+  transition: background 0.25s ease;
 }
-.step-dots i.on { background: var(--g3); transform: scale(1.15); }
+.step-prog i.done { background: var(--grad); }
 
 /* At the top of the stage: a little breathing room below the header. In the
    welcome screen it's centred with the button; over the coverflow it sits above. */

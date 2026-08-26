@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.46.0 — 2026-08-26
+
+**A little filmstrip in the header, and clearer step progress.**
+
+- Added a small decorative filmstrip under the title on the welcome screen — a
+  wink at what the booth makes, filling the space the tagline left. It shows only
+  on the opening screen (the rest of the flow already fills the header).
+- The three step "dots" now read as a segmented progress bar that fills
+  left→right as you advance (step 1 → one bar, step 2 → two, step 3 → all three),
+  instead of looking like swipeable page dots.
+
 ## 1.45.2 — 2026-08-26
 
 **Removed the header tagline.**
