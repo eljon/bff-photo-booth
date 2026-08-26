@@ -1177,9 +1177,9 @@ function drawPrinter(ctx, cx, top, w, glow) {
   const by = top;
   if (glow > 0.03) {
     ctx.save();
-    ctx.shadowColor = `rgba(255,92,122,${glow})`;
+    ctx.shadowColor = `rgba(60,255,110,${glow})`;
     ctx.shadowBlur = 22;
-    ctx.fillStyle = `rgba(255,92,122,${glow * 0.35})`;
+    ctx.fillStyle = `rgba(60,255,110,${glow * 0.35})`;
     roundRect(ctx, bx, by + 4, w, bodyH, 12); ctx.fill();
     ctx.restore();
   }
@@ -1264,24 +1264,26 @@ function startSendAnim(img) {
   const step = (ts) => {
     if (t0 == null) t0 = ts;
     const t = ((ts - t0) / T) % 1; // 0..1 within the cycle
-    const diss = Math.min(1, t / DISS); // how far the dissolve line has swept down
-    const yLine = py0 + diss * ph;
+    const diss = Math.min(1, t / DISS); // how far the dissolve has climbed
+    // The line starts at the BOTTOM and sweeps UP: the photo disintegrates from
+    // the bottom edge (nearest the printer) upward.
+    const yLine = py0 + (1 - diss) * ph;
     ctx.clearRect(0, 0, W, H);
     glow *= 0.9;
 
-    // The still-intact part of the ACTUAL photo — everything below the line.
+    // The still-intact photo is everything ABOVE the line.
     if (diss < 1) {
       ctx.save();
       ctx.beginPath();
-      ctx.rect(px0, yLine, pw, (py0 + ph) - yLine);
+      ctx.rect(px0, py0, pw, yLine - py0);
       ctx.clip();
       ctx.drawImage(img, px0, py0, pw, ph);
       ctx.restore();
-      // a glowing scan edge where it's turning to data
+      // a glowing scan edge where the photo is turning to data
       if (diss > 0.002) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(255,92,122,0.9)';
-        ctx.shadowColor = 'rgba(255,92,122,0.9)';
+        ctx.strokeStyle = 'rgba(60,255,120,0.9)';
+        ctx.shadowColor = 'rgba(60,255,120,0.9)';
         ctx.shadowBlur = 8;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -1292,23 +1294,25 @@ function startSendAnim(img) {
       }
     }
 
-    // Bits: a cell converts once the line passes its row, then streams down.
+    // Bits: a cell converts once the line reaches its row (bottom rows first),
+    // then streams down to the printer — Matrix green.
+    ctx.shadowColor = 'rgba(60,255,110,0.9)';
     for (const cell of cells) {
-      const tm = cell.rowFrac * DISS; // moment this row turns to bits
-      if (t <= tm) continue;          // still photo
-      const k = (t - tm) / TRAVEL;    // 0 (just released) → 1 (absorbed)
-      if (k >= 1) continue;           // already received by the printer
+      const tm = (1 - cell.rowFrac) * DISS; // bottom (rowFrac→1) dissolves first
+      if (t <= tm) continue;                // still photo
+      const k = (t - tm) / TRAVEL;          // 0 (just released) → 1 (absorbed)
+      if (k >= 1) continue;                 // already received by the printer
       const e = k * k * (3 - 2 * k);
       const x = cell.hx + (cell.tx - cell.hx) * e + Math.sin(k * 7 + cell.wob * 9) * 3.5 * (1 - e);
       const y = cell.hy + (mouthY - cell.hy) * e;
       ctx.globalAlpha = Math.min(1, (1 - k) * 1.6);
-      ctx.fillStyle = cell.col;
-      ctx.shadowColor = 'rgba(255,92,122,0.85)';
-      ctx.shadowBlur = 6;
+      // a fresh bit flares near-white, then settles to matrix green as it falls
+      ctx.fillStyle = k < 0.12 ? '#d8ffe4' : '#38ff74';
+      ctx.shadowBlur = 7;
       ctx.fillText(cell.char, x, y);
-      ctx.shadowBlur = 0;
       if (k > 0.9) glow = 1;
     }
+    ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
     drawPrinter(ctx, mouthX, mouthY, printerW, glow);
     sendRaf = requestAnimationFrame(step);
@@ -1547,14 +1551,15 @@ function closeSaveSheet() {
 
 // ---------------------------------------------------------------- session
 
+let reconnectTimer = null;
+
 async function loadSession() {
+  let ok = false;
   try {
-    const response = await fetch('/api/session');
-    const data = await response.json();
-    Object.assign(session, data, { online: true });
-  } catch {
-    session.online = false;
-  }
+    const response = await fetch('/api/session', { cache: 'no-store' });
+    if (response.ok) { Object.assign(session, await response.json(), { online: true }); ok = true; }
+  } catch { /* booth unreachable — handled below */ }
+  if (!ok) session.online = false;
 
   $('boothName').textContent = session.boothName;
   document.title = session.boothName;
@@ -1562,19 +1567,29 @@ async function loadSession() {
   $('version').textContent = session.version ? `v${session.version}` : '';
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
-  if (session.keyRequired && !accessKey) {
+  // Print vs save-only — toggled BOTH ways, so when the booth comes back after a
+  // restart or a dropped tunnel, printing turns itself back on with no refresh.
+  const canPrint = session.online && session.printingEnabled;
+  $('printBtn').classList.toggle('hidden', !canPrint);
+  $('saveBtn').classList.toggle('btn-ghost', canPrint);
+  $('saveBtn').classList.toggle('btn-primary', !canPrint);
+  $('saveBtn').textContent = 'Save to phone';
+  $('saveBtn').style.flex = canPrint ? '' : '1';
+
+  if (!session.online) {
+    showProblem('Reconnecting to the booth… you can still save the photo to your phone.');
+  } else if (session.keyRequired && !accessKey) {
     showProblem('Scan the booth QR code to unlock printing — you can still save to your phone.');
+  } else {
+    showProblem('');
   }
 
-  if (!session.printingEnabled || !session.online) {
-    $('printBtn').classList.add('hidden');
-    $('saveBtn').classList.remove('btn-ghost');
-    $('saveBtn').classList.add('btn-primary');
-    $('saveBtn').textContent = 'Save to phone';
-    $('saveBtn').style.flex = '1';
-  }
   scheduleRender();
-  if (session.online && session.printingEnabled) refreshPrinter();
+  if (canPrint) refreshPrinter();
+
+  // Keep trying while the booth is unreachable, so the page heals on its own.
+  clearTimeout(reconnectTimer);
+  if (!session.online) reconnectTimer = setTimeout(loadSession, 5000);
 }
 
 /** A one-line warning, shown only when something would stop a print. */

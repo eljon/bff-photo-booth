@@ -1049,14 +1049,19 @@ server.listen(PORT, HOST, async () => {
   }
 });
 
-// A booth runs unattended through a whole party. A stray error — a flaky lpstat,
-// a printer that vanishes mid-job — must never take the guest app offline, so log
-// it and keep serving rather than letting Node exit on an unhandled rejection.
+// A booth runs unattended through a whole party. An isolated promise rejection
+// (a flaky lpstat, a printer that vanishes mid-job) is safe to log and shrug off.
 process.on('unhandledRejection', (err) => {
   console.error('  ⚠ unhandled rejection (booth kept running):', err && err.message ? err.message : err);
 });
+// An uncaught exception, though, can leave the process in a broken state that
+// still "runs" but serves nothing — the dead-but-alive booth. Log it and EXIT so
+// the supervisor (npm start → server/booth.js) brings up a clean one right away,
+// instead of sitting there wedged.
 process.on('uncaughtException', (err) => {
-  console.error('  ⚠ uncaught exception (booth kept running):', err && err.stack ? err.stack : err);
+  console.error('  ⚠ fatal error — restarting the booth:', err && err.stack ? err.stack : err);
+  try { tunnel.close(); } catch { /* ignore */ }
+  process.exit(1);
 });
 
 process.on('SIGINT', () => {

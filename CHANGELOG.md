@@ -15,6 +15,26 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.40.0 — 2026-08-26
+
+**Self-healing booth, and a Matrix-style transmit animation.**
+
+- **The booth restarts itself.** `npm start` now runs a small supervisor that
+  relaunches the server if it ever exits, so an unattended party booth comes back
+  on its own instead of sitting dead. (`npm start -- --tunnel=tailscale` works
+  exactly as before; args pass straight through. `npm run start:once` runs it
+  unsupervised.)
+- **No more "running but serving nothing."** A fatal error used to be swallowed,
+  leaving a process that looked alive but served a blank page. It now logs the
+  error and exits so the supervisor brings up a clean one immediately. (Isolated
+  promise rejections are still shrugged off, as before.)
+- **The guest page reconnects on its own.** If it can't reach the booth (a
+  restart, a dropped tunnel) it shows "Reconnecting to the booth…" and keeps
+  retrying, then turns printing back on the moment the booth answers — no manual
+  refresh.
+- **Transmit animation:** the photo now disintegrates from the **bottom up**, and
+  the bits are **Matrix green** streaming into the printer's green-lit slot.
+
 ## 1.39.1 — 2026-08-25
 
 **Show the actual photo disintegrating, top to bottom.**
