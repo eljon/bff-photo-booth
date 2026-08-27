@@ -490,24 +490,39 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   filter: drop-shadow(0 8px 16px #0006);
 }
 .commit.animating .commit-goo { filter: url(#goo) drop-shadow(0 9px 18px #0006); }
+/* THE cut-off fix. Each blob element FILLS the tall goo box (top:0/bottom:0); its
+   visible pill is drawn by a centred ::before. An animating transform promotes a
+   blob to its own compositing layer, and Safari rasterises that layer to the
+   ELEMENT'S box *before* the parent goo filter blurs it — so when the element was
+   only as tall as the pill (72px) the blur had no headroom and came out sliced flat
+   top and bottom, no matter how big .commit-goo was (enlarging the box never helped
+   because the clip is at the blob's own layer, not the box). A full-height element
+   gives that layer ~60px of clear space above and below the pill, so the blur and the
+   metaball's rounded ends render in full. */
 .blob {
   position: absolute;
-  top: 60px; /* re-centre the blobs inside the taller goo box (matches the -60 above) */
-  height: 72px;
-  border-radius: 36px;
+  top: 0;
+  bottom: 0;
   transform-origin: center;
-  will-change: transform, opacity;
 }
-/* Closed, the check is a TRUE circle (b-center: a real 56px round element, so no
-   squished-pill corners). The two pill blobs are hidden behind it and only appear
-   for the split, where the goo filter rounds them into blobs anyway. */
+.blob::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%; height: 72px; margin-top: -36px; /* the pill, centred in the tall box */
+  border-radius: 36px;
+  background: var(--grad);
+}
+/* Closed, the check is a TRUE circle: b-center's ::before is a 72×72 round element,
+   so no squished-pill corners. The two pill blobs sit behind it and only appear for
+   the split, where the goo filter rounds them into blobs anyway. */
 .b-center {
-  left: 50%; top: 60px; width: 72px; height: 72px; margin-left: -36px;
-  border-radius: 50%; background: var(--grad);
+  left: 50%; width: 72px; margin-left: -36px;
   transition: transform 0.28s ease, opacity 0.24s ease;
 }
-.b-save   { left: 0;  width: calc(50% - 24px); background: var(--grad); opacity: 0; }
-.b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); opacity: 0; }
+.b-center::before { border-radius: 50%; }
+.b-save   { left: 0;  width: calc(50% - 24px); opacity: 0; }
+.b-print  { right: 0; width: calc(50% - 24px); opacity: 0; }
 .b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.46); }
 .b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
 /* Open: centre circle shrinks away; the two blobs light up. The RESTING open pose

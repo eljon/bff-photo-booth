@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.54.2 — 2026-08-27
+
+**Actually fixed the gooey split's flat top and bottom (for real, on Safari).**
+
+- The earlier "give the goo box more headroom" fixes couldn't work: the clip isn't at
+  the goo box at all. When a blob animates, Safari puts it on its own layer and
+  rasterises that layer to the *blob's own box* (72px) before the parent goo filter
+  blurs it — so the blur was pre-sliced flat at the pill's edges no matter how big the
+  surrounding box was.
+- Each blob now fills the full-height goo box, with its visible pill drawn by a centred
+  inner element. That gives the blob's layer ~60px of clear space above and below the
+  pill, so the blur and the metaball's rounded ends render in full. No more flat tops
+  and bottoms.
+
 ## 1.54.1 — 2026-08-27
 
 **Fixed the pinch freezing for seconds.**
