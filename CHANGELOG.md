@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.6 — 2026-08-27
+
+**The tick flies fully out on any swipe, and back when the coverflow finishes.**
+
+- No longer proportional to speed: even a slight swipe latches the direction and shoots
+  the tick all the way out of the button (clipped away), where it stays for the whole
+  coverflow move — then it flies back to centre once the deck settles.
+
 ## 1.56.5 — 2026-08-27
 
 **Only the tick flies now — and it's clipped to the button.**

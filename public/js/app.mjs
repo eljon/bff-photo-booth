@@ -521,16 +521,16 @@ function stopSpring() {
   }
 }
 
-// Just the TICK (the ✓ glyph) flies in the swipe direction while the deck moves — the
-// button's circular clip hides it the moment it crosses the edge, so it slides out of
-// the button and vanishes, then flies back to centre as the deck settles. Driven off
-// cfPos so it tracks the finger drag and the momentum glide; a spring pulls it home.
-// finger-left (cfPos rising) → flies left.
+// Just the TICK (the ✓ glyph) flies fully OUT of the button in the swipe direction the
+// moment the deck starts moving — even a slight swipe sends it all the way out (the
+// button's circular clip hides it past the edge) — and it stays out for the whole
+// coverflow, then flies back to centre once the deck settles. It's not proportional to
+// speed: any swipe latches a direction and drives the tick to a fixed full-out offset.
 let flyRaf = null;
 let flyLast = 0;
-let flyX = 0; // current x offset (px), eased toward the target
-const FLY_MAX = 64; // just past the circle's edge — far enough to fully clip the tick
-const FLY_K = 620;  // deck-speed → fly-distance
+let flyX = 0;    // current x offset (px), eased toward the target
+let flyDir = 0;  // latched swipe direction (-1 left, +1 right, 0 none yet)
+const FLY_OUT = 70; // past the circle's edge → the tick is fully clipped away
 function startFly() {
   if (flyRaf !== null || reduceMotion()) return;
   flyLast = cfPos;
@@ -538,11 +538,14 @@ function startFly() {
   const loop = () => {
     const vel = cfPos - flyLast; // deck speed, card-units per frame
     flyLast = cfPos;
-    const target = Math.max(-FLY_MAX, Math.min(FLY_MAX, -vel * FLY_K)); // fly WITH the swipe
-    flyX += (target - flyX) * 0.3; // spring toward it (and home to 0 once the deck stops)
+    if (Math.abs(vel) > 0.002) flyDir = -Math.sign(vel); // latch the swipe direction
+    // Fully out while the deck is in motion; home once it has settled.
+    const target = cfBusy ? FLY_OUT * flyDir : 0;
+    flyX += (target - flyX) * 0.4;
     tick.style.transform = Math.abs(flyX) < 0.15 ? '' : `translateX(${flyX.toFixed(1)}px)`;
-    if (!cfBusy && Math.abs(flyX) < 0.4 && Math.abs(vel) < 0.0006) {
+    if (!cfBusy && Math.abs(flyX) < 0.4) {
       tick.style.transform = '';
+      flyDir = 0;
       flyRaf = null;
       return;
     }
