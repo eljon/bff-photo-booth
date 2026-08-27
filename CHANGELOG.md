@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.53.0 — 2026-08-26
+
+**Save/Share opens the share sheet directly.**
+
+- Tapping Save/Share now hands the photo straight to the OS share sheet (Save to
+  Photos, Messages, Facebook, AirDrop… all live there). Removed the old
+  "touch and hold to save" interstitial that used to appear first on phones.
+
 ## 1.52.0 — 2026-08-26
 
 **Bigger check button, lifted over the coverflow reflection.**

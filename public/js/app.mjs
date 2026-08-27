@@ -1621,12 +1621,6 @@ function downloadBlob(blob) {
  * Photos app. A download link would only drop it in Files, which is not where
  * anyone looks for a photo.
  */
-let saveObjectUrl = null;
-
-function isTouchDevice() {
-  return 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
-}
-
 /** The share sheet's "Save Image" also lands in Photos — kept as the fallback. */
 async function shareToPhotos(blob) {
   const file = printFile(blob);
@@ -1661,12 +1655,8 @@ async function buildPrintBlob() {
 }
 
 
-/**
- * On a phone, show the finished photo big and let the guest press-and-hold it —
- * iOS and Android both offer "Save to Photos" / "Download image" from that, and
- * it goes straight to the camera roll with no share sheet in the way. On a
- * desktop, where there is no long-press, go straight to share/download.
- */
+/** Save/Share hands the photo straight to the OS share sheet (Save to Photos,
+ *  Messages, Facebook, etc. all live there) — no interstitial in the way. */
 async function savePhoto() {
   if (filledCount() < 4) {
     toast('Four photos first.');
@@ -1674,24 +1664,7 @@ async function savePhoto() {
   }
   const blob = await buildPrintBlob();
   if (!blob) return;
-
-  if (!isTouchDevice()) {
-    await shareToPhotos(blob);
-    return;
-  }
-
-  if (saveObjectUrl) URL.revokeObjectURL(saveObjectUrl);
-  saveObjectUrl = URL.createObjectURL(blob);
-  $('saveImage').src = saveObjectUrl;
-  $('saveSheet').classList.remove('hidden');
-}
-
-function closeSaveSheet() {
-  $('saveSheet').classList.add('hidden');
-  if (saveObjectUrl) {
-    URL.revokeObjectURL(saveObjectUrl);
-    saveObjectUrl = null;
-  }
+  await shareToPhotos(blob);
 }
 
 // ---------------------------------------------------------------- session
@@ -1790,11 +1763,6 @@ function bind() {
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
   $('resultSave').addEventListener('click', savePhoto);
-  $('saveClose').addEventListener('click', closeSaveSheet);
-  $('saveShare').addEventListener('click', async () => {
-    const blob = await buildPrintBlob();
-    if (blob) await shareToPhotos(blob);
-  });
   $('resultDone').addEventListener('click', onResultDone);
   $('queuePill').addEventListener('click', restoreQueue);
 

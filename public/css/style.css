@@ -742,31 +742,6 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 /* ---------------------------------------------------------------- result */
 
-.save-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  padding: 22px 20px;
-  text-align: center;
-  max-width: 420px;
-  width: 100%;
-}
-.save-card h2 { margin: 0 0 6px; font-size: 20px; }
-.save-how { margin: 0 0 16px; color: var(--ink-dim); font-size: 14px; line-height: 1.5; }
-.save-how strong { color: var(--ink); }
-.save-image {
-  display: block;
-  width: 100%;
-  max-width: 260px;
-  margin: 0 auto 20px;
-  border-radius: 8px;
-  box-shadow: 0 12px 30px -14px #000;
-  /* let the OS offer its image context menu, and never hijack the long press */
-  -webkit-touch-callout: default;
-  touch-action: manipulation;
-  user-select: none;
-}
-
 .result-card {
   background: var(--card);
   border: 1px solid var(--line);
