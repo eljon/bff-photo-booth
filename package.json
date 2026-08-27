@@ -1,6 +1,6 @@
 {
   "name": "bff-photo-booth",
-  "version": "1.53.1",
+  "version": "1.53.2",
   "private": true,
   "description": "Mobile-first self-shoot photo booth: guests build a 4-photo strip on their phone, it prints from the MacBook running this server.",
   "license": "MIT",

@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.53.2 — 2026-08-26
+
+**Fixed the flat cutoff on the gooey split.**
+
+- The metaball goo was being clipped at the top and bottom by the SVG filter's
+  default render region, flattening the blobs. Widened the filter region so the
+  blur and squash-and-stretch have room — the blobs now stay fully rounded
+  throughout the split.
+
 ## 1.53.1 — 2026-08-26
 
 **Smaller check, queue widget in the corner.**

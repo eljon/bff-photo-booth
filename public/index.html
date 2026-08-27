@@ -129,7 +129,10 @@
      fuse into liquid blobs and pull apart with a stretching neck. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <filter id="goo">
+    <!-- Wide region so the blur + squash/stretch never gets clipped at the edges
+         (the default region is only ~10% past the box, which sliced the goo off
+         top and bottom). -->
+    <filter id="goo" x="-60%" y="-120%" width="220%" height="340%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur"/>
       <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11" result="goo"/>
       <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
