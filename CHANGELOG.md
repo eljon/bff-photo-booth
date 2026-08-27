@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.4 — 2026-08-27
+
+**The check button flies with the swipe, then flies home.**
+
+- Reverted the colour fade — the gradient stays. Now as you swipe or fling the coverflow,
+  the whole check button flies off in the direction of travel (further the faster you
+  swipe, up to a limit), then springs back to centre as the deck settles.
+
 ## 1.56.3 — 2026-08-27
 
 **While you swipe, the check goes bare; the colour eases back when you stop.**

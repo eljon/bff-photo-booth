@@ -485,7 +485,6 @@ function glideStep() {
     setCurrent(cfPos);
     cfRaf = null;
     cfBusy = false;
-    setSwiping(false); // deck settled — ease the colour back in
     warmPrint(); // settled — now it is safe to render the print ahead of time
     return;
   }
@@ -497,7 +496,7 @@ function glideTo(index) {
   cfBounceBack = null;
   cfTarget = clampPos(Math.round(index));
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-  setSwiping(true); // colour stays away through the momentum glide
+  startFly(); // keep it flying through the momentum glide, home when it settles
 }
 
 /** Bounce off an end: overshoot a touch past the edge, then spring back to it —
@@ -506,7 +505,7 @@ function bounceEdge(edge) {
   cfBounceBack = edge;
   cfTarget = edge + (edge === 0 ? -0.3 : 0.3);
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-  setSwiping(true);
+  startFly();
 }
 
 /** Rubber-band resistance for dragging past an end: the further past, the less
@@ -522,10 +521,32 @@ function stopSpring() {
   }
 }
 
-// While the deck is being swiped or glided, the coloured goo disappears — leaving just
-// the bare tick — then the colour eases back in once it settles (the fade timing lives
-// in CSS: quick out on `.swiping`, gradual in when it's removed).
-const setSwiping = (on) => $('commit').classList.toggle('swiping', on);
+// The check button FLIES in the swipe direction while the deck moves, then flies back
+// to centre as it settles. Driven off cfPos so it tracks the finger drag and the
+// momentum glide; a spring pulls it home. finger-left (cfPos rising) → flies left.
+let flyRaf = null;
+let flyLast = 0;
+let flyX = 0; // current x offset (px), eased toward the target
+const FLY_MAX = 135; // how far it flies at full speed
+const FLY_K = 620;   // deck-speed → fly-distance
+function startFly() {
+  if (flyRaf !== null || reduceMotion()) return;
+  flyLast = cfPos;
+  const loop = () => {
+    const vel = cfPos - flyLast; // deck speed, card-units per frame
+    flyLast = cfPos;
+    const target = Math.max(-FLY_MAX, Math.min(FLY_MAX, -vel * FLY_K)); // fly WITH the swipe
+    flyX += (target - flyX) * 0.3; // spring toward it (and home to 0 once the deck stops)
+    $('commit').style.transform = Math.abs(flyX) < 0.15 ? '' : `translateX(${flyX.toFixed(1)}px)`;
+    if (!cfBusy && Math.abs(flyX) < 0.4 && Math.abs(vel) < 0.0006) {
+      $('commit').style.transform = '';
+      flyRaf = null;
+      return;
+    }
+    flyRaf = requestAnimationFrame(loop);
+  };
+  flyRaf = requestAnimationFrame(loop);
+}
 
 function stopIntro() {
   if (introRaf != null) {
@@ -878,7 +899,7 @@ function bindCoverflow() {
     cfBusy = true;
     clearTimeout(warmTimer); // cancel any warm queued before the gesture began
     stopSpring(); // grab it wherever it is — like catching a spinning wheel
-    setSwiping(true); // the colour drops away while the deck moves
+    startFly(); // the check button starts flying with the drag
   });
 
   cf.addEventListener('pointermove', (event) => {
