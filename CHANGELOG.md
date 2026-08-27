@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.0 — 2026-08-27
+
+**The check button is fluid — it leans and stretches with the deck.**
+
+- As you swipe or fling the coverflow, the check/commit control now leans and stretches
+  like jelly in the direction of travel — the metaball switches on so its edges go
+  liquid — then springs back to rest once the deck settles. The lean tracks the deck's
+  actual speed (finger drag and momentum glide alike), so a gentle swipe barely tilts it
+  and a hard fling pulls it right over. Respects reduced-motion.
+
 ## 1.55.5 — 2026-08-27
 
 **The split now settles smoothly into the rounded rectangle — no more snap.**

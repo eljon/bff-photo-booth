@@ -496,6 +496,7 @@ function glideTo(index) {
   cfBounceBack = null;
   cfTarget = clampPos(Math.round(index));
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
+  startGooFollow(); // keep the check leaning through the momentum glide
 }
 
 /** Bounce off an end: overshoot a touch past the edge, then spring back to it —
@@ -504,6 +505,7 @@ function bounceEdge(edge) {
   cfBounceBack = edge;
   cfTarget = edge + (edge === 0 ? -0.3 : 0.3);
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
+  startGooFollow();
 }
 
 /** Rubber-band resistance for dragging past an end: the further past, the less
@@ -516,6 +518,52 @@ function stopSpring() {
   if (cfRaf != null) {
     cancelAnimationFrame(cfRaf);
     cfRaf = null;
+  }
+}
+
+// The check/commit control is fluid: as the deck is dragged or glides, it leans and
+// stretches like jelly in the direction of travel, with the metaball on so the edges
+// go liquid, then wobbles back to rest when the deck settles. Driven off cfPos so it
+// tracks both the finger drag and the momentum glide.
+let gooFollowRaf = null;
+let gooFollowLast = 0;
+let gooLean = 0; // eased lean in [-1,1]; sign is the swipe direction
+function startGooFollow() {
+  if (gooFollowRaf !== null || reduceMotion()) return;
+  gooFollowLast = cfPos;
+  const loop = () => {
+    const vel = cfPos - gooFollowLast; // deck speed in card-units per frame
+    gooFollowLast = cfPos;
+    const target = Math.max(-1, Math.min(1, vel * 3.4)); // map speed → lean, clamped
+    gooLean += (target - gooLean) * 0.4;                 // ease toward it (springy)
+    applyGooStretch(gooLean);
+    // Park once the deck has settled AND the lean has relaxed back to nothing.
+    if (!cfBusy && Math.abs(gooLean) < 0.004 && Math.abs(vel) < 0.0006) {
+      applyGooStretch(0);
+      gooFollowRaf = null;
+      return;
+    }
+    gooFollowRaf = requestAnimationFrame(loop);
+  };
+  gooFollowRaf = requestAnimationFrame(loop);
+}
+function applyGooStretch(s) {
+  const commit = $('commit');
+  if (commit.classList.contains('hidden')) { commit.style.transform = ''; return; }
+  if (Math.abs(s) < 0.001) {
+    commit.style.transform = '';
+    if (!commit.classList.contains('animating')) { commit.classList.remove('flex'); setGooBlur(GOO_MIN); }
+    return;
+  }
+  const a = Math.abs(s);
+  // Lean in the travel direction, stretch along it and squash across — a jelly pull.
+  const t = `translateX(${(s * 15).toFixed(2)}px) skewX(${(s * -9).toFixed(2)}deg) `
+    + `scale(${(1 + a * 0.2).toFixed(3)}, ${(1 - a * 0.13).toFixed(3)})`;
+  commit.style.transform = t;
+  // Don't fight a split/merge for the blur — it owns the filter while animating.
+  if (!commit.classList.contains('animating')) {
+    commit.classList.add('flex');
+    setGooBlur(4 + a * 9); // more lean → more liquid
   }
 }
 
@@ -870,6 +918,7 @@ function bindCoverflow() {
     cfBusy = true;
     clearTimeout(warmTimer); // cancel any warm queued before the gesture began
     stopSpring(); // grab it wherever it is — like catching a spinning wheel
+    startGooFollow(); // the check button starts leaning with the drag
   });
 
   cf.addEventListener('pointermove', (event) => {
