@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.7 — 2026-08-27
+
+**The tick now flies out opposite the swipe.**
+
+- Flipped the fly direction: swipe left and the tick shoots out the right of the button,
+  swipe right and it goes left — then flies back when the deck settles.
+
 ## 1.56.6 — 2026-08-27
 
 **The tick flies fully out on any swipe, and back when the coverflow finishes.**

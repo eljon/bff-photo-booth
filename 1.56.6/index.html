@@ -2138,11 +2138,11 @@ function stopSpring() {
   }
 }
 
-// Just the TICK (the ✓ glyph) flies fully OUT of the button in the swipe direction the
-// moment the deck starts moving — even a slight swipe sends it all the way out (the
-// button's circular clip hides it past the edge) — and it stays out for the whole
-// coverflow, then flies back to centre once the deck settles. It's not proportional to
-// speed: any swipe latches a direction and drives the tick to a fixed full-out offset.
+// Just the TICK (the ✓ glyph) flies fully OUT of the button, OPPOSITE the swipe
+// direction, the moment the deck starts moving — even a slight swipe sends it all the
+// way out (the button's circular clip hides it past the edge) — and it stays out for
+// the whole coverflow, then flies back to centre once the deck settles. It's not
+// proportional to speed: any swipe latches a direction and drives it to a fixed offset.
 let flyRaf = null;
 let flyLast = 0;
 let flyX = 0;    // current x offset (px), eased toward the target
@@ -2155,7 +2155,7 @@ function startFly() {
   const loop = () => {
     const vel = cfPos - flyLast; // deck speed, card-units per frame
     flyLast = cfPos;
-    if (Math.abs(vel) > 0.002) flyDir = -Math.sign(vel); // latch the swipe direction
+    if (Math.abs(vel) > 0.002) flyDir = Math.sign(vel); // latch OPPOSITE the swipe direction
     // Fully out while the deck is in motion; home once it has settled.
     const target = cfBusy ? FLY_OUT * flyDir : 0;
     flyX += (target - flyX) * 0.4;
