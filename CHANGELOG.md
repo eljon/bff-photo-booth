@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.58.0 — 2026-08-27
+
+**Event sticker on every print.**
+
+- The "Building Forever Families 2026" sticker is now dropped onto each watercolor print
+  — one per page, automatically placed in whichever corner overlaps the photos the
+  least, so it sits mostly on the decorative border and only kisses a photo edge.
+
 ## 1.57.1 — 2026-08-27
 
 **Fixed the coverflow jank the watercolor paper introduced.**

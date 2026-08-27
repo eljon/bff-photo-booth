@@ -290,11 +290,52 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
     }
   });
 
+  // One sticker per page, dropped into whichever corner covers the photos the least.
+  if (frame.art && frame.sticker) {
+    const st = artImage(frame.sticker);
+    if (st) {
+      const s = placeSticker(st, cells, P, frame.stickerW || 0.32);
+      ctx.save();
+      ctx.shadowColor = 'rgba(40,30,20,0.3)';
+      ctx.shadowBlur = Math.min(s.w * 0.03, 8);
+      ctx.shadowOffsetY = 3;
+      ctx.drawImage(st, s.x, s.y, s.w, s.h);
+      ctx.restore();
+    }
+  }
+
   drawCutLine(ctx, layout, frame);
   for (const box of layout.captions) drawCaption(ctx, box, frame, state.caption, state.subtitle);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   return canvas;
+}
+
+function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+  const ix = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx));
+  const iy = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
+  return ix * iy;
+}
+/** Place the sticker in the page corner whose rectangle overlaps the photo cells the
+ *  least — so it lands mostly on the decorative border and only kisses a photo edge. */
+function placeSticker(img, cells, page, widthFrac) {
+  const w = page.w * widthFrac;
+  const h = w * (img.height / img.width);
+  const m = page.w * 0.012; // a hair in from the paper edge
+  const corners = [
+    { x: m, y: m },
+    { x: page.w - w - m, y: m },
+    { x: m, y: page.h - h - m },
+    { x: page.w - w - m, y: page.h - h - m },
+  ];
+  let best = corners[0];
+  let least = Infinity;
+  for (const c of corners) {
+    let ov = 0;
+    for (const cell of cells) ov += rectOverlap(c.x, c.y, w, h, cell.x, cell.y, cell.w, cell.h);
+    if (ov < least) { least = ov; best = c; }
+  }
+  return { x: best.x, y: best.y, w, h };
 }
 
 /** Squeeze the layout's edge-to-edge cells into the paper's clear centre, and give

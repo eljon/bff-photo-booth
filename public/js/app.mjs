@@ -151,7 +151,7 @@ function scheduleRender() {
 
 // Warm the watercolor papers up front so the coverflow and preview show them with no
 // flash of blank paper; each one re-renders as it arrives.
-preloadArt([...FRAMES.watercolor.art.portrait, ...FRAMES.watercolor.art.land], scheduleRender);
+preloadArt([...FRAMES.watercolor.art.portrait, ...FRAMES.watercolor.art.land, FRAMES.watercolor.sticker], scheduleRender);
 
 function previewScale(layout) {
   const dpr = Math.min(3, window.devicePixelRatio || 1);
