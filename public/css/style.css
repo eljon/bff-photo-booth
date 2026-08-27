@@ -502,48 +502,41 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   transform-origin: center;
   will-change: transform, opacity;
 }
-.b-center {
-  left: 50%; width: 88px; margin-left: -44px; background: var(--grad);
-}
-.b-save   { left: 0;  width: calc(50% - 26px); background: #45414f; }
-.b-print  { right: 0; width: calc(50% - 26px); background: var(--grad); }
-/* Closed: the side blobs are tiny droplets tucked into the centre so the goo
-   fuses everything into a single check-sized pill. */
-.b-save   { transform: translateX(calc(50% + 26px)) scale(0.16); }
-.b-print  { transform: translateX(calc(-50% - 26px)) scale(0.16); }
+/* Two round gradient blobs. `scaleX(0.42)` squeezes each full-width pill down to
+   a round blob; both sit dead-centre and overlap, so the goo fuses them into a
+   single round check pill. */
+.b-save   { left: 0;  width: calc(50% - 24px); background: var(--grad); }
+.b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); }
+.b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.42); }
+.b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.42); }
 
-/* Open: a real gooey split. The centre pill (the "origin") stretches wide and
-   thin — squashing and elongating into a liquid bar — then thins to nothing as it
-   pinches. The two halves start as tiny droplets and grow along that bar toward
-   the ends, overshooting and jiggling (squash/stretch) as they settle — so they
-   look like they inflate out of the slime. */
-@keyframes gooOrigin {
-  0%   { transform: scaleX(1)   scaleY(1);    opacity: 1; }
-  26%  { transform: scaleX(2.1) scaleY(0.72); opacity: 1; }
-  50%  { transform: scaleX(2.9) scaleY(0.36); opacity: 1; }
-  72%  { transform: scaleX(2.5) scaleY(0.14); opacity: 0.75; }
-  88%  { transform: scaleX(1.5) scaleY(0.04); opacity: 0; }
-  100% { transform: scaleX(1.5) scaleY(0.04); opacity: 0; }
-}
+/* Open: the two round blobs pull apart as ROUND blobs — the goo filter draws a
+   real liquid neck between them that stretches and pinches (ease-in start so they
+   linger close and the neck lasts). Once apart, each blob unsqueezes from circle
+   to full pill with an elastic overshoot + squash-and-stretch jiggle, so it reads
+   as inflating out of the slime. */
 @keyframes gooBirthLeft {
-  0%   { transform: translateX(calc(50% + 26px)) scale(0.16); }
-  30%  { transform: translateX(calc(50% + 26px)) scale(0.62); }
-  60%  { transform: translateX(calc(26% + 13px)) scaleX(1.0) scaleY(0.92); }
-  80%  { transform: translateX(0) scaleX(1.12) scaleY(1.1); }   /* overshoot bulge */
-  90%  { transform: translateX(0) scaleX(1.05) scaleY(0.94); }  /* jiggle back */
+  0%   { transform: translateX(calc(50% + 24px)) scaleX(0.42) scaleY(1);
+         animation-timing-function: cubic-bezier(0.85, 0, 0.9, 0.35); } /* very slow start: neck lingers and stretches */
+  52%  { transform: translateX(0) scaleX(0.42) scaleY(1.05);
+         animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }   /* arrived, round, about to inflate */
+  70%  { transform: translateX(0) scaleX(1.09) scaleY(0.85); }          /* inflate wide, squash */
+  85%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }          /* rebound tall */
+  94%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }          /* settle jiggle */
   100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
 @keyframes gooBirthRight {
-  0%   { transform: translateX(calc(-50% - 26px)) scale(0.16); }
-  30%  { transform: translateX(calc(-50% - 26px)) scale(0.62); }
-  60%  { transform: translateX(calc(-26% - 13px)) scaleX(1.0) scaleY(0.92); }
-  80%  { transform: translateX(0) scaleX(1.12) scaleY(1.1); }
-  90%  { transform: translateX(0) scaleX(1.05) scaleY(0.94); }
+  0%   { transform: translateX(calc(-50% - 24px)) scaleX(0.42) scaleY(1);
+         animation-timing-function: cubic-bezier(0.85, 0, 0.9, 0.35); }
+  52%  { transform: translateX(0) scaleX(0.42) scaleY(1.05);
+         animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }
+  70%  { transform: translateX(0) scaleX(1.09) scaleY(0.85); }
+  85%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }
+  94%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }
   100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
-.commit.open .b-center { animation: gooOrigin 0.95s cubic-bezier(0.45, 0, 0.35, 1) forwards; }
-.commit.open .b-save  { animation: gooBirthLeft 1.02s cubic-bezier(0.32, 0.9, 0.4, 1) forwards; }
-.commit.open .b-print { animation: gooBirthRight 1.02s cubic-bezier(0.32, 0.9, 0.4, 1) forwards; }
+.commit.open .b-save  { animation: gooBirthLeft 1.15s forwards; }
+.commit.open .b-print { animation: gooBirthRight 1.15s forwards; }
 
 /* crisp overlays */
 .check-btn {
@@ -600,9 +593,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .commit.save-only.open .b-save { transform: translateX(0) scale(1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .b-center, .check-btn, .commit-pair { transition-duration: 0.001s; }
-  .commit.open .b-save { animation: none; transform: translateX(0) scale(1); }
-  .commit.open .b-print { animation: none; transform: translateX(0) scale(1); }
+  .check-btn, .commit-pair { transition-duration: 0.001s; }
+  .commit.open .b-save { animation: none; transform: translateX(0) scaleX(1) scaleY(1); }
+  .commit.open .b-print { animation: none; transform: translateX(0) scaleX(1) scaleY(1); }
 }
 
 /* ---------------------------------------------------------------- sheet */

@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.2 — 2026-08-26
+
+**Rebuilt the gooey split so it reads as real slime.**
+
+- The previous version squished the centre into a flat lens — not liquid. Now two
+  round blobs pull apart as *round* blobs, and a strong metaball filter draws a
+  genuine liquid neck between them that stretches thin and pinches off (slow ease-in
+  so it lingers). The two halves then inflate from small round blobs into the full
+  pills with an elastic squash-and-stretch bounce. Both halves share the gradient
+  so the slime reads as one colour splitting in two.
+
 ## 1.50.1 — 2026-08-26
 
 **A properly gooey split.**
