@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.57.1 — 2026-08-27
+
+**Fixed the coverflow jank the watercolor paper introduced.**
+
+- The full-bleed paper made the speculative "warm" print render a heavy job that blocked
+  the main thread ~350ms and stuttered the swipe. Two measured fixes: the warm render
+  (only ever used for Save/Share to the phone) now runs at 300 DPI instead of 600 — the
+  actual printer render stays full 600 DPI — and photographic pages encode straight to
+  JPEG instead of first making a ~6.6MB PNG they threw away. The block dropped from
+  ~350ms to ~60ms.
+
 ## 1.57.0 — 2026-08-27
 
 **Watercolor photo frames.**

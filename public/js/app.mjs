@@ -1,6 +1,6 @@
 import { LAYOUTS, LAYOUT_ORDER, FRAMES, designVariants } from './layouts.mjs';
 import { FILTERS, FILTER_ORDER } from './filters.mjs';
-import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout, preloadArt } from './render.mjs';
+import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout, preloadArt, SAVE_SCALE } from './render.mjs';
 
 const $ = (id) => document.getElementById(id);
 const MAX_SOURCE_DIM = 3600; // fills a full-page cell at the 600 DPI print scale, still gentle on memory
@@ -199,14 +199,14 @@ function warmPrint() {
   warmTimer = setTimeout(() => {
     if (cfBusy) return; // a gesture began during the wait — the next settle re-warms
     const generation = printGeneration;
-    exportPrint(state)
+    exportPrint(state, { scale: SAVE_SCALE })
       .then((result) => {
         if (generation === printGeneration) lastPrintBlob = result.blob;
       })
       .catch(() => {
         /* a real Save or Print will surface the failure */
       });
-  }, 500);
+  }, 700);
 }
 
 /** Reverse the check split: if Save/Print are open, gooey-merge them back into the
@@ -1857,7 +1857,9 @@ async function buildPrintBlob() {
   if (lastPrintBlob) return lastPrintBlob;
   toast('Getting your photo ready…', 1200);
   try {
-    lastPrintBlob = (await exportPrint(state)).blob;
+    // Save-to-phone quality (matches the warm render); the printer path renders fresh
+    // at full PRINT_SCALE.
+    lastPrintBlob = (await exportPrint(state, { scale: SAVE_SCALE })).blob;
     return lastPrintBlob;
   } catch (err) {
     toast(err.message || 'Could not build the photo.');

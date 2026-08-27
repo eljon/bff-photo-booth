@@ -249,18 +249,27 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
   // with the photos matted into the clear centre — rounded, shadowed and edged with a
   // bright border, like the layout mockups.
   const art = frame.art ? artImage(artSrcFor(frame, layout)) : null;
-  if (frame.art && art) drawCover(ctx, art, 0, 0, P.w, P.h);
+  if (frame.art && art) {
+    // The paper is soft — resampling it at 'high' is pure cost, so drop to 'low' for
+    // this one draw and restore for the photos (which need the quality).
+    const q = ctx.imageSmoothingQuality;
+    ctx.imageSmoothingQuality = 'low';
+    drawCover(ctx, art, 0, 0, P.w, P.h);
+    ctx.imageSmoothingQuality = q;
+  }
 
   const cells = frame.art ? insetCells(layout.cells, P, frame) : layout.cells;
 
   cells.forEach((cell, i) => {
     const photo = state.photos[cell.photo];
     if (frame.art) {
-      // White mat + soft drop shadow behind each photo.
+      // White mat + soft drop shadow behind each photo. shadowBlur is very expensive
+      // at print resolution, so it's capped to a small absolute radius — plenty for a
+      // subtle lift, cheap enough not to hitch the coverflow.
       ctx.save();
       ctx.shadowColor = 'rgba(60,45,30,0.28)';
-      ctx.shadowBlur = cell.w * 0.045;
-      ctx.shadowOffsetY = cell.h * 0.012;
+      ctx.shadowBlur = Math.min(cell.w * 0.045, 9);
+      ctx.shadowOffsetY = Math.min(cell.h * 0.012, 4);
       ctx.fillStyle = '#fffdf9';
       roundRectPath(ctx, cell.x, cell.y, cell.w, cell.h, cell.radius);
       ctx.fill();
@@ -317,14 +326,20 @@ function insetCells(cells, page, frame) {
 // cell at this resolution.
 export const PRINT_SCALE = 2;
 
+// The speculative "warm" render (only ever used for Save/Share to the phone) is done at
+// this lower scale — 300 DPI is ample for a phone photo, and rendering the full-bleed
+// watercolor page at 600 DPI blocked the main thread ~260ms, hitching the coverflow.
+// The actual PRINT still uses PRINT_SCALE for full detail on paper.
+export const SAVE_SCALE = 1;
+
 /** Render the print-resolution page and hand back a file ready for the queue.
  *  `rotateForPaper` turns a landscape composition 90° into a portrait bitmap:
  *  4×6 photo paper feeds one way (portrait), and borderless is only offered at
  *  that size, so a wide design must be rotated to fill the sheet or it prints
  *  sideways. The saved-to-phone image is NOT rotated — it keeps its true look. */
-export async function exportPrint(state, { rotateForPaper = false } = {}) {
+export async function exportPrint(state, { rotateForPaper = false, scale = PRINT_SCALE } = {}) {
   const page = document.createElement('canvas');
-  composePage(page, state, PRINT_SCALE);
+  composePage(page, state, scale);
 
   let canvas = page;
   if (rotateForPaper && page.width > page.height) {
@@ -337,14 +352,22 @@ export async function exportPrint(state, { rotateForPaper = false } = {}) {
     ctx.drawImage(page, -page.width / 2, -page.height / 2);
   }
 
-  let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) throw new Error('This browser could not render the print.');
-  if (blob.size > 3 * 1024 * 1024) {
-    // A big PNG crawls over cellular; a 0.95 JPEG is indistinguishable on photo
-    // paper and uploads in a second or two.
-    const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
-    if (jpeg) blob = jpeg;
+  // A photographic page (the watercolor paper + photos) makes a huge PNG that is
+  // slow to encode — ~6.6MB and ~400ms at 600 DPI, which hitched the coverflow — and
+  // it always fell back to JPEG anyway. So for art frames, encode JPEG straight away
+  // (~75ms, indistinguishable on photo paper). Plain frames keep lossless PNG.
+  const photographic = !!(FRAMES[state.frameId] && FRAMES[state.frameId].art);
+  let blob;
+  if (photographic) {
+    blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+  } else {
+    blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (blob && blob.size > 3 * 1024 * 1024) {
+      const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      if (jpeg) blob = jpeg;
+    }
   }
+  if (!blob) throw new Error('This browser could not render the print.');
   return { blob, width: canvas.width, height: canvas.height };
 }
 
