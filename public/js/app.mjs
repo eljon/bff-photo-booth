@@ -561,12 +561,17 @@ function liftPaper(paper) {
   // reflection sits at the card's bottom (top:100%) and would otherwise jump up.
   card.style.width = `${w}px`;
   card.style.height = `${h}px`;
-  paper.style.position = 'fixed';
+  // ABSOLUTE (not fixed) inside #pinchLayer, which is a full-viewport fixed layer
+  // pinned at 0,0 — so these viewport coordinates still land exactly right, AND the
+  // layer's overflow:hidden clips the print (and its shadow) to the screen so a big
+  // zoom never paints an unbounded area off-screen (which is what froze the pinch).
+  paper.style.position = 'absolute';
   paper.style.left = `${r.left}px`;
   paper.style.top = `${r.top}px`;
   paper.style.width = `${r.width}px`;
   paper.style.height = `${r.height}px`;
   paper.style.margin = '0';
+  paper.style.borderRadius = '6px'; // match the canvas so the box-shadow's corners align
   paper.style.zIndex = '1';
   $('pinchLayer').appendChild(paper);
 }
@@ -584,12 +589,16 @@ function putPaperBack() {
   liftedPaper = null;
 }
 
-/** The drop shadow for a paper lifted to `scale` off its resting spot. It is tied
- *  DIRECTLY to size: zero at rest (the paper is on the glass), growing bigger,
- *  softer and darker as it rises. Because it is zero at scale 1, it fades to
- *  nothing exactly as the paper returns to size — no pop. Screen-space values are
- *  divided by scale since the shadow rides the same transform that enlarges the
- *  paper. Tunable: base(at rest) + lift*growth → value fully lifted. */
+/** The drop shadow for a paper lifted to `scale` off its resting spot, as a
+ *  BOX-shadow on the (rectangular) paper — not a `drop-shadow` filter. The print is
+ *  a rectangle, so the two look identical, but a box-shadow is a cheap, composited
+ *  primitive whereas a `drop-shadow` filter alpha-traces and re-blurs the whole
+ *  element every frame — pathologically slow on iOS, and it froze the pinch once
+ *  the paper was lifted to an unclipped full-screen layer. It is tied DIRECTLY to
+ *  size: zero at rest (the paper is on the glass), growing bigger, softer and
+ *  darker as it rises; because it is zero at scale 1 it fades to nothing exactly as
+ *  the paper returns to size — no pop. Screen-space values are divided by scale
+ *  since the shadow rides the same transform that enlarges the paper. */
 function paperShadow(scale) {
   const lift = Math.min(1, Math.max(0, (scale - 1) / 2)); // 0 at rest → 1 at max zoom (scale 3)
   if (lift <= 0.001) return 'none';
@@ -599,9 +608,9 @@ function paperShadow(scale) {
   // HALO for spread. All screen-space, divided by scale (the shadow rides the
   // paper's transform). Tunable:  value = t * growth.
   const t = Math.sqrt(lift);
-  const core = `drop-shadow(0 ${(t * 44) / scale}px ${(t * 34) / scale}px rgba(0, 0, 0, ${t * 1.0}))`;
-  const halo = `drop-shadow(0 ${(t * 120) / scale}px ${(t * 150) / scale}px rgba(0, 0, 0, ${t * 0.7}))`;
-  return `${core} ${halo}`;
+  const core = `0 ${(t * 44) / scale}px ${(t * 34) / scale}px rgba(0, 0, 0, ${t * 1.0})`;
+  const halo = `0 ${(t * 120) / scale}px ${(t * 150) / scale}px rgba(0, 0, 0, ${t * 0.7})`;
+  return `${core}, ${halo}`;
 }
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -610,7 +619,7 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
  *  together, in one JS animation, so the shadow tracks the paper's actual size
  *  the whole way down and shrinks to nothing as it lands — never snapping off. */
 function endPeek(state) {
-  const { paper, face, mirror, tx, ty, rot, scale } = state;
+  const { paper, mirror, tx, ty, rot, scale } = state;
   const DUR = 300;
   let start = null;
   const step = (ts) => {
@@ -622,11 +631,11 @@ function endPeek(state) {
     const cr = rot * (1 - e);
     paper.style.transform = `translate(${cx}px, ${cy}px) rotate(${cr}deg) scale(${s})`;
     mirror.style.transform = `translate(${cx}px, ${-cy}px) rotate(${-cr}deg) scale(${s})`;
-    face.style.filter = paperShadow(s);
+    paper.style.boxShadow = paperShadow(s);
     if (e < 1) { peekRaf = requestAnimationFrame(step); return; }
     paper.style.transform = '';
     mirror.style.transform = '';
-    face.style.filter = '';
+    paper.style.boxShadow = '';
     peekRaf = null;
     putPaperBack(); // print settled — drop it back into its card, out of #pinchLayer
   };
@@ -708,7 +717,7 @@ function bindCoverflow() {
     const ty = midY - manip.baseMidY;
     manip.tx = tx; manip.ty = ty; manip.rot = rot; manip.scale = scale;
     manip.paper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
-    manip.face.style.filter = paperShadow(scale); // shadow grows directly with the size
+    manip.paper.style.boxShadow = paperShadow(scale); // shadow grows directly with the size
     // The reflection lives on the glass and shows the MIRROR of the paper's move:
     // same horizontal shift and scale, but the vertical shift and the rotation are
     // negated (a mirror across the glass), pivoting about the reflection's centre.

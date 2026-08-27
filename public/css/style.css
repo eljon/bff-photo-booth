@@ -199,7 +199,11 @@ body {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  overflow: visible;
+  /* Clip to the screen: the print is floated in here as an ABSOLUTE child, so this
+     bounds its paint (and its soft shadow) to the viewport. Anything past the edge
+     is off-screen anyway, and leaving it unbounded made a big zoom paint an enormous
+     area every frame — which froze the pinch on the phone. */
+  overflow: hidden;
 }
 /* ---------------------------------------------------------------- panels */
 

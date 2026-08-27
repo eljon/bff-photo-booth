@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.54.1 — 2026-08-27
+
+**Fixed the pinch freezing for seconds.**
+
+- Lifting the print to a full-screen layer (last build) left it painting a big soft
+  drop-shadow *filter* over an unbounded, unclipped area every frame — and a
+  `drop-shadow` filter re-traces and re-blurs the whole picture each time, which is
+  brutally slow on iOS. Zooming in stalled for seconds.
+- The shadow is now a plain `box-shadow` on the (rectangular) print — visually the
+  same, but a cheap, GPU-composited primitive instead of a per-frame filter — and the
+  float layer is clipped to the screen so a big zoom never paints off-screen. Pinch is
+  smooth again.
+
 ## 1.54.0 — 2026-08-27
 
 **Pinch-to-zoom now floats the photo above everything.**
