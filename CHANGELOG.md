@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.5 — 2026-08-27
+
+**Only the tick flies now — and it's clipped to the button.**
+
+- The gradient circle stays put; just the ✓ glyph flies in the swipe direction. The
+  button is now a circular clip, so the tick slides out past its edge and vanishes
+  (never shown outside the button), then flies back to centre as the deck settles.
+
 ## 1.56.4 — 2026-08-27
 
 **The check button flies with the swipe, then flies home.**

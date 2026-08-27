@@ -521,25 +521,28 @@ function stopSpring() {
   }
 }
 
-// The check button FLIES in the swipe direction while the deck moves, then flies back
-// to centre as it settles. Driven off cfPos so it tracks the finger drag and the
-// momentum glide; a spring pulls it home. finger-left (cfPos rising) → flies left.
+// Just the TICK (the ✓ glyph) flies in the swipe direction while the deck moves — the
+// button's circular clip hides it the moment it crosses the edge, so it slides out of
+// the button and vanishes, then flies back to centre as the deck settles. Driven off
+// cfPos so it tracks the finger drag and the momentum glide; a spring pulls it home.
+// finger-left (cfPos rising) → flies left.
 let flyRaf = null;
 let flyLast = 0;
 let flyX = 0; // current x offset (px), eased toward the target
-const FLY_MAX = 135; // how far it flies at full speed
-const FLY_K = 620;   // deck-speed → fly-distance
+const FLY_MAX = 64; // just past the circle's edge — far enough to fully clip the tick
+const FLY_K = 620;  // deck-speed → fly-distance
 function startFly() {
   if (flyRaf !== null || reduceMotion()) return;
   flyLast = cfPos;
+  const tick = $('checkBtn').querySelector('svg');
   const loop = () => {
     const vel = cfPos - flyLast; // deck speed, card-units per frame
     flyLast = cfPos;
     const target = Math.max(-FLY_MAX, Math.min(FLY_MAX, -vel * FLY_K)); // fly WITH the swipe
     flyX += (target - flyX) * 0.3; // spring toward it (and home to 0 once the deck stops)
-    $('commit').style.transform = Math.abs(flyX) < 0.15 ? '' : `translateX(${flyX.toFixed(1)}px)`;
+    tick.style.transform = Math.abs(flyX) < 0.15 ? '' : `translateX(${flyX.toFixed(1)}px)`;
     if (!cfBusy && Math.abs(flyX) < 0.4 && Math.abs(vel) < 0.0006) {
-      $('commit').style.transform = '';
+      tick.style.transform = '';
       flyRaf = null;
       return;
     }
