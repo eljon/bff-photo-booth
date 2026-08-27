@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.1 — 2026-08-27
+
+**The fluid check stretches way further — into a thin liquid line at speed.**
+
+- Cranked the swipe stretch: a moderate swipe flattens the check into a wide ellipse, a
+  fast one pulls it into a thin liquid streak nearly the width of the screen, then it
+  relaxes back through those shapes as the deck settles. The tick fades out as it thins
+  so a squashed glyph never shows.
+
 ## 1.56.0 — 2026-08-27
 
 **The check button is fluid — it leans and stretches with the deck.**

@@ -534,8 +534,8 @@ function startGooFollow() {
   const loop = () => {
     const vel = cfPos - gooFollowLast; // deck speed in card-units per frame
     gooFollowLast = cfPos;
-    const target = Math.max(-1, Math.min(1, vel * 3.4)); // map speed → lean, clamped
-    gooLean += (target - gooLean) * 0.4;                 // ease toward it (springy)
+    const target = Math.max(-1, Math.min(1, vel * 4.5)); // map speed → lean, clamped
+    gooLean += (target - gooLean) * 0.45;                // ease toward it (springy)
     applyGooStretch(gooLean);
     // Park once the deck has settled AND the lean has relaxed back to nothing.
     if (!cfBusy && Math.abs(gooLean) < 0.004 && Math.abs(vel) < 0.0006) {
@@ -549,21 +549,26 @@ function startGooFollow() {
 }
 function applyGooStretch(s) {
   const commit = $('commit');
+  const check = $('checkBtn');
   if (commit.classList.contains('hidden')) { commit.style.transform = ''; return; }
   if (Math.abs(s) < 0.001) {
     commit.style.transform = '';
+    check.style.opacity = '';
     if (!commit.classList.contains('animating')) { commit.classList.remove('flex'); setGooBlur(GOO_MIN); }
     return;
   }
   const a = Math.abs(s);
-  // Lean in the travel direction, stretch along it and squash across — a jelly pull.
-  const t = `translateX(${(s * 15).toFixed(2)}px) skewX(${(s * -9).toFixed(2)}deg) `
-    + `scale(${(1 + a * 0.2).toFixed(3)}, ${(1 - a * 0.13).toFixed(3)})`;
+  // Stretch DRAMATICALLY along the travel direction and squash across, so at speed the
+  // control is pulled into a thin liquid line/streak; skew + translate give it the drag.
+  const t = `translateX(${(s * 34).toFixed(2)}px) skewX(${(s * -10).toFixed(2)}deg) `
+    + `scale(${(1 + a * 2.7).toFixed(3)}, ${(1 - a * 0.82).toFixed(3)})`;
   commit.style.transform = t;
+  // Fade the tick out as it thins to a line — a squashed glyph would just look broken.
+  check.style.opacity = String(Math.max(0, 1 - a * 1.4));
   // Don't fight a split/merge for the blur — it owns the filter while animating.
   if (!commit.classList.contains('animating')) {
     commit.classList.add('flex');
-    setGooBlur(4 + a * 9); // more lean → more liquid
+    setGooBlur(5 + a * 8); // more lean → more liquid
   }
 }
 
