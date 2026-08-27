@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.54.0 — 2026-08-27
+
+**Pinch-to-zoom now floats the photo above everything.**
+
+- When you pinch a design in the coverflow, the print now lifts ABOVE all the app's
+  UI — the check button, Replace, the queue widget — instead of being clipped by the
+  coverflow's edges and slipping behind the controls. Zoom in as far as you like and
+  the whole picture stays on top and fully visible.
+- Under the hood, only the print itself is momentarily floated to a top-most,
+  unclipped layer for the duration of the pinch; the frosted reflection stays put in
+  its original spot on the glass, unchanged, and everything drops neatly back into
+  place the instant you let go.
+
 ## 1.53.3 — 2026-08-26
 
 **Really fixed the gooey cutoff (this time for Safari).**

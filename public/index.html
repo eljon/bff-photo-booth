@@ -117,6 +117,10 @@
 <input id="filePicker" type="file" accept="image/*" multiple hidden>
 <input id="fileOne" type="file" accept="image/*" hidden>
 
+<!-- Holds the pinched print above every other UI element while a zoom is in flight
+     (the coverflow itself clips and stacks below the controls). -->
+<div id="pinchLayer" aria-hidden="true"></div>
+
 <button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
   <span class="qw-icon" id="qwIcon">🧾</span>
   <span class="qw-title" id="qwTitle"></span>

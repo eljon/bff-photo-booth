@@ -199,6 +199,18 @@ body {
   transform-origin: center center;
   will-change: transform;
 }
+/* While a pinch is in flight the centred paper is re-parented here — a full-screen,
+   unclipped, top-of-everything layer — so the zoomed print floats ABOVE every UI
+   control (check button, Replace, queue widget) instead of being clipped by the
+   coverflow's overflow and stacked beneath them. The reflection stays behind in the
+   card (its original, clipped layer), untouched. */
+#pinchLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: visible;
+}
 /* ---------------------------------------------------------------- panels */
 
 .panel {
@@ -905,6 +917,10 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 <input id="filePicker" type="file" accept="image/*" multiple hidden>
 <input id="fileOne" type="file" accept="image/*" hidden>
+
+<!-- Holds the pinched print above every other UI element while a zoom is in flight
+     (the coverflow itself clips and stacks below the controls). -->
+<div id="pinchLayer" aria-hidden="true"></div>
 
 <button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
   <span class="qw-icon" id="qwIcon">🧾</span>
@@ -1832,6 +1848,7 @@ let cfRaf = null;
 let cfBusy = false; // a swipe or glide is in flight — hold off the heavy print warm
 let manip = null;   // a two-finger direct-manipulation of one photo in flight
 let peekRaf = null; // the spring-back animation after a pinch is released
+let liftedPaper = null; // the paper currently re-parented to #pinchLayer during a pinch
 let introRaf = null; // the intro sweep played each time the photos are completed
 let wasComplete = false; // were all 4 photos filled on the previous render?
 
@@ -2100,6 +2117,52 @@ function centrePaper() {
   return card ? card.querySelector('.cf-paper') : null;
 }
 
+/** Float the pinched paper above ALL page UI. The coverflow clips (overflow) and
+ *  sits below the controls, so a zoomed print would be cut off and painted under
+ *  the buttons. We lift ONLY the `.cf-paper` (the print face) out to #pinchLayer —
+ *  a full-screen, unclipped, top-most layer — pinning it to the exact screen box
+ *  it occupied, so it appears not to move; the pinch transform then rides on top.
+ *  The reflection (`.cf-mirror`) stays behind in the card, its original layer,
+ *  untouched. Called at the moment of a pinch, when the centre card is settled
+ *  dead-centre (offset 0 → no coverflow rotate/scale/depth), so its box is
+ *  axis-aligned and the lift is pixel-exact. */
+function liftPaper(paper) {
+  if (liftedPaper) putPaperBack(); // never lift twice — restore any prior lift first
+  const card = paper.parentElement;
+  const w = paper.offsetWidth;   // layout size (no ancestor transform) — the card is
+  const h = paper.offsetHeight;  // settled at offset 0, so this equals the on-screen box
+  const r = paper.getBoundingClientRect();
+  liftedPaper = {
+    el: paper, parent: card, next: paper.nextSibling, cssText: paper.style.cssText,
+    card, cardW: card.style.width, cardH: card.style.height,
+  };
+  // Pin the card's box so it doesn't collapse when the paper leaves the flow: the
+  // reflection sits at the card's bottom (top:100%) and would otherwise jump up.
+  card.style.width = `${w}px`;
+  card.style.height = `${h}px`;
+  paper.style.position = 'fixed';
+  paper.style.left = `${r.left}px`;
+  paper.style.top = `${r.top}px`;
+  paper.style.width = `${r.width}px`;
+  paper.style.height = `${r.height}px`;
+  paper.style.margin = '0';
+  paper.style.zIndex = '1';
+  $('pinchLayer').appendChild(paper);
+}
+
+/** Return the lifted paper to its card, restoring its original inline styles (which
+ *  clears the fixed position, box, and any transform in one shot) and the card's
+ *  own auto sizing. Safe to call when nothing is lifted. */
+function putPaperBack() {
+  if (!liftedPaper) return;
+  const { el, parent, next, cssText, card, cardW, cardH } = liftedPaper;
+  el.style.cssText = cssText;
+  card.style.width = cardW;
+  card.style.height = cardH;
+  parent.insertBefore(el, next);
+  liftedPaper = null;
+}
+
 /** The drop shadow for a paper lifted to `scale` off its resting spot. It is tied
  *  DIRECTLY to size: zero at rest (the paper is on the glass), growing bigger,
  *  softer and darker as it rises. Because it is zero at scale 1, it fades to
@@ -2144,6 +2207,7 @@ function endPeek(state) {
     mirror.style.transform = '';
     face.style.filter = '';
     peekRaf = null;
+    putPaperBack(); // print settled — drop it back into its card, out of #pinchLayer
   };
   peekRaf = requestAnimationFrame(step);
 }
@@ -2158,7 +2222,9 @@ function cardIndexAt(px, py) {
   let bestDist = Infinity;
   [...$('cfTrack').children].forEach((card, i) => {
     if (card.style.opacity === '0') return; // an off-stage, hidden card
-    const r = card.querySelector('canvas.cf-face').getBoundingClientRect();
+    const faceEl = card.querySelector('canvas.cf-face');
+    if (!faceEl) return; // its paper is lifted into #pinchLayer (a pinch in flight)
+    const r = faceEl.getBoundingClientRect();
     if (px < r.left || px > r.right || py < r.top || py > r.bottom) return;
     const d = Math.abs(px - (r.left + r.right) / 2);
     if (d < bestDist) { bestDist = d; best = i; }
@@ -2186,12 +2252,14 @@ function bindCoverflow() {
     swipeId = null;
     stopSpring();
     if (peekRaf) { cancelAnimationFrame(peekRaf); peekRaf = null; } // grab a springing paper
+    putPaperBack(); // if a prior spring was interrupted mid-lift, re-home the paper first
     cfPos = clampPos(Math.round(cfPos)); // settle dead-centre before zooming
     positionCards();
     const paper = centrePaper();
     if (!paper) return;
     const face = paper.querySelector('canvas.cf-face');
     const mirror = paper.parentElement.querySelector('canvas.cf-mirror');
+    liftPaper(paper); // float the print above all UI (mirror captured first, stays put)
     const [a, b] = [...pointers.values()];
     manip = {
       paper,

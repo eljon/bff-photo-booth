@@ -189,6 +189,18 @@ body {
   transform-origin: center center;
   will-change: transform;
 }
+/* While a pinch is in flight the centred paper is re-parented here — a full-screen,
+   unclipped, top-of-everything layer — so the zoomed print floats ABOVE every UI
+   control (check button, Replace, queue widget) instead of being clipped by the
+   coverflow's overflow and stacked beneath them. The reflection stays behind in the
+   card (its original, clipped layer), untouched. */
+#pinchLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: visible;
+}
 /* ---------------------------------------------------------------- panels */
 
 .panel {
