@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.55.0 — 2026-08-27
+
+**The gooey split's top/bottom cutoff is gone for good — rebuilt as native SVG.**
+
+- The real cause was never the box size: Safari clips a CSS `url(#goo)` filter to the
+  HTML element's own bounds and ignores the filter region, so the metaball was always
+  sliced flat — no amount of head-room on the box or the blob layers could beat it.
+- The goo is now a native inline `<svg>` with `overflow: visible`, and the metaball
+  filter rides an SVG `<g>`. SVG filters honour their region and paint freely *outside*
+  the element — so the liquid neck and the pills' rounded ends can spill past the box
+  exactly as they need to. No more cutoff, on any browser.
+- The blobs are `<rect>`s laid out in pixels to line up with the Save/Print labels; the
+  split, merge, squash-and-stretch and save-only behaviours are all unchanged.
+
 ## 1.54.2 — 2026-08-27
 
 **Actually fixed the gooey split's flat top and bottom (for real, on Safari).**

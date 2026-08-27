@@ -253,6 +253,33 @@ function updatePickButton() {
   $('seg2').classList.toggle('done', step >= 2);
   $('seg3').classList.toggle('done', step >= 3);
   $('commit').classList.toggle('hidden', !full);
+  if (full) layoutGoo();
+}
+
+/** Size and place the three goo <rect>s in px so they line up with the (responsive)
+ *  Save/Print labels on top. The svg has no viewBox — 1 user unit is 1 CSS px — so
+ *  these are plain pixel coordinates in the svg's own frame. The pill band sits
+ *  vertically centred in the tall, overflow:visible svg (top:-64 → the pill's centre
+ *  lands on the control's centre). Called whenever the control is shown or resized. */
+function layoutGoo() {
+  const commit = $('commit');
+  const W = commit.clientWidth;
+  if (!W) return;
+  const GAP = 24;      // half-gap between the two pills (matches the labels' 48px gap)
+  const H = 72;        // pill height
+  const TOP = 64;      // must equal the svg's -64px top inset, so the pill centres on the control
+  const RX = 36;
+  const saveOnly = commit.classList.contains('save-only');
+  const half = W / 2 - GAP;
+  const setRect = (el, x, w) => {
+    el.setAttribute('x', x); el.setAttribute('y', TOP);
+    el.setAttribute('width', Math.max(0, w)); el.setAttribute('height', H);
+    el.setAttribute('rx', RX); el.setAttribute('ry', RX);
+  };
+  const [save, print, center] = $('gooG').children;
+  setRect(save, 0, saveOnly ? W : half);         // save-only: one full-width pill
+  setRect(print, W / 2 + GAP, half);
+  setRect(center, W / 2 - 36, 72);               // 72×72 rx36 → the closed check circle
 }
 
 // ---------------------------------------------------------------- coverflow
@@ -1753,6 +1780,7 @@ async function loadSession() {
   // No printer → the check reveals just Save (full width), no Print half.
   $('commit').classList.toggle('save-only', !canPrint);
   $('saveBtn').textContent = canPrint ? 'Save/Share' : 'Save / Share to phone';
+  if (!$('commit').classList.contains('hidden')) layoutGoo(); // widen/normalise the save pill
 
   if (!session.online) {
     showProblem('Reconnecting to the booth… you can still save the photo to your phone.');

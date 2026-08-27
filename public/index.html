@@ -44,13 +44,18 @@
 
   <section class="pick">
     <div class="commit hidden" id="commit">
-      <!-- The gooey blob layer: rendered through the #goo filter so the shapes
-           merge into liquid and stretch apart like splitting slime. -->
-      <div class="commit-goo" aria-hidden="true">
-        <span class="blob b-save"></span>
-        <span class="blob b-print"></span>
-        <span class="blob b-center"></span>
-      </div>
+      <!-- The gooey blob layer is a NATIVE inline <svg>: an SVG filter honours its
+           region and, with overflow:visible, paints the liquid metaball freely past
+           the box — unlike a CSS url(#goo) filter on an HTML element, which Safari
+           clips to the element's bounds (that clip was the top/bottom cut-off). The
+           rects' geometry is set in px by layoutGoo() so they align with the labels. -->
+      <svg class="commit-goo" id="commitGoo" aria-hidden="true">
+        <g class="goo-g" id="gooG">
+          <rect class="blob b-save"></rect>
+          <rect class="blob b-print"></rect>
+          <rect class="blob b-center"></rect>
+        </g>
+      </svg>
       <!-- Crisp icon + labels ride on top, unfiltered. -->
       <button class="check-btn" id="checkBtn" type="button" aria-label="Looks good — show save and print">
         <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-11"/></svg>
@@ -133,13 +138,26 @@
      fuse into liquid blobs and pull apart with a stretching neck. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <!-- Wide region so the blur + squash/stretch never gets clipped at the edges
-         (the default region is only ~10% past the box, which sliced the goo off
-         top and bottom). -->
-    <filter id="goo" x="-60%" y="-120%" width="220%" height="340%">
+    <!-- The pill/circle gradient (matches --grad: 115deg violet→magenta→coral). -->
+    <linearGradient id="commitGrad" x1="0" y1="0" x2="1" y2="0.45">
+      <stop offset="0"    stop-color="#6a5cff"/>
+      <stop offset="0.32" stop-color="#a24bff"/>
+      <stop offset="0.64" stop-color="#ff4d97"/>
+      <stop offset="1"    stop-color="#ff7a4d"/>
+    </linearGradient>
+    <!-- At rest: just a soft drop shadow under the check circle (cheap). -->
+    <filter id="gooRest" x="-40%" y="-120%" width="180%" height="340%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <!-- Splitting: blur, then hard-threshold the alpha so nearby shapes fuse into a
+         liquid neck and pull apart (metaball), then a drop shadow. A big region — but
+         because this is applied to an SVG <g>, WebKit honours it and does NOT clip to
+         the element box, so nothing is sliced off top or bottom. -->
+    <filter id="goo" x="-40%" y="-160%" width="180%" height="420%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur"/>
       <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11" result="goo"/>
-      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" result="merged"/>
+      <feDropShadow in="merged" dx="0" dy="9" stdDeviation="9" flood-color="#000" flood-opacity="0.4"/>
     </filter>
   </defs>
 </svg>

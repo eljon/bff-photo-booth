@@ -473,58 +473,41 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    while the split is animating — at rest it's just a cheap drop-shadow, so it
    never taxes the intro coverflow animation that plays as photos come in. The two
    blobs sit perfectly overlapped when closed, so they read as one pill either way. */
+/* THE real cut-off fix: the goo is a native inline <svg>, not an HTML element with a
+   CSS url(#goo) filter. Safari clips a CSS reference filter to the HTML element's own
+   box (it ignores the filter-region), which sliced the blobs flat no matter how the
+   box or the blob layers were sized — four different HTML tricks couldn't beat it. An
+   SVG element's filter, by contrast, honours its filter region and — with the <svg>
+   set to overflow:visible — paints freely OUTSIDE the element's bounds. So the metaball
+   blur and the pills' rounded ends can extend past the box exactly as they need to. */
 .commit-goo {
   position: absolute;
-  /* Extend the filtered box well beyond the control's height. Safari clips an SVG
-     filter's output to the filtered ELEMENT's box (it ignores the filter-region
-     attribute), so the blurred/squashing blobs were sliced flat. Giving the goo
-     layer 60px of head- and foot-room means the blur + stretch always fall inside
-     its box, so nothing is cut off. Left/right stay at 0 so the blobs' widths (a %
-     of this box) — and their centring maths — are unchanged. */
   left: 0;
   right: 0;
-  top: -60px;
-  bottom: -60px;
+  top: -64px;
+  bottom: -64px;
+  width: 100%;
+  overflow: visible;          /* let the goo spill past the svg box, uncut */
   z-index: 0;
-  pointer-events: none; /* purely decorative — never intercept taps (it overhangs Replace) */
-  filter: drop-shadow(0 8px 16px #0006);
+  pointer-events: none;       /* purely decorative — never intercept taps */
 }
-.commit.animating .commit-goo { filter: url(#goo) drop-shadow(0 9px 18px #0006); }
-/* THE cut-off fix. Each blob element FILLS the tall goo box (top:0/bottom:0); its
-   visible pill is drawn by a centred ::before. An animating transform promotes a
-   blob to its own compositing layer, and Safari rasterises that layer to the
-   ELEMENT'S box *before* the parent goo filter blurs it — so when the element was
-   only as tall as the pill (72px) the blur had no headroom and came out sliced flat
-   top and bottom, no matter how big .commit-goo was (enlarging the box never helped
-   because the clip is at the blob's own layer, not the box). A full-height element
-   gives that layer ~60px of clear space above and below the pill, so the blur and the
-   metaball's rounded ends render in full. */
+/* The metaball filter rides the <g> (an SVG element, so its region is honoured). At
+   rest it's just a cheap drop shadow; the expensive blur is added only while the split
+   animates, so it never taxes the intro coverflow sweep. */
+.goo-g { filter: url(#gooRest); }
+.commit.animating .goo-g { filter: url(#goo); }
+/* The blobs are now <rect>s. transform-box:fill-box makes their % transforms resolve
+   against each rect's own box, so the same translate/scale maths as before still
+   apply; their x/y/width/height are set in px by layoutGoo() so they line up exactly
+   with the (responsive) Save/Print labels on top. */
 .blob {
-  position: absolute;
-  top: 0;
-  bottom: 0;
+  fill: url(#commitGrad);
+  transform-box: fill-box;
   transform-origin: center;
 }
-.blob::before {
-  content: "";
-  position: absolute;
-  left: 0; right: 0;
-  top: 50%; height: 72px; margin-top: -36px; /* the pill, centred in the tall box */
-  border-radius: 36px;
-  background: var(--grad);
-}
-/* Closed, the check is a TRUE circle: b-center's ::before is a 72×72 round element,
-   so no squished-pill corners. The two pill blobs sit behind it and only appear for
-   the split, where the goo filter rounds them into blobs anyway. */
-.b-center {
-  left: 50%; width: 72px; margin-left: -36px;
-  transition: transform 0.28s ease, opacity 0.24s ease;
-}
-.b-center::before { border-radius: 50%; }
-.b-save   { left: 0;  width: calc(50% - 24px); opacity: 0; }
-.b-print  { right: 0; width: calc(50% - 24px); opacity: 0; }
-.b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.46); }
-.b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
+.b-center { transition: transform 0.28s ease, opacity 0.24s ease; }
+.b-save   { opacity: 0; transform: translateX(calc(50% + 24px)) scaleX(0.46); }
+.b-print  { opacity: 0; transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
 /* Open: centre circle shrinks away; the two blobs light up. The RESTING open pose
    is a plain rule (not animation fill-mode) so a repaint or reflow — e.g. a
    coverflow swipe on Safari — can never drop the pair back to the check circle. */
@@ -671,10 +654,10 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 .commit.open .check-btn { opacity: 0; pointer-events: none; }
 
-/* Save-only booths (no printer): no split — the check reveals a full-width Save. */
+/* Save-only booths (no printer): no split — the check reveals a full-width Save. The
+   b-save rect is widened to the whole box by layoutGoo() (geometry is set in px). */
 .commit.save-only .b-print,
 .commit.save-only .commit-print { display: none; }
-.commit.save-only .b-save { width: 100%; }
 .commit.save-only.open .b-save { transform: translateX(0) scale(1); }
 
 @media (prefers-reduced-motion: reduce) {
