@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.3 — 2026-08-27
+
+**While you swipe, the check goes bare; the colour eases back when you stop.**
+
+- Dropped the stretch effect. Now while the coverflow is being swiped or gliding, the
+  check's coloured gradient fades away, leaving just the plain tick — then the colour
+  eases back in once the deck settles. Quick out, gradual in.
+
 ## 1.56.2 — 2026-08-27
 
 **The stretch now follows the swipe direction.**

@@ -485,6 +485,7 @@ function glideStep() {
     setCurrent(cfPos);
     cfRaf = null;
     cfBusy = false;
+    setSwiping(false); // deck settled — ease the colour back in
     warmPrint(); // settled — now it is safe to render the print ahead of time
     return;
   }
@@ -496,7 +497,7 @@ function glideTo(index) {
   cfBounceBack = null;
   cfTarget = clampPos(Math.round(index));
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-  startGooFollow(); // keep the check leaning through the momentum glide
+  setSwiping(true); // colour stays away through the momentum glide
 }
 
 /** Bounce off an end: overshoot a touch past the edge, then spring back to it —
@@ -505,7 +506,7 @@ function bounceEdge(edge) {
   cfBounceBack = edge;
   cfTarget = edge + (edge === 0 ? -0.3 : 0.3);
   if (cfRaf == null) cfRaf = requestAnimationFrame(glideStep);
-  startGooFollow();
+  setSwiping(true);
 }
 
 /** Rubber-band resistance for dragging past an end: the further past, the less
@@ -521,60 +522,10 @@ function stopSpring() {
   }
 }
 
-// The check/commit control is fluid: as the deck is dragged or glides, it leans and
-// stretches like jelly in the direction of travel, with the metaball on so the edges
-// go liquid, then wobbles back to rest when the deck settles. Driven off cfPos so it
-// tracks both the finger drag and the momentum glide.
-let gooFollowRaf = null;
-let gooFollowLast = 0;
-let gooLean = 0; // eased lean in [-1,1]; sign is the swipe direction
-function startGooFollow() {
-  if (gooFollowRaf !== null || reduceMotion()) return;
-  gooFollowLast = cfPos;
-  const loop = () => {
-    const vel = cfPos - gooFollowLast; // deck speed in card-units per frame
-    gooFollowLast = cfPos;
-    const target = Math.max(-1, Math.min(1, vel * 4.5)); // map speed → lean, clamped
-    gooLean += (target - gooLean) * 0.45;                // ease toward it (springy)
-    applyGooStretch(gooLean);
-    // Park once the deck has settled AND the lean has relaxed back to nothing.
-    if (!cfBusy && Math.abs(gooLean) < 0.004 && Math.abs(vel) < 0.0006) {
-      applyGooStretch(0);
-      gooFollowRaf = null;
-      return;
-    }
-    gooFollowRaf = requestAnimationFrame(loop);
-  };
-  gooFollowRaf = requestAnimationFrame(loop);
-}
-function applyGooStretch(s) {
-  const commit = $('commit');
-  const check = $('checkBtn');
-  if (commit.classList.contains('hidden')) { commit.style.transform = ''; return; }
-  if (Math.abs(s) < 0.001) {
-    commit.style.transform = '';
-    commit.style.transformOrigin = '';
-    check.style.opacity = '';
-    if (!commit.classList.contains('animating')) { commit.classList.remove('flex'); setGooBlur(GOO_MIN); }
-    return;
-  }
-  const a = Math.abs(s);
-  // Stretch it IN THE SWIPE DIRECTION: anchor the check circle's trailing edge and let
-  // the leading edge shoot out the way the deck is travelling, so at speed it's pulled
-  // into a thin liquid streak pointing along the swipe. s>0 = deck swiped left → the
-  // goo reaches left (origin pinned to the circle's RIGHT edge, 36px right of centre),
-  // s<0 → reaches right. The origin only changes sign as the lean passes through 0
-  // (scale ≈ 1), so a direction reversal never jumps.
-  commit.style.transformOrigin = (s > 0 ? 'calc(50% + 36px)' : 'calc(50% - 36px)') + ' 36px';
-  commit.style.transform = `scale(${(1 + a * 3.6).toFixed(3)}, ${(1 - a * 0.82).toFixed(3)})`;
-  // Fade the tick out as it thins to a streak — a squashed glyph would just look broken.
-  check.style.opacity = String(Math.max(0, 1 - a * 1.4));
-  // Don't fight a split/merge for the blur — it owns the filter while animating.
-  if (!commit.classList.contains('animating')) {
-    commit.classList.add('flex');
-    setGooBlur(5 + a * 8); // more lean → more liquid
-  }
-}
+// While the deck is being swiped or glided, the coloured goo disappears — leaving just
+// the bare tick — then the colour eases back in once it settles (the fade timing lives
+// in CSS: quick out on `.swiping`, gradual in when it's removed).
+const setSwiping = (on) => $('commit').classList.toggle('swiping', on);
 
 function stopIntro() {
   if (introRaf != null) {
@@ -927,7 +878,7 @@ function bindCoverflow() {
     cfBusy = true;
     clearTimeout(warmTimer); // cancel any warm queued before the gesture began
     stopSpring(); // grab it wherever it is — like catching a spinning wheel
-    startGooFollow(); // the check button starts leaning with the drag
+    setSwiping(true); // the colour drops away while the deck moves
   });
 
   cf.addEventListener('pointermove', (event) => {

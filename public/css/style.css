@@ -466,14 +466,12 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   max-width: 420px;
   height: 72px;
   z-index: 5; /* sits above the coverflow reflection it overlaps */
-  /* The whole control leans/stretches from its own centre as the deck is swiped
-     (see startGooFollow). The pivot is the check circle's centre: 36px is the
-     vertical middle of the 72px control (= the goo circle's centre). */
-  transform-origin: 50% 36px;
 }
-/* While the deck is moving, the metaball is switched on so the leaning check reads
-   as liquid, not a skewed disc. The blur amount is driven from JS to match the lean. */
-.commit.flex .goo-g { filter: url(#goo); }
+/* While the deck is being swiped the coloured goo drops away, leaving just the bare
+   tick; when the swipe settles (`.swiping` removed) the colour eases back in. Quick
+   out, gradual in. */
+.goo-g { transition: opacity 0.6s ease; }
+.commit.swiping .goo-g { opacity: 0; transition: opacity 0.13s ease; }
 .commit-ease { transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.5, 1), opacity 0.3s ease; }
 
 /* the slime layer. The expensive metaball goo filter (a big blur) is applied ONLY
