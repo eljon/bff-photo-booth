@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.51.2 — 2026-08-26
+
+**Removed the header filmstrip.**
+
+- Took out the little filmstrip under the title; the header is just the booth name
+  and version now.
+
 ## 1.51.1 — 2026-08-26
 
 **Labels ride with the buttons; Replace moved below.**

@@ -73,52 +73,6 @@ body {
 }
 .topbar p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
 
-/* A little filmstrip under the title — a wink at what the booth makes, and it
-   keeps the header from feeling bare now the tagline is gone. Pure CSS: a film
-   body with sprocket holes top and bottom and four tiny photo frames. */
-.booth-strip {
-  width: 176px;
-  height: 42px;
-  margin: 14px auto 0;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-radius: 7px;
-  background: #1b1b21;
-  border: 1px solid var(--line);
-  box-shadow: 0 8px 20px -12px #000;
-  position: relative;
-}
-.booth-strip::before,
-.booth-strip::after {
-  content: "";
-  position: absolute;
-  left: 9px;
-  right: 9px;
-  height: 4px;
-  border-radius: 2px;
-  /* sprocket holes punched into the film */
-  background: repeating-linear-gradient(90deg, var(--bg) 0 4px, transparent 4px 11px);
-}
-.booth-strip::before { top: 4px; }
-.booth-strip::after { bottom: 4px; }
-.booth-strip i { width: 21px; height: 18px; border-radius: 3px; display: block; }
-.booth-strip i:nth-child(1) { background: #d94b76; }
-.booth-strip i:nth-child(2) { background: #4b90e6; }
-.booth-strip i:nth-child(3) { background: #8fd694; }
-.booth-strip i:nth-child(4) { background: #e6c34e; }
-/* It stays through the whole flow. On the busier picking/arranging screens it
-   shrinks to a slimmer band so the steps still clear the action bar. */
-body:not(.is-empty) .booth-strip {
-  height: 30px;
-  margin-top: 10px;
-  gap: 5px;
-  padding: 0 10px;
-}
-body:not(.is-empty) .booth-strip i { width: 16px; height: 13px; }
-
 /* ---------------------------------------------------------------- preview */
 
 .stage { display: flex; flex-direction: column; align-items: center; flex: 1 1 auto; min-height: 0; justify-content: center; }
