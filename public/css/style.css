@@ -503,32 +503,47 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   will-change: transform, opacity;
 }
 .b-center {
-  left: 50%; width: 82px; margin-left: -41px; background: var(--grad);
-  transition: transform 0.4s ease, opacity 0.35s ease;
+  left: 50%; width: 88px; margin-left: -44px; background: var(--grad);
 }
-.b-save   { left: 0;  width: calc(50% - 24px); background: #45414f; }
-.b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); }
-/* Closed: the side blobs are tiny droplets pulled into the centre so the goo
+.b-save   { left: 0;  width: calc(50% - 26px); background: #45414f; }
+.b-print  { right: 0; width: calc(50% - 26px); background: var(--grad); }
+/* Closed: the side blobs are tiny droplets tucked into the centre so the goo
    fuses everything into a single check-sized pill. */
-.b-save   { transform: translateX(calc(50% + 24px)) scale(0.18); }
-.b-print  { transform: translateX(calc(-50% - 24px)) scale(0.18); }
+.b-save   { transform: translateX(calc(50% + 26px)) scale(0.16); }
+.b-print  { transform: translateX(calc(-50% - 26px)) scale(0.16); }
 
-/* Open: the droplets first swell to full size while still stacked at the centre
-   (a fat blob), THEN slide apart — so the goo stretches a long neck that pinches
-   off, like pulling slime in two. The centre check blob shrinks away underneath. */
-@keyframes gooSplitLeft {
-  0%   { transform: translateX(calc(50% + 24px)) scale(0.18); }
-  36%  { transform: translateX(calc(50% + 24px)) scale(1); }
-  100% { transform: translateX(0) scale(1); }
+/* Open: a real gooey split. The centre pill (the "origin") stretches wide and
+   thin — squashing and elongating into a liquid bar — then thins to nothing as it
+   pinches. The two halves start as tiny droplets and grow along that bar toward
+   the ends, overshooting and jiggling (squash/stretch) as they settle — so they
+   look like they inflate out of the slime. */
+@keyframes gooOrigin {
+  0%   { transform: scaleX(1)   scaleY(1);    opacity: 1; }
+  26%  { transform: scaleX(2.1) scaleY(0.72); opacity: 1; }
+  50%  { transform: scaleX(2.9) scaleY(0.36); opacity: 1; }
+  72%  { transform: scaleX(2.5) scaleY(0.14); opacity: 0.75; }
+  88%  { transform: scaleX(1.5) scaleY(0.04); opacity: 0; }
+  100% { transform: scaleX(1.5) scaleY(0.04); opacity: 0; }
 }
-@keyframes gooSplitRight {
-  0%   { transform: translateX(calc(-50% - 24px)) scale(0.18); }
-  36%  { transform: translateX(calc(-50% - 24px)) scale(1); }
-  100% { transform: translateX(0) scale(1); }
+@keyframes gooBirthLeft {
+  0%   { transform: translateX(calc(50% + 26px)) scale(0.16); }
+  30%  { transform: translateX(calc(50% + 26px)) scale(0.62); }
+  60%  { transform: translateX(calc(26% + 13px)) scaleX(1.0) scaleY(0.92); }
+  80%  { transform: translateX(0) scaleX(1.12) scaleY(1.1); }   /* overshoot bulge */
+  90%  { transform: translateX(0) scaleX(1.05) scaleY(0.94); }  /* jiggle back */
+  100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
-.commit.open .b-center { transform: scale(0.25); opacity: 0; }
-.commit.open .b-save  { animation: gooSplitLeft 0.72s cubic-bezier(0.5, 0.02, 0.32, 1) forwards; }
-.commit.open .b-print { animation: gooSplitRight 0.72s cubic-bezier(0.5, 0.02, 0.32, 1) forwards; }
+@keyframes gooBirthRight {
+  0%   { transform: translateX(calc(-50% - 26px)) scale(0.16); }
+  30%  { transform: translateX(calc(-50% - 26px)) scale(0.62); }
+  60%  { transform: translateX(calc(-26% - 13px)) scaleX(1.0) scaleY(0.92); }
+  80%  { transform: translateX(0) scaleX(1.12) scaleY(1.1); }
+  90%  { transform: translateX(0) scaleX(1.05) scaleY(0.94); }
+  100% { transform: translateX(0) scaleX(1)    scaleY(1); }
+}
+.commit.open .b-center { animation: gooOrigin 0.95s cubic-bezier(0.45, 0, 0.35, 1) forwards; }
+.commit.open .b-save  { animation: gooBirthLeft 1.02s cubic-bezier(0.32, 0.9, 0.4, 1) forwards; }
+.commit.open .b-print { animation: gooBirthRight 1.02s cubic-bezier(0.32, 0.9, 0.4, 1) forwards; }
 
 /* crisp overlays */
 .check-btn {
@@ -557,7 +572,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   z-index: 2;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.28s ease 0.46s; /* let the goo split read before labels arrive */
+  transition: opacity 0.26s ease 0.72s; /* let the goo split read before labels arrive */
 }
 .commit-pair button {
   flex: 1;

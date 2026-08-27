@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.1 — 2026-08-26
+
+**A properly gooey split.**
+
+- Reworked the check → Save/Print animation so it actually behaves like slime: the
+  check blob stretches wide and thins into a liquid bar, a thread pinches off in
+  the middle, and the two halves grow out of it from tiny droplets — overshooting
+  and jiggling (squash-and-stretch) as they settle. Stronger metaball filter and
+  a slower, keyframed sequence so the deformation reads.
+
 ## 1.50.0 — 2026-08-26
 
 **The check button splits like gooey slime.**
