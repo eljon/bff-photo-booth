@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.52.0 — 2026-08-26
+
+**Bigger check button, lifted over the coverflow reflection.**
+
+- The check button (and the Save/Print pills it splits into) are larger, and the
+  whole control now sits up over the coverflow's reflection instead of below it —
+  a more prominent, thumb-friendly target.
+
 ## 1.51.2 — 2026-08-26
 
 **Removed the header filmstrip.**
