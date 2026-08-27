@@ -64,6 +64,7 @@ let replaceAllNext = false;
 let lastPrintBlob = null;
 let printGeneration = 0; // bumped whenever the page changes, so stale renders are dropped
 let warmTimer = null;
+let gooTimer = null;  // keeps the heavy goo filter on only during the check split
 let queuePoll = null; // re-fetches queue standing from the booth
 let queueTick = null; // ticks the countdown down between fetches
 let currentJob = null; // the print the result modal / queue pill is showing
@@ -159,7 +160,7 @@ function renderAll() {
   const justCompleted = full && !wasComplete; // the set went from incomplete → full
   wasComplete = full;
   // A fresh set starts collapsed to the check button again.
-  if (justCompleted) $('commit').classList.remove('open');
+  if (justCompleted) { clearTimeout(gooTimer); $('commit').classList.remove('open', 'animating'); }
   state.subtitle = `${session.boothName} · ${todayStamp()}`;
   updatePickButton();
   if (full) {
@@ -1760,7 +1761,14 @@ function bind() {
     acceptFiles(event.target.files, slot);
   });
 
-  $('checkBtn').addEventListener('click', () => $('commit').classList.add('open'));
+  $('checkBtn').addEventListener('click', () => {
+    const commit = $('commit');
+    commit.classList.add('open', 'animating');
+    // The goo filter is heavy; keep it on only for the length of the split, then
+    // drop back to a plain drop-shadow so it isn't rasterised while idle.
+    clearTimeout(gooTimer);
+    gooTimer = setTimeout(() => commit.classList.remove('animating'), 1300);
+  });
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
   $('resultSave').addEventListener('click', savePhoto);

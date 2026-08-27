@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.3 — 2026-08-26
+
+**Fixed the stutter when photos come in.**
+
+- The gooey check button's metaball filter (a heavy full-screen blur) was left
+  switched on the whole time — including the moment the four photos land and the
+  design coverflow plays its intro sweep, which is exactly when the phone is
+  busiest. It now switches on only for the ~1.2s of the actual split and drops to
+  a cheap drop-shadow at rest, so selecting photos and the intro animation are
+  smooth again. The split itself looks identical.
+
 ## 1.50.2 — 2026-08-26
 
 **Rebuilt the gooey split so it reads as real slime.**
