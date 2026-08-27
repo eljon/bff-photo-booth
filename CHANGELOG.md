@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.55.3 — 2026-08-27
+
+**The goo gradient drifts again — like the primary CTA.**
+
+- Kept the exact CSS colours, 115° angle, shape and black shadow from the last build,
+  but the fill is living once more: each blob's gradient is drawn ~2.2× the box (like
+  the CTA's `background-size: 220%`) and an `animateTransform` slowly pans it back and
+  forth over 9s, so the violet→fuchsia→coral colours drift across the buttons the way
+  the primary buttons do.
+
 ## 1.55.2 — 2026-08-27
 
 **Goo buttons now match the old CSS version exactly — just without the cutoff.**

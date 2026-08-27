@@ -293,13 +293,17 @@ function layoutGoo() {
 
 /** Set a linearGradient's endpoints so it renders at 115° (CSS --grad) on a w×h box.
  *  objectBoundingBox coords: map the CSS gradient line (through the centre, length
- *  |w·sinθ|+|h·cosθ|) into the unit square by dividing the px vector by w and h. */
+ *  |w·sinθ|+|h·cosθ|) into the unit square by dividing the px vector by w and h. The
+ *  axis is drawn GRAD_ZOOM× longer than the box (like the CTA's background-size:220%)
+ *  so the box shows a slice; an animateTransform pans that slice back and forth (in
+ *  the markup) to give the same living, drifting gradient as the primary buttons. */
+const GRAD_ZOOM = 2.2;
 function gradAngle(grad, w, h) {
   const th = (115 * Math.PI) / 180;
   const dx = Math.sin(th), dy = -Math.cos(th);   // 115° direction (right, slightly down)
   const L = Math.abs(w * dx) + Math.abs(h * dy); // CSS gradient-line length in px
-  const hx = (L * dx) / (2 * w);                 // half-vector in objectBoundingBox units
-  const hy = (L * dy) / (2 * h);
+  const hx = (GRAD_ZOOM * L * dx) / (2 * w);     // half-vector in objectBoundingBox units
+  const hy = (GRAD_ZOOM * L * dy) / (2 * h);
   grad.setAttribute('x1', 0.5 - hx); grad.setAttribute('y1', 0.5 - hy);
   grad.setAttribute('x2', 0.5 + hx); grad.setAttribute('y2', 0.5 + hy);
 }
