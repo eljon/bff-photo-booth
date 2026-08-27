@@ -138,26 +138,39 @@
      fuse into liquid blobs and pull apart with a stretching neck. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <!-- The pill/circle gradient (matches --grad: 115deg violet→magenta→coral). -->
-    <linearGradient id="commitGrad" x1="0" y1="0" x2="1" y2="0.45">
+    <!-- The living pill/circle gradient (matches the CTA's --grad: violet→fuchsia→
+         coral). The axis is ~2.2× the box wide (like the CTA's background-size:220%)
+         and tilted for the 115deg diagonal; animateTransform slowly pans it back and
+         forth so the colours drift across the buttons — the same drift the flat SVG
+         fill had lost. -->
+    <linearGradient id="commitGrad" x1="-0.6" y1="0" x2="1.6" y2="0.62">
       <stop offset="0"    stop-color="#6a5cff"/>
-      <stop offset="0.32" stop-color="#a24bff"/>
-      <stop offset="0.64" stop-color="#ff4d97"/>
+      <stop offset="0.30" stop-color="#a24bff"/>
+      <stop offset="0.62" stop-color="#ff4d97"/>
       <stop offset="1"    stop-color="#ff7a4d"/>
+      <animateTransform attributeName="gradientTransform" type="translate"
+        dur="9s" repeatCount="indefinite"
+        calcMode="spline" keyTimes="0;0.5;1"
+        keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+        values="0.5 0; -0.5 0; 0.5 0"/>
     </linearGradient>
-    <!-- At rest: just a soft drop shadow under the check circle (cheap). -->
-    <filter id="gooRest" x="-40%" y="-120%" width="180%" height="340%">
-      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
+    <!-- At rest: the check circle's glow. Two tinted shadows (violet + coral) rather
+         than flat black, matching the CTA's coloured box-shadow so it reads vibrant,
+         not dull. -->
+    <filter id="gooRest" x="-70%" y="-150%" width="240%" height="400%">
+      <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#a24bff" flood-opacity="0.55" result="s1"/>
+      <feDropShadow in="s1" dx="0" dy="4" stdDeviation="6" flood-color="#ff4d97" flood-opacity="0.5"/>
     </filter>
     <!-- Splitting: blur, then hard-threshold the alpha so nearby shapes fuse into a
-         liquid neck and pull apart (metaball), then a drop shadow. A big region — but
-         because this is applied to an SVG <g>, WebKit honours it and does NOT clip to
-         the element box, so nothing is sliced off top or bottom. -->
-    <filter id="goo" x="-40%" y="-160%" width="180%" height="420%">
+         liquid neck and pull apart (metaball), then the same violet+coral glow. A big
+         region — but because this is applied to an SVG <g>, WebKit honours it and does
+         NOT clip to the element box, so nothing is sliced off top or bottom. -->
+    <filter id="goo" x="-50%" y="-180%" width="200%" height="460%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur"/>
       <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11" result="goo"/>
       <feComposite in="SourceGraphic" in2="goo" operator="atop" result="merged"/>
-      <feDropShadow in="merged" dx="0" dy="9" stdDeviation="9" flood-color="#000" flood-opacity="0.4"/>
+      <feDropShadow in="merged" dx="0" dy="9" stdDeviation="9" flood-color="#a24bff" flood-opacity="0.55" result="s1"/>
+      <feDropShadow in="s1" dx="0" dy="4" stdDeviation="6" flood-color="#ff4d97" flood-opacity="0.5"/>
     </filter>
   </defs>
 </svg>

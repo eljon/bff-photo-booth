@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.55.1 — 2026-08-27
+
+**Gave the goo buttons their life back.**
+
+- Moving the goo to SVG (last build) fixed the cutoff but left the pills with a flat,
+  static fill and a plain dark shadow — dull. Now the SVG gradient is animated: it
+  slowly pans back and forth (via `animateTransform`), so the violet→fuchsia→coral
+  colours drift across the buttons the way the original CTA gradient did.
+- The shadow is now a tinted violet + coral glow instead of flat black, matching the
+  CTA's coloured glow, so the buttons read vibrant and premium rather than muddy.
+
 ## 1.55.0 — 2026-08-27
 
 **The gooey split's top/bottom cutoff is gone for good — rebuilt as native SVG.**
