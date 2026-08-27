@@ -553,17 +553,21 @@ function applyGooStretch(s) {
   if (commit.classList.contains('hidden')) { commit.style.transform = ''; return; }
   if (Math.abs(s) < 0.001) {
     commit.style.transform = '';
+    commit.style.transformOrigin = '';
     check.style.opacity = '';
     if (!commit.classList.contains('animating')) { commit.classList.remove('flex'); setGooBlur(GOO_MIN); }
     return;
   }
   const a = Math.abs(s);
-  // Stretch DRAMATICALLY along the travel direction and squash across, so at speed the
-  // control is pulled into a thin liquid line/streak; skew + translate give it the drag.
-  const t = `translateX(${(s * 34).toFixed(2)}px) skewX(${(s * -10).toFixed(2)}deg) `
-    + `scale(${(1 + a * 2.7).toFixed(3)}, ${(1 - a * 0.82).toFixed(3)})`;
-  commit.style.transform = t;
-  // Fade the tick out as it thins to a line — a squashed glyph would just look broken.
+  // Stretch it IN THE SWIPE DIRECTION: anchor the check circle's trailing edge and let
+  // the leading edge shoot out the way the deck is travelling, so at speed it's pulled
+  // into a thin liquid streak pointing along the swipe. s>0 = deck swiped left → the
+  // goo reaches left (origin pinned to the circle's RIGHT edge, 36px right of centre),
+  // s<0 → reaches right. The origin only changes sign as the lean passes through 0
+  // (scale ≈ 1), so a direction reversal never jumps.
+  commit.style.transformOrigin = (s > 0 ? 'calc(50% + 36px)' : 'calc(50% - 36px)') + ' 36px';
+  commit.style.transform = `scale(${(1 + a * 3.6).toFixed(3)}, ${(1 - a * 0.82).toFixed(3)})`;
+  // Fade the tick out as it thins to a streak — a squashed glyph would just look broken.
   check.style.opacity = String(Math.max(0, 1 - a * 1.4));
   // Don't fight a split/merge for the blur — it owns the filter while animating.
   if (!commit.classList.contains('animating')) {

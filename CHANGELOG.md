@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.56.2 — 2026-08-27
+
+**The stretch now follows the swipe direction.**
+
+- It was leaning the wrong way (and just widening symmetrically). Now the check's trailing
+  edge is pinned and the leading edge shoots out the way the deck is travelling — swipe
+  left and the liquid streak reaches left, swipe right and it reaches right — so it clearly
+  trails the swipe instead of stretching at random.
+
 ## 1.56.1 — 2026-08-27
 
 **The fluid check stretches way further — into a thin liquid line at speed.**
