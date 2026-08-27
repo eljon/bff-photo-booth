@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.6 — 2026-08-26
+
+**Fix: swiping no longer collapses Save/Print back into the check.**
+
+- Once the check has split into Save and Print, swiping the coverflow could snap
+  the two buttons back into the check circle. The open pose was held only by the
+  animation's fill state, which Safari can drop on the repaint a swipe triggers.
+  The open pose is now a plain style rule (the gooey animation only runs for its
+  ~0.9s), so the buttons stay put no matter what repaints.
+
 ## 1.50.5 — 2026-08-26
 
 **Round check button, snappier split.**

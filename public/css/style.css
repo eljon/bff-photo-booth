@@ -518,10 +518,12 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); opacity: 0; }
 .b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.36); }
 .b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.36); }
-/* Open: centre circle shrinks away; the two blobs light up and split. */
+/* Open: centre circle shrinks away; the two blobs light up. The RESTING open pose
+   is a plain rule (not animation fill-mode) so a repaint or reflow — e.g. a
+   coverflow swipe on Safari — can never drop the pair back to the check circle. */
 .commit.open .b-center { transform: scale(0.2); opacity: 0; }
 .commit.open .b-save,
-.commit.open .b-print { opacity: 1; }
+.commit.open .b-print { opacity: 1; transform: translateX(0) scaleX(1) scaleY(1); }
 
 /* Open: the two circles pull apart at once — the goo filter draws a real liquid
    neck between them that stretches and pinches. Once apart, each unsqueezes from a
@@ -547,8 +549,10 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   91%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }
   100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
-.commit.open .b-save  { animation: gooBirthLeft 0.82s forwards; }
-.commit.open .b-print { animation: gooBirthRight 0.82s forwards; }
+/* The gooey split plays only while `.animating` (the ~0.9s after the tap); after
+   that the plain `.commit.open` pose above holds the pills in place. */
+.commit.animating .b-save  { animation: gooBirthLeft 0.82s forwards; }
+.commit.animating .b-print { animation: gooBirthRight 0.82s forwards; }
 
 /* crisp overlays */
 .check-btn {
@@ -605,9 +609,8 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .commit.save-only.open .b-save { transform: translateX(0) scale(1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .check-btn, .commit-pair { transition-duration: 0.001s; }
-  .commit.open .b-save { animation: none; transform: translateX(0) scaleX(1) scaleY(1); }
-  .commit.open .b-print { animation: none; transform: translateX(0) scaleX(1) scaleY(1); }
+  .check-btn, .commit-pair, .b-center { transition-duration: 0.001s; }
+  .commit.animating .b-save, .commit.animating .b-print { animation: none; }
 }
 
 /* ---------------------------------------------------------------- sheet */
