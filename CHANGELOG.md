@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.55.5 — 2026-08-27
+
+**The split now settles smoothly into the rounded rectangle — no more snap.**
+
+- Previously the goo filter switched off the instant the split ended, popping the
+  buttons from the blobby capsule straight to the crisp rounded rect. Now the metaball
+  blur is held full while the pills separate, then ramped down to ~0 as they settle, so
+  the corners sharpen gradually into the rounded rectangle. The plain drop-shadow only
+  takes over once the blur is already gone, so there's no visible jump. The reverse
+  (merge) ramps the blur back up.
+
 ## 1.55.4 — 2026-08-27
 
 **Rounded-rectangle buttons, and a gradient that actually drifts on iPhone.**

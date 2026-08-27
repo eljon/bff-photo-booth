@@ -208,11 +208,41 @@ function warmPrint() {
 /** Reverse the check split: if Save/Print are open, gooey-merge them back into the
  *  check circle. Called when the guest swipes to a different design, so the new
  *  choice has to be confirmed again. */
+// The metaball blur is what makes the split look liquid — but it also rounds the
+// rounded-rect buttons into capsules while it's on. Rather than snap the filter off
+// (which pops the shape from capsule to rounded-rect), we RAMP the blur down to ~0 as
+// the split settles, so the buttons resolve smoothly into their crisp rounded-rect
+// shape; only then do we drop to the plain drop-shadow. The reverse ramps it back up.
+let gooRaf = null;
+function setGooBlur(v) { $('gooBlur').setAttribute('stdDeviation', v.toFixed(2)); }
+function rampGooBlur(from, to, holdMs, rampMs, onDone) {
+  if (gooRaf) cancelAnimationFrame(gooRaf);
+  setGooBlur(from);
+  const t0 = performance.now();
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  const step = () => {
+    const dt = performance.now() - t0;
+    if (dt < holdMs) { gooRaf = requestAnimationFrame(step); return; }
+    const e = Math.min(1, (dt - holdMs) / rampMs);
+    setGooBlur(from + (to - from) * ease(e));
+    if (e < 1) { gooRaf = requestAnimationFrame(step); return; }
+    gooRaf = null;
+    if (onDone) onDone();
+  };
+  gooRaf = requestAnimationFrame(step);
+}
+
+const GOO_MAX = 18;   // full metaball blur — liquid neck
+const GOO_MIN = 0.3;  // effectively crisp — the settled rounded-rect edge
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function collapseCommit() {
   const commit = $('commit');
   if (!commit.classList.contains('open') || commit.classList.contains('closing')) return;
   clearTimeout(gooTimer);
+  if (reduceMotion()) { commit.classList.remove('open'); return; }
   commit.classList.add('closing', 'animating');
+  rampGooBlur(GOO_MIN, GOO_MAX, 0, 220);  // crisp pills → liquid as they fuse back
   gooTimer = setTimeout(() => commit.classList.remove('open', 'closing', 'animating'), 700);
 }
 
@@ -1896,11 +1926,14 @@ function bind() {
 
   $('checkBtn').addEventListener('click', () => {
     const commit = $('commit');
-    commit.classList.add('open', 'animating');
-    // The goo filter is heavy; keep it on only for the length of the split, then
-    // drop back to a plain drop-shadow so it isn't rasterised while idle.
+    commit.classList.add('open');
     clearTimeout(gooTimer);
-    gooTimer = setTimeout(() => commit.classList.remove('animating'), 950);
+    if (reduceMotion()) { setGooBlur(GOO_MIN); return; } // no goo pulse, just show the pair
+    commit.classList.add('animating');
+    // Hold the full blur while the pills split and the neck stretches, then ramp it to
+    // ~0 so they resolve smoothly into crisp rounded rects; drop to the plain
+    // drop-shadow only once the blur is already gone, so there's no shape pop.
+    rampGooBlur(GOO_MAX, GOO_MIN, 470, 340, () => commit.classList.remove('animating'));
   });
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
