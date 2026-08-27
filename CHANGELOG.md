@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.55.4 — 2026-08-27
+
+**Rounded-rectangle buttons, and a gradient that actually drifts on iPhone.**
+
+- The open Save/Print buttons are now rounded rectangles (corner radius 20), not full
+  capsules. The closed check stays a true circle; the gooey morph in between is
+  unchanged.
+- The gradient drift is now driven by a `requestAnimationFrame` loop instead of SMIL.
+  SMIL animation of a gradient inside a zero-size `<svg>` does not run in Safari, which
+  is why it looked frozen on the phone; a JS loop updates it directly and works
+  everywhere. It's throttled to ~20fps so the constant repaint stays light.
+
 ## 1.55.3 — 2026-08-27
 
 **The goo gradient drifts again — like the primary CTA.**

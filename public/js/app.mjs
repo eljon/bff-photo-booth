@@ -268,19 +268,20 @@ function layoutGoo() {
   const GAP = 24;      // half-gap between the two pills (matches the labels' 48px gap)
   const H = 72;        // pill height
   const TOP = 64;      // must equal the svg's -64px top inset, so the pill centres on the control
-  const RX = 36;
+  const PILL_RX = 20;  // the open buttons are ROUNDED RECTANGLES, not capsules
+  const CIRCLE_RX = 36; // the closed check is a true circle (rx = half of 72)
   const saveOnly = commit.classList.contains('save-only');
   const half = W / 2 - GAP;
-  const setRect = (el, x, w) => {
+  const setRect = (el, x, w, rx) => {
     el.setAttribute('x', x); el.setAttribute('y', TOP);
     el.setAttribute('width', Math.max(0, w)); el.setAttribute('height', H);
-    el.setAttribute('rx', RX); el.setAttribute('ry', RX);
+    el.setAttribute('rx', rx); el.setAttribute('ry', rx);
   };
   const [save, print, center] = $('gooG').children;
   const saveW = saveOnly ? W : half;
-  setRect(save, 0, saveW);                        // save-only: one full-width pill
-  setRect(print, W / 2 + GAP, half);
-  setRect(center, W / 2 - 36, 72);               // 72×72 rx36 → the closed check circle
+  setRect(save, 0, saveW, PILL_RX);              // save-only: one full-width rounded rect
+  setRect(print, W / 2 + GAP, half, PILL_RX);
+  setRect(center, W / 2 - 36, 72, CIRCLE_RX);    // 72×72 rx36 → the closed check circle
   // Each blob's gradient is 115° (the CSS --grad angle). objectBoundingBox skews an
   // angle by the shape's aspect ratio, so the endpoints are computed per shape from
   // the true 115° direction — giving the same visual angle on the wide pills and the
@@ -289,6 +290,32 @@ function layoutGoo() {
   gradAngle($('gradSave'), saveW, H);
   gradAngle($('gradPrint'), half, H);
   gradAngle($('gradCenter'), 72, H);
+  startGradDrift();
+}
+
+/** Pan the goo gradients back and forth (a JS-driven version of the CTA's btnGrad
+ *  drift). SMIL on a gradient inside a zero-size <svg> does not run in Safari, so we
+ *  animate gradientTransform from a rAF loop — reliable in every browser. Slow 9s
+ *  oscillation; the loop parks itself whenever the control is hidden. */
+let gradRaf = null;
+let gradLast = 0;
+function startGradDrift() {
+  if (gradRaf !== null) return;
+  const grads = [$('gradSave'), $('gradPrint'), $('gradCenter')];
+  const step = () => {
+    if ($('commit').classList.contains('hidden')) { gradRaf = null; return; } // parked
+    const now = performance.now();
+    // Repaint at ~20fps, not every frame — the drift is slow (9s), and each update
+    // re-runs the goo layer's shadow, so throttling keeps it light on the phone.
+    if (now - gradLast >= 50) {
+      gradLast = now;
+      const phase = Math.sin((now / 9000) * Math.PI * 2); // [-1,1] over 9s
+      const t = `translate(${(phase * 0.55).toFixed(4)} ${(phase * 0.26).toFixed(4)})`;
+      for (const g of grads) g.setAttribute('gradientTransform', t);
+    }
+    gradRaf = requestAnimationFrame(step);
+  };
+  gradRaf = requestAnimationFrame(step);
 }
 
 /** Set a linearGradient's endpoints so it renders at 115° (CSS --grad) on a w×h box.
