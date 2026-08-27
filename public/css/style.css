@@ -459,14 +459,24 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    blobs sit perfectly overlapped when closed, so they read as one pill either way. */
 .commit-goo {
   position: absolute;
-  inset: 0;
+  /* Extend the filtered box well beyond the control's height. Safari clips an SVG
+     filter's output to the filtered ELEMENT's box (it ignores the filter-region
+     attribute), so the blurred/squashing blobs were sliced flat. Giving the goo
+     layer 60px of head- and foot-room means the blur + stretch always fall inside
+     its box, so nothing is cut off. Left/right stay at 0 so the blobs' widths (a %
+     of this box) — and their centring maths — are unchanged. */
+  left: 0;
+  right: 0;
+  top: -60px;
+  bottom: -60px;
   z-index: 0;
+  pointer-events: none; /* purely decorative — never intercept taps (it overhangs Replace) */
   filter: drop-shadow(0 8px 16px #0006);
 }
 .commit.animating .commit-goo { filter: url(#goo) drop-shadow(0 9px 18px #0006); }
 .blob {
   position: absolute;
-  top: 0;
+  top: 60px; /* re-centre the blobs inside the taller goo box (matches the -60 above) */
   height: 72px;
   border-radius: 36px;
   transform-origin: center;
@@ -476,7 +486,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    squished-pill corners). The two pill blobs are hidden behind it and only appear
    for the split, where the goo filter rounds them into blobs anyway. */
 .b-center {
-  left: 50%; top: 0; width: 72px; height: 72px; margin-left: -36px;
+  left: 50%; top: 60px; width: 72px; height: 72px; margin-left: -36px;
   border-radius: 50%; background: var(--grad);
   transition: transform 0.28s ease, opacity 0.24s ease;
 }

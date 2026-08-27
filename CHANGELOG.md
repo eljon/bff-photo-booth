@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.53.3 — 2026-08-26
+
+**Really fixed the gooey cutoff (this time for Safari).**
+
+- Safari clips an SVG filter's output to the filtered element's own box and ignores
+  the filter-region attribute — so widening the region (last build) fixed Chrome
+  but not the phone. Now the goo layer itself is 60px taller than the control at
+  top and bottom, so the blur and squash-and-stretch always render inside its box.
+  No more flat cutoff on iOS.
+
 ## 1.53.2 — 2026-08-26
 
 **Fixed the flat cutoff on the gooey split.**
