@@ -15,15 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.50.6 — 2026-08-26
+## 1.51.0 — 2026-08-26
 
-**Fix: swiping no longer collapses Save/Print back into the check.**
+**Swiping to a new design gooey-merges Save/Print back into the check.**
 
-- Once the check has split into Save and Print, swiping the coverflow could snap
-  the two buttons back into the check circle. The open pose was held only by the
-  animation's fill state, which Safari can drop on the repaint a swipe triggers.
-  The open pose is now a plain style rule (the gooey animation only runs for its
-  ~0.9s), so the buttons stay put no matter what repaints.
+- After you've split the check into Save and Print, swiping the coverflow to a
+  different layout now plays the split in reverse: the two pills deflate to
+  circles, slide together, the goo fuses them, and the check (✓) reappears — so
+  you re-confirm the new design. (The earlier build just left the buttons open;
+  now the reverse is a proper animation, and the open pose is still held by a
+  plain rule so nothing snaps unexpectedly.)
 
 ## 1.50.5 — 2026-08-26
 

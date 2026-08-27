@@ -205,6 +205,17 @@ function warmPrint() {
   }, 500);
 }
 
+/** Reverse the check split: if Save/Print are open, gooey-merge them back into the
+ *  check circle. Called when the guest swipes to a different design, so the new
+ *  choice has to be confirmed again. */
+function collapseCommit() {
+  const commit = $('commit');
+  if (!commit.classList.contains('open') || commit.classList.contains('closing')) return;
+  clearTimeout(gooTimer);
+  commit.classList.add('closing', 'animating');
+  gooTimer = setTimeout(() => commit.classList.remove('open', 'closing', 'animating'), 700);
+}
+
 /** The picker is the main event: one tap should get all four photos. */
 function updatePickButton() {
   const missing = 4 - filledCount();
@@ -329,6 +340,7 @@ function setCurrent(index) {
   const i = clampPos(index);
   if (i === cfIndex || !cfDesigns[i]) return;
   cfIndex = i;
+  collapseCommit(); // swiped to a new design — merge Save/Print back into the check
   const d = cfDesigns[i];
   state.designKey = d.key;
   lastPrintBlob = null; // the chosen design changed — re-warm the print for Save/Print

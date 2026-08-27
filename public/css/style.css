@@ -551,8 +551,29 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 }
 /* The gooey split plays only while `.animating` (the ~0.9s after the tap); after
    that the plain `.commit.open` pose above holds the pills in place. */
-.commit.animating .b-save  { animation: gooBirthLeft 0.82s forwards; }
-.commit.animating .b-print { animation: gooBirthRight 0.82s forwards; }
+.commit.animating:not(.closing) .b-save  { animation: gooBirthLeft 0.82s forwards; }
+.commit.animating:not(.closing) .b-print { animation: gooBirthRight 0.82s forwards; }
+
+/* Reverse: swiping to a new design merges Save/Print back into the check. The
+   pills deflate to circles, slide together (the goo re-forms a neck and fuses
+   them), the centre circle grows back and the tick fades in. */
+@keyframes gooMergeLeft {
+  0%   { transform: translateX(0) scaleX(1) scaleY(1); }
+  44%  { transform: translateX(0) scaleX(0.36) scaleY(1); }
+  100% { transform: translateX(calc(50% + 24px)) scaleX(0.36) scaleY(1); }
+}
+@keyframes gooMergeRight {
+  0%   { transform: translateX(0) scaleX(1) scaleY(1); }
+  44%  { transform: translateX(0) scaleX(0.36) scaleY(1); }
+  100% { transform: translateX(calc(-50% - 24px)) scaleX(0.36) scaleY(1); }
+}
+@keyframes centerBack { 0%, 52% { transform: scale(0.25); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes checkBack  { 0%, 60% { opacity: 0; } 100% { opacity: 1; } }
+.commit.closing .b-save   { animation: gooMergeLeft  0.68s cubic-bezier(0.5, 0, 0.4, 1) forwards; }
+.commit.closing .b-print  { animation: gooMergeRight 0.68s cubic-bezier(0.5, 0, 0.4, 1) forwards; }
+.commit.closing .b-center { animation: centerBack 0.68s forwards; }
+.commit.closing .check-btn { animation: checkBack 0.68s forwards; }
+.commit.closing .commit-pair { opacity: 0; transition: opacity 0.16s ease; pointer-events: none; }
 
 /* crisp overlays */
 .check-btn {
@@ -610,7 +631,8 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .check-btn, .commit-pair, .b-center { transition-duration: 0.001s; }
-  .commit.animating .b-save, .commit.animating .b-print { animation: none; }
+  .commit.animating .b-save, .commit.animating .b-print,
+  .commit.closing .b-center, .commit.closing .check-btn { animation: none; }
 }
 
 /* ---------------------------------------------------------------- sheet */
