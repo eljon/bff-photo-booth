@@ -820,7 +820,9 @@ async function acceptFiles(files, startIndex = null) {
   replaceAllNext = false;
 
   const tooMany = chosen.length > 4;
-  toast(tooMany ? 'A print holds 4 — using the first four you picked.' : list.length > 1 ? 'Loading your photos…' : 'Loading…', tooMany ? 3200 : 1400);
+  // Only speak up when there's real news (more than four picked); the photos
+  // appear on their own, so no "Loading…" chatter.
+  if (tooMany) toast('A print holds 4 — using the first four you picked.', 3200);
 
   let cursor = startIndex;
   for (const file of list) {
@@ -834,9 +836,6 @@ async function acceptFiles(files, startIndex = null) {
       toast(err.message);
     }
   }
-
-  // Do not talk over the "only four fit" notice — that one is news.
-  if (filledCount() === 4 && !tooMany) toast('Looking good — print it, or save it to your phone.', 2400);
 }
 
 let overflowCursor = 0;

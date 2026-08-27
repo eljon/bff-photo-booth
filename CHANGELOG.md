@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.49.1 — 2026-08-26
+
+**Quieter — no more pop-up chatter.**
+
+- Removed the unsolicited toast pop-ups that appeared during the normal flow: the
+  "Looking good — print it, or save it to your phone." message and the generic
+  "Loading…" notice. Photos just appear. Genuine feedback stays — errors, the
+  "a print holds 4" notice, and save confirmations only show when you act.
+
 ## 1.49.0 — 2026-08-26
 
 **A check button that splits into Save and Print.**
