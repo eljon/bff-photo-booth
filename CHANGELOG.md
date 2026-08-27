@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.51.1 — 2026-08-26
+
+**Labels ride with the buttons; Replace moved below.**
+
+- The Save and Print labels no longer pop in at a fixed spot while the blobs move
+  — each label now carries the exact same horizontal travel as its blob, fading in
+  as the pill widens and fading out as it deflates, so it rides in and out with the
+  button.
+- Swapped the vertical order: the check / Save / Print control now sits above the
+  Replace photos button.
+
 ## 1.51.0 — 2026-08-26
 
 **Swiping to a new design gooey-merges Save/Print back into the check.**

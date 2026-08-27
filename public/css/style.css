@@ -573,7 +573,37 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .commit.closing .b-print  { animation: gooMergeRight 0.68s cubic-bezier(0.5, 0, 0.4, 1) forwards; }
 .commit.closing .b-center { animation: centerBack 0.68s forwards; }
 .commit.closing .check-btn { animation: checkBack 0.68s forwards; }
-.commit.closing .commit-pair { opacity: 0; transition: opacity 0.16s ease; pointer-events: none; }
+.commit.closing .commit-pair { pointer-events: none; }
+
+/* The labels carry the SAME horizontal travel as their blob so they ride with the
+   button (they fade in once the pill is wide enough for the text, fade out as it
+   deflates). */
+@keyframes labelBirthLeft {
+  0%   { transform: translateX(calc(50% + 24px)); opacity: 0;
+         animation-timing-function: cubic-bezier(0.42, 0, 0.6, 0.5); }
+  44%  { transform: translateX(0); opacity: 0; }
+  70%  { opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes labelBirthRight {
+  0%   { transform: translateX(calc(-50% - 24px)); opacity: 0;
+         animation-timing-function: cubic-bezier(0.42, 0, 0.6, 0.5); }
+  44%  { transform: translateX(0); opacity: 0; }
+  70%  { opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes labelMergeLeft {
+  0%   { transform: translateX(0); opacity: 1; }
+  20%  { opacity: 0; }
+  44%  { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(calc(50% + 24px)); opacity: 0; }
+}
+@keyframes labelMergeRight {
+  0%   { transform: translateX(0); opacity: 1; }
+  20%  { opacity: 0; }
+  44%  { transform: translateX(0); opacity: 0; }
+  100% { transform: translateX(calc(-50% - 24px)); opacity: 0; }
+}
 
 /* crisp overlays */
 .check-btn {
@@ -600,9 +630,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   display: flex;
   gap: 48px;
   z-index: 2;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.26s ease 0.72s; /* let the goo split read before labels arrive */
 }
 .commit-pair button {
   flex: 1;
@@ -617,11 +645,24 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   cursor: pointer;
   color: #fff;
   text-shadow: 0 1px 2px #0000005c;
+  will-change: transform, opacity;
 }
 .commit-save { color: var(--ink); text-shadow: none; }
 
+/* Each label rides ITS blob: it carries the exact same horizontal travel as the
+   blob (translate only — no scale, so the text stays crisp), so it moves out of
+   the check with the button and back into it, instead of popping in place. */
+.commit-save  { transform: translateX(calc(50% + 24px)); opacity: 0; }
+.commit-print { transform: translateX(calc(-50% - 24px)); opacity: 0; }
+.commit.open .commit-save,
+.commit.open .commit-print { transform: translateX(0); opacity: 1; }
+.commit.open .commit-pair { pointer-events: auto; }
+.commit.animating:not(.closing) .commit-save  { animation: labelBirthLeft  0.82s forwards; }
+.commit.animating:not(.closing) .commit-print { animation: labelBirthRight 0.82s forwards; }
+.commit.closing .commit-save  { animation: labelMergeLeft  0.68s forwards; }
+.commit.closing .commit-print { animation: labelMergeRight 0.68s forwards; }
+
 .commit.open .check-btn { opacity: 0; pointer-events: none; }
-.commit.open .commit-pair { opacity: 1; pointer-events: auto; }
 
 /* Save-only booths (no printer): no split — the check reveals a full-width Save. */
 .commit.save-only .b-print,
@@ -632,6 +673,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 @media (prefers-reduced-motion: reduce) {
   .check-btn, .commit-pair, .b-center { transition-duration: 0.001s; }
   .commit.animating .b-save, .commit.animating .b-print,
+  .commit.animating .commit-save, .commit.animating .commit-print,
   .commit.closing .b-center, .commit.closing .check-btn { animation: none; }
 }
 
