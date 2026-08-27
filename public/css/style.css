@@ -506,41 +506,49 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   transform-origin: center;
   will-change: transform, opacity;
 }
-/* Two round gradient blobs. `scaleX(0.42)` squeezes each full-width pill down to
-   a round blob; both sit dead-centre and overlap, so the goo fuses them into a
-   single round check pill. */
-.b-save   { left: 0;  width: calc(50% - 24px); background: var(--grad); }
-.b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); }
-.b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.42); }
-.b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.42); }
+/* Closed, the check is a TRUE circle (b-center: a real 56px round element, so no
+   squished-pill corners). The two pill blobs are hidden behind it and only appear
+   for the split, where the goo filter rounds them into blobs anyway. */
+.b-center {
+  left: 50%; top: 0; width: 56px; height: 56px; margin-left: -28px;
+  border-radius: 50%; background: var(--grad);
+  transition: transform 0.28s ease, opacity 0.24s ease;
+}
+.b-save   { left: 0;  width: calc(50% - 24px); background: var(--grad); opacity: 0; }
+.b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); opacity: 0; }
+.b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.36); }
+.b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.36); }
+/* Open: centre circle shrinks away; the two blobs light up and split. */
+.commit.open .b-center { transform: scale(0.2); opacity: 0; }
+.commit.open .b-save,
+.commit.open .b-print { opacity: 1; }
 
-/* Open: the two round blobs pull apart as ROUND blobs — the goo filter draws a
-   real liquid neck between them that stretches and pinches (ease-in start so they
-   linger close and the neck lasts). Once apart, each blob unsqueezes from circle
-   to full pill with an elastic overshoot + squash-and-stretch jiggle, so it reads
-   as inflating out of the slime. */
+/* Open: the two circles pull apart at once — the goo filter draws a real liquid
+   neck between them that stretches and pinches. Once apart, each unsqueezes from a
+   circle into the full pill with an elastic overshoot + squash-and-stretch jiggle,
+   so it reads as inflating out of the slime. */
 @keyframes gooBirthLeft {
-  0%   { transform: translateX(calc(50% + 24px)) scaleX(0.42) scaleY(1);
-         animation-timing-function: cubic-bezier(0.85, 0, 0.9, 0.35); } /* very slow start: neck lingers and stretches */
-  52%  { transform: translateX(0) scaleX(0.42) scaleY(1.05);
-         animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }   /* arrived, round, about to inflate */
-  70%  { transform: translateX(0) scaleX(1.09) scaleY(0.85); }          /* inflate wide, squash */
-  85%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }          /* rebound tall */
-  94%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }          /* settle jiggle */
+  0%   { transform: translateX(calc(50% + 24px)) scaleX(0.36) scaleY(1);
+         animation-timing-function: cubic-bezier(0.42, 0, 0.6, 0.5); } /* moves off promptly */
+  44%  { transform: translateX(0) scaleX(0.36) scaleY(1.05);
+         animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }  /* arrived, round, about to inflate */
+  62%  { transform: translateX(0) scaleX(1.1)  scaleY(0.84); }         /* inflate wide, squash */
+  80%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }         /* rebound tall */
+  91%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }         /* settle jiggle */
   100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
 @keyframes gooBirthRight {
-  0%   { transform: translateX(calc(-50% - 24px)) scaleX(0.42) scaleY(1);
-         animation-timing-function: cubic-bezier(0.85, 0, 0.9, 0.35); }
-  52%  { transform: translateX(0) scaleX(0.42) scaleY(1.05);
+  0%   { transform: translateX(calc(-50% - 24px)) scaleX(0.36) scaleY(1);
+         animation-timing-function: cubic-bezier(0.42, 0, 0.6, 0.5); }
+  44%  { transform: translateX(0) scaleX(0.36) scaleY(1.05);
          animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }
-  70%  { transform: translateX(0) scaleX(1.09) scaleY(0.85); }
-  85%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }
-  94%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }
+  62%  { transform: translateX(0) scaleX(1.1)  scaleY(0.84); }
+  80%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }
+  91%  { transform: translateX(0) scaleX(1.02) scaleY(0.98); }
   100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
-.commit.open .b-save  { animation: gooBirthLeft 1.15s forwards; }
-.commit.open .b-print { animation: gooBirthRight 1.15s forwards; }
+.commit.open .b-save  { animation: gooBirthLeft 0.82s forwards; }
+.commit.open .b-print { animation: gooBirthRight 0.82s forwards; }
 
 /* crisp overlays */
 .check-btn {

@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.5 — 2026-08-26
+
+**Round check button, snappier split.**
+
+- The resting check button is now a true circle (it was a squished-pill squircle).
+- The gooey split no longer dawdles at the start — it kicks off promptly and runs
+  a bit quicker, while still stretching the liquid neck and bouncing open.
+
 ## 1.50.4 — 2026-08-26
 
 **The real cause of the intro freeze.**

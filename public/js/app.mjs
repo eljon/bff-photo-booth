@@ -1773,7 +1773,7 @@ function bind() {
     // The goo filter is heavy; keep it on only for the length of the split, then
     // drop back to a plain drop-shadow so it isn't rasterised while idle.
     clearTimeout(gooTimer);
-    gooTimer = setTimeout(() => commit.classList.remove('animating'), 1300);
+    gooTimer = setTimeout(() => commit.classList.remove('animating'), 950);
   });
   $('printBtn').addEventListener('click', doPrint);
   $('saveBtn').addEventListener('click', savePhoto);
