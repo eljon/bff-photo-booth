@@ -501,13 +501,12 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    apply; their x/y/width/height are set in px by layoutGoo() so they line up exactly
    with the (responsive) Save/Print labels on top. */
 .blob {
-  fill: url(#commitGrad);
   transform-box: fill-box;
   transform-origin: center;
 }
-.b-center { transition: transform 0.28s ease, opacity 0.24s ease; }
-.b-save   { opacity: 0; transform: translateX(calc(50% + 24px)) scaleX(0.46); }
-.b-print  { opacity: 0; transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
+.b-center { fill: url(#gradCenter); transition: transform 0.28s ease, opacity 0.24s ease; }
+.b-save   { fill: url(#gradSave);  opacity: 0; transform: translateX(calc(50% + 24px)) scaleX(0.46); }
+.b-print  { fill: url(#gradPrint); opacity: 0; transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
 /* Open: centre circle shrinks away; the two blobs light up. The RESTING open pose
    is a plain rule (not animation fill-mode) so a repaint or reflow — e.g. a
    coverflow swipe on Safari — can never drop the pair back to the check circle. */

@@ -277,9 +277,31 @@ function layoutGoo() {
     el.setAttribute('rx', RX); el.setAttribute('ry', RX);
   };
   const [save, print, center] = $('gooG').children;
-  setRect(save, 0, saveOnly ? W : half);         // save-only: one full-width pill
+  const saveW = saveOnly ? W : half;
+  setRect(save, 0, saveW);                        // save-only: one full-width pill
   setRect(print, W / 2 + GAP, half);
   setRect(center, W / 2 - 36, 72);               // 72×72 rx36 → the closed check circle
+  // Each blob's gradient is 115° (the CSS --grad angle). objectBoundingBox skews an
+  // angle by the shape's aspect ratio, so the endpoints are computed per shape from
+  // the true 115° direction — giving the same visual angle on the wide pills and the
+  // square circle alike (and, being objectBoundingBox, it rides each blob's transform
+  // exactly as the CSS background did).
+  gradAngle($('gradSave'), saveW, H);
+  gradAngle($('gradPrint'), half, H);
+  gradAngle($('gradCenter'), 72, H);
+}
+
+/** Set a linearGradient's endpoints so it renders at 115° (CSS --grad) on a w×h box.
+ *  objectBoundingBox coords: map the CSS gradient line (through the centre, length
+ *  |w·sinθ|+|h·cosθ|) into the unit square by dividing the px vector by w and h. */
+function gradAngle(grad, w, h) {
+  const th = (115 * Math.PI) / 180;
+  const dx = Math.sin(th), dy = -Math.cos(th);   // 115° direction (right, slightly down)
+  const L = Math.abs(w * dx) + Math.abs(h * dy); // CSS gradient-line length in px
+  const hx = (L * dx) / (2 * w);                 // half-vector in objectBoundingBox units
+  const hy = (L * dy) / (2 * h);
+  grad.setAttribute('x1', 0.5 - hx); grad.setAttribute('y1', 0.5 - hy);
+  grad.setAttribute('x2', 0.5 + hx); grad.setAttribute('y2', 0.5 + hy);
 }
 
 // ---------------------------------------------------------------- coverflow

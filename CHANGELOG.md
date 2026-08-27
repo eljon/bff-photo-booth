@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.55.2 — 2026-08-27
+
+**Goo buttons now match the old CSS version exactly — just without the cutoff.**
+
+- Reverted the look changes from the SVG port: the drifting animation and the coloured
+  glow are gone. The fill is the static `--grad` (115deg violet→fuchsia→coral) and the
+  shadow is the plain `drop-shadow(0 8px 16px #0006)` again — pixel-for-pixel the CSS.
+- To get the 115deg angle exactly right in SVG (a bounding-box gradient skews the angle
+  by each shape's aspect ratio), the gradient endpoints are computed per shape, so the
+  angle reads true on the wide pills and the square check circle alike.
+- The split/merge animation and metaball are untouched, so it feels identical. Only the
+  rendering path is SVG now, which is what keeps the top/bottom from being clipped.
+
 ## 1.55.1 — 2026-08-27
 
 **Gave the goo buttons their life back.**

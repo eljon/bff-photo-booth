@@ -511,13 +511,12 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    apply; their x/y/width/height are set in px by layoutGoo() so they line up exactly
    with the (responsive) Save/Print labels on top. */
 .blob {
-  fill: url(#commitGrad);
   transform-box: fill-box;
   transform-origin: center;
 }
-.b-center { transition: transform 0.28s ease, opacity 0.24s ease; }
-.b-save   { opacity: 0; transform: translateX(calc(50% + 24px)) scaleX(0.46); }
-.b-print  { opacity: 0; transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
+.b-center { fill: url(#gradCenter); transition: transform 0.28s ease, opacity 0.24s ease; }
+.b-save   { fill: url(#gradSave);  opacity: 0; transform: translateX(calc(50% + 24px)) scaleX(0.46); }
+.b-print  { fill: url(#gradPrint); opacity: 0; transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
 /* Open: centre circle shrinks away; the two blobs light up. The RESTING open pose
    is a plain rule (not animation fill-mode) so a repaint or reflow — e.g. a
    coverflow swipe on Safari — can never drop the pair back to the check circle. */
@@ -941,39 +940,36 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
      fuse into liquid blobs and pull apart with a stretching neck. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <!-- The living pill/circle gradient (matches the CTA's --grad: violet→fuchsia→
-         coral). The axis is ~2.2× the box wide (like the CTA's background-size:220%)
-         and tilted for the 115deg diagonal; animateTransform slowly pans it back and
-         forth so the colours drift across the buttons — the same drift the flat SVG
-         fill had lost. -->
-    <linearGradient id="commitGrad" x1="-0.6" y1="0" x2="1.6" y2="0.62">
-      <stop offset="0"    stop-color="#6a5cff"/>
-      <stop offset="0.30" stop-color="#a24bff"/>
-      <stop offset="0.62" stop-color="#ff4d97"/>
-      <stop offset="1"    stop-color="#ff7a4d"/>
-      <animateTransform attributeName="gradientTransform" type="translate"
-        dur="9s" repeatCount="indefinite"
-        calcMode="spline" keyTimes="0;0.5;1"
-        keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
-        values="0.5 0; -0.5 0; 0.5 0"/>
+    <!-- The pill/circle gradient — EXACTLY the CSS --grad:
+         linear-gradient(115deg, #6a5cff 0%, #a24bff 32%, #ff4d97 64%, #ff7a4d 100%).
+         One gradient per blob (objectBoundingBox → each blob carries its own gradient,
+         as in CSS), with endpoints set per-shape by layoutGoo() so 115° is true on the
+         wide pills AND the square check circle. Static, exactly like the CSS. -->
+    <linearGradient id="gradSave">
+      <stop offset="0"    stop-color="#6a5cff"/><stop offset="0.32" stop-color="#a24bff"/>
+      <stop offset="0.64" stop-color="#ff4d97"/><stop offset="1"    stop-color="#ff7a4d"/>
     </linearGradient>
-    <!-- At rest: the check circle's glow. Two tinted shadows (violet + coral) rather
-         than flat black, matching the CTA's coloured box-shadow so it reads vibrant,
-         not dull. -->
-    <filter id="gooRest" x="-70%" y="-150%" width="240%" height="400%">
-      <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#a24bff" flood-opacity="0.55" result="s1"/>
-      <feDropShadow in="s1" dx="0" dy="4" stdDeviation="6" flood-color="#ff4d97" flood-opacity="0.5"/>
+    <linearGradient id="gradPrint">
+      <stop offset="0"    stop-color="#6a5cff"/><stop offset="0.32" stop-color="#a24bff"/>
+      <stop offset="0.64" stop-color="#ff4d97"/><stop offset="1"    stop-color="#ff7a4d"/>
+    </linearGradient>
+    <linearGradient id="gradCenter">
+      <stop offset="0"    stop-color="#6a5cff"/><stop offset="0.32" stop-color="#a24bff"/>
+      <stop offset="0.64" stop-color="#ff4d97"/><stop offset="1"    stop-color="#ff7a4d"/>
+    </linearGradient>
+    <!-- At rest: the CSS drop-shadow(0 8px 16px #0006). CSS blur radius = 2×stdDev. -->
+    <filter id="gooRest" x="-60%" y="-150%" width="220%" height="400%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
     </filter>
     <!-- Splitting: blur, then hard-threshold the alpha so nearby shapes fuse into a
-         liquid neck and pull apart (metaball), then the same violet+coral glow. A big
-         region — but because this is applied to an SVG <g>, WebKit honours it and does
-         NOT clip to the element box, so nothing is sliced off top or bottom. -->
+         liquid neck and pull apart (metaball), then the CSS drop-shadow(0 9px 18px
+         #0006). Because this rides an SVG <g>, WebKit honours the region and does NOT
+         clip to the element box, so nothing is sliced off top or bottom. -->
     <filter id="goo" x="-50%" y="-180%" width="200%" height="460%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur"/>
       <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11" result="goo"/>
       <feComposite in="SourceGraphic" in2="goo" operator="atop" result="merged"/>
-      <feDropShadow in="merged" dx="0" dy="9" stdDeviation="9" flood-color="#a24bff" flood-opacity="0.55" result="s1"/>
-      <feDropShadow in="s1" dx="0" dy="4" stdDeviation="6" flood-color="#ff4d97" flood-opacity="0.5"/>
+      <feDropShadow in="merged" dx="0" dy="9" stdDeviation="9" flood-color="#000" flood-opacity="0.4"/>
     </filter>
   </defs>
 </svg>
@@ -1889,9 +1885,31 @@ function layoutGoo() {
     el.setAttribute('rx', RX); el.setAttribute('ry', RX);
   };
   const [save, print, center] = $('gooG').children;
-  setRect(save, 0, saveOnly ? W : half);         // save-only: one full-width pill
+  const saveW = saveOnly ? W : half;
+  setRect(save, 0, saveW);                        // save-only: one full-width pill
   setRect(print, W / 2 + GAP, half);
   setRect(center, W / 2 - 36, 72);               // 72×72 rx36 → the closed check circle
+  // Each blob's gradient is 115° (the CSS --grad angle). objectBoundingBox skews an
+  // angle by the shape's aspect ratio, so the endpoints are computed per shape from
+  // the true 115° direction — giving the same visual angle on the wide pills and the
+  // square circle alike (and, being objectBoundingBox, it rides each blob's transform
+  // exactly as the CSS background did).
+  gradAngle($('gradSave'), saveW, H);
+  gradAngle($('gradPrint'), half, H);
+  gradAngle($('gradCenter'), 72, H);
+}
+
+/** Set a linearGradient's endpoints so it renders at 115° (CSS --grad) on a w×h box.
+ *  objectBoundingBox coords: map the CSS gradient line (through the centre, length
+ *  |w·sinθ|+|h·cosθ|) into the unit square by dividing the px vector by w and h. */
+function gradAngle(grad, w, h) {
+  const th = (115 * Math.PI) / 180;
+  const dx = Math.sin(th), dy = -Math.cos(th);   // 115° direction (right, slightly down)
+  const L = Math.abs(w * dx) + Math.abs(h * dy); // CSS gradient-line length in px
+  const hx = (L * dx) / (2 * w);                 // half-vector in objectBoundingBox units
+  const hy = (L * dy) / (2 * h);
+  grad.setAttribute('x1', 0.5 - hx); grad.setAttribute('y1', 0.5 - hy);
+  grad.setAttribute('x2', 0.5 + hx); grad.setAttribute('y2', 0.5 + hy);
 }
 
 // ---------------------------------------------------------------- coverflow
