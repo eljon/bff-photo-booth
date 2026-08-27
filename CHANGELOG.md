@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.57.0 — 2026-08-27
+
+**Watercolor photo frames.**
+
+- New "Watercolor" look: the prints now sit on decorative watercolor paper (six hand-
+  painted sheets — three portrait, three landscape), with the photos matted into the
+  clear centre — rounded corners, a soft drop shadow and a bright colored border on
+  each, like the layout mockups. It's the default look; swipe the coverflow to pick the
+  hero arrangement and each card shows the paper behind it.
+- Backgrounds live in `public/backgrounds/` and are drawn full-bleed behind the photos,
+  crisp at print resolution.
+
 ## 1.56.7 — 2026-08-27
 
 **The tick now flies out opposite the swipe.**

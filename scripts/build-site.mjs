@@ -5,7 +5,7 @@
 // Historical snapshots are built once from each version's commit and then left
 // alone; only the root and the current version's folder are rebuilt each run.
 
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, cp } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -60,6 +60,16 @@ if (!currentHtml) throw new Error('Working tree is missing the CSS/JS hooks the 
 await writeFile(path.join(ROOT, 'index.html'), currentHtml, 'utf8');
 await writeVersion(current, currentHtml);
 console.log(`latest → index.html and /${current}/  (${currentHtml.length} bytes)`);
+
+// Copy the watercolor papers next to the pages that reference them (the app uses a
+// relative `backgrounds/…` path): the site root and the current version's slug. Older
+// slugs never used them, so they stay lean.
+const bgSrc = path.join(ROOT, 'public/backgrounds');
+if (await exists(bgSrc)) {
+  await cp(bgSrc, path.join(ROOT, 'backgrounds'), { recursive: true });
+  await cp(bgSrc, path.join(ROOT, current, 'backgrounds'), { recursive: true });
+  console.log('backgrounds → /backgrounds and /' + current + '/backgrounds');
+}
 
 // --- every past version → /<version>/, built once from its commit ---
 const commits = git(['log', '--format=%H', '--', 'package.json']).trim().split('\n');

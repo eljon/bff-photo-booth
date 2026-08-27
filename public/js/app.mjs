@@ -1,6 +1,6 @@
 import { LAYOUTS, LAYOUT_ORDER, FRAMES, designVariants } from './layouts.mjs';
 import { FILTERS, FILTER_ORDER } from './filters.mjs';
-import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout } from './render.mjs';
+import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout, preloadArt } from './render.mjs';
 
 const $ = (id) => document.getElementById(id);
 const MAX_SOURCE_DIM = 3600; // fills a full-page cell at the 600 DPI print scale, still gentle on memory
@@ -9,7 +9,7 @@ const MAX_SOURCE_DIM = 3600; // fills a full-page cell at the 600 DPI print scal
 // the whole app.
 const state = {
   layoutId: 'grid',
-  frameId: 'white',
+  frameId: 'watercolor',
   filterId: 'none',
   caption: '',
   subtitle: '',
@@ -148,6 +148,10 @@ function scheduleRender() {
     renderAll();
   });
 }
+
+// Warm the watercolor papers up front so the coverflow and preview show them with no
+// flash of blank paper; each one re-renders as it arrives.
+preloadArt([...FRAMES.watercolor.art.portrait, ...FRAMES.watercolor.art.land], scheduleRender);
 
 function previewScale(layout) {
   const dpr = Math.min(3, window.devicePixelRatio || 1);

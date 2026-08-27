@@ -3,6 +3,50 @@ import { FILTERS, supportsCtxFilter, applyPixelFilter } from './filters.mjs';
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+// --- watercolor background art -------------------------------------------------
+// Decorative full-bleed background images (the guest's uploaded PNGs). They load
+// async; composePage draws whichever is ready and falls back to the paper colour
+// until then. app.mjs calls preloadArt() at boot and re-renders on ready.
+const artCache = new Map(); // src -> HTMLImageElement | 'pending' | 'error'
+export function preloadArt(srcs, onReady) {
+  for (const src of srcs) {
+    if (artCache.has(src)) continue;
+    artCache.set(src, 'pending');
+    const img = new Image();
+    img.onload = () => { artCache.set(src, img); if (onReady) onReady(); };
+    img.onerror = () => { artCache.set(src, 'error'); };
+    img.src = src;
+  }
+}
+function artImage(src) {
+  const v = artCache.get(src);
+  return v && v !== 'pending' && v !== 'error' ? v : null;
+}
+/** Pick a background for this page from the frame's list — by orientation, varied
+ *  per design so neighbouring cards in the picker don't all look identical. */
+function artSrcFor(frame, layout) {
+  const list = layout.page.w >= layout.page.h ? frame.art.land : frame.art.portrait;
+  let hash = 0;
+  const key = String(layout.key || layout.id || '');
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  return list[hash % list.length];
+}
+function drawCover(ctx, img, x, y, w, h) {
+  const s = Math.max(w / img.width, h / img.height);
+  const dw = img.width * s, dh = img.height * s;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
 /**
  * The smallest scale at which the photo, rotated by `rot`, still fully covers
  * the cell — so a rotated crop never leaves a blank corner. A rotated rectangle
@@ -63,8 +107,8 @@ function drawPhoto(ctx, cell, photo, filterId) {
   const scale = coverBase(cell.w, cell.h, nw, nh, t.rot, fit) * t.zoom;
 
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(cell.x, cell.y, cell.w, cell.h);
+  if (cell.radius) roundRectPath(ctx, cell.x, cell.y, cell.w, cell.h, cell.radius);
+  else { ctx.beginPath(); ctx.rect(cell.x, cell.y, cell.w, cell.h); }
   ctx.clip();
 
   const useCtxFilter = filterId !== 'none' && supportsCtxFilter();
@@ -199,17 +243,70 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
   ctx.scale(scale, scale);
   ctx.imageSmoothingQuality = 'high';
 
-  for (const cell of layout.cells) {
+  const P = layout.page;
+
+  // A decorative "art" frame (the watercolor papers): a full-bleed background image
+  // with the photos matted into the clear centre — rounded, shadowed and edged with a
+  // bright border, like the layout mockups.
+  const art = frame.art ? artImage(artSrcFor(frame, layout)) : null;
+  if (frame.art && art) drawCover(ctx, art, 0, 0, P.w, P.h);
+
+  const cells = frame.art ? insetCells(layout.cells, P, frame) : layout.cells;
+
+  cells.forEach((cell, i) => {
     const photo = state.photos[cell.photo];
+    if (frame.art) {
+      // White mat + soft drop shadow behind each photo.
+      ctx.save();
+      ctx.shadowColor = 'rgba(60,45,30,0.28)';
+      ctx.shadowBlur = cell.w * 0.045;
+      ctx.shadowOffsetY = cell.h * 0.012;
+      ctx.fillStyle = '#fffdf9';
+      roundRectPath(ctx, cell.x, cell.y, cell.w, cell.h, cell.radius);
+      ctx.fill();
+      ctx.restore();
+    }
     if (photo && photo.bitmap) drawPhoto(ctx, cell, photo, state.filterId);
     else drawPlaceholder(ctx, cell, cell.photo, frame);
-  }
+    if (frame.art) {
+      // Bright rounded border in a rotating palette (like the mockups).
+      const colors = frame.cell.borders;
+      const bw = Math.min(cell.w, cell.h) * frame.cell.borderW;
+      ctx.save();
+      ctx.lineWidth = bw;
+      ctx.strokeStyle = colors[i % colors.length];
+      roundRectPath(ctx, cell.x + bw / 2, cell.y + bw / 2, cell.w - bw, cell.h - bw, Math.max(0, cell.radius - bw / 2));
+      ctx.stroke();
+      ctx.restore();
+    }
+  });
 
   drawCutLine(ctx, layout, frame);
   for (const box of layout.captions) drawCaption(ctx, box, frame, state.caption, state.subtitle);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   return canvas;
+}
+
+/** Squeeze the layout's edge-to-edge cells into the paper's clear centre, and give
+ *  each a corner radius, so the decorative border shows all around. */
+function insetCells(cells, page, frame) {
+  const ix = frame.insetX * page.w;
+  const iy = frame.insetY * page.h;
+  const cw = page.w - 2 * ix;
+  const ch = page.h - 2 * iy;
+  return cells.map((c) => {
+    const nw = (c.w / page.w) * cw;
+    const nh = (c.h / page.h) * ch;
+    return {
+      ...c,
+      x: ix + (c.x / page.w) * cw,
+      y: iy + (c.y / page.h) * ch,
+      w: nw,
+      h: nh,
+      radius: Math.min(nw, nh) * frame.cell.radius,
+    };
+  });
 }
 
 // Layouts are described at 300 DPI. We render the PRINT at PRINT_SCALE× that

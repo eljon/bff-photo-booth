@@ -270,7 +270,22 @@ export const LAYOUTS = {
 
 export const LAYOUT_ORDER = ['strip', 'grid', 'filmstrip'];
 
+// Every watercolor paper the app ships with — served from /backgrounds. Listed by
+// orientation; a design picks one so cards don't all repeat the same sheet.
+export const WATERCOLOR_ART = {
+  portrait: ['backgrounds/paper-portrait-1.jpg', 'backgrounds/paper-portrait-2.jpg', 'backgrounds/paper-portrait-3.jpg'],
+  land: ['backgrounds/paper-land-1.jpg', 'backgrounds/paper-land-2.jpg', 'backgrounds/paper-land-3.jpg'],
+};
+
 export const FRAMES = {
+  // Watercolor "kids" paper: a decorative full-bleed background with the photos matted
+  // into the clear centre — rounded, shadowed, bright-bordered (see the mockups).
+  watercolor: {
+    id: 'watercolor', name: 'Watercolor', bg: '#f7f3ea', ink: '#4a3b2c', accent: '#c98d9c',
+    art: WATERCOLOR_ART,
+    insetX: 0.075, insetY: 0.065,
+    cell: { radius: 0.07, borderW: 0.02, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
+  },
   white: { id: 'white', name: 'White', bg: '#ffffff', ink: '#101010', accent: '#9a9a9a' },
   black: { id: 'black', name: 'Black', bg: '#111111', ink: '#f5f5f5', accent: '#8a8a8a' },
   cream: { id: 'cream', name: 'Cream', bg: '#f4ece0', ink: '#4a3b2c', accent: '#b9a68e' },
