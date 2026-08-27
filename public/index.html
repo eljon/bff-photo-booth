@@ -39,11 +39,6 @@
 
     <div class="coverflow hidden" id="coverflow" aria-label="Choose a design — swipe left or right">
       <div class="cf-track" id="cfTrack"></div>
-      <button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
-        <span class="qw-icon" id="qwIcon">🧾</span>
-        <span class="qw-title" id="qwTitle"></span>
-        <span class="qw-sub" id="qwSub"></span>
-      </button>
     </div>
   </section>
 
@@ -58,7 +53,7 @@
       </div>
       <!-- Crisp icon + labels ride on top, unfiltered. -->
       <button class="check-btn" id="checkBtn" type="button" aria-label="Looks good — show save and print">
-        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-11"/></svg>
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-11"/></svg>
       </button>
       <div class="commit-pair" id="commitPair">
         <button class="commit-save" id="saveBtn" type="button">Save/Share</button>
@@ -121,6 +116,12 @@
 
 <input id="filePicker" type="file" accept="image/*" multiple hidden>
 <input id="fileOne" type="file" accept="image/*" hidden>
+
+<button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
+  <span class="qw-icon" id="qwIcon">🧾</span>
+  <span class="qw-title" id="qwTitle"></span>
+  <span class="qw-sub" id="qwSub"></span>
+</button>
 
 <div class="toast hidden" id="toast"></div>
 

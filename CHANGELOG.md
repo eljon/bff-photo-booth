@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.53.1 — 2026-08-26
+
+**Smaller check, queue widget in the corner.**
+
+- Shrank the check button (and the Save/Print pills) by 10%.
+- The minimized queue widget now floats in the lower-right corner of the screen
+  instead of over the coverflow.
+
 ## 1.53.0 — 2026-08-26
 
 **Save/Share opens the share sheet directly.**

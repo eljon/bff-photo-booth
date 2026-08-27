@@ -448,7 +448,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   position: relative;
   width: 100%;
   max-width: 420px;
-  height: 80px;
+  height: 72px;
   z-index: 5; /* sits above the coverflow reflection it overlaps */
 }
 .commit-ease { transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.5, 1), opacity 0.3s ease; }
@@ -467,8 +467,8 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .blob {
   position: absolute;
   top: 0;
-  height: 80px;
-  border-radius: 40px;
+  height: 72px;
+  border-radius: 36px;
   transform-origin: center;
   will-change: transform, opacity;
 }
@@ -476,14 +476,14 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    squished-pill corners). The two pill blobs are hidden behind it and only appear
    for the split, where the goo filter rounds them into blobs anyway. */
 .b-center {
-  left: 50%; top: 0; width: 80px; height: 80px; margin-left: -40px;
+  left: 50%; top: 0; width: 72px; height: 72px; margin-left: -36px;
   border-radius: 50%; background: var(--grad);
   transition: transform 0.28s ease, opacity 0.24s ease;
 }
 .b-save   { left: 0;  width: calc(50% - 24px); background: var(--grad); opacity: 0; }
 .b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); opacity: 0; }
-.b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.5); }
-.b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.5); }
+.b-save   { transform: translateX(calc(50% + 24px)) scaleX(0.46); }
+.b-print  { transform: translateX(calc(-50% - 24px)) scaleX(0.46); }
 /* Open: centre circle shrinks away; the two blobs light up. The RESTING open pose
    is a plain rule (not animation fill-mode) so a repaint or reflow — e.g. a
    coverflow swipe on Safari — can never drop the pair back to the check circle. */
@@ -496,9 +496,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    circle into the full pill with an elastic overshoot + squash-and-stretch jiggle,
    so it reads as inflating out of the slime. */
 @keyframes gooBirthLeft {
-  0%   { transform: translateX(calc(50% + 24px)) scaleX(0.5) scaleY(1);
+  0%   { transform: translateX(calc(50% + 24px)) scaleX(0.46) scaleY(1);
          animation-timing-function: cubic-bezier(0.42, 0, 0.6, 0.5); } /* moves off promptly */
-  44%  { transform: translateX(0) scaleX(0.5) scaleY(1.05);
+  44%  { transform: translateX(0) scaleX(0.46) scaleY(1.05);
          animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }  /* arrived, round, about to inflate */
   62%  { transform: translateX(0) scaleX(1.1)  scaleY(0.84); }         /* inflate wide, squash */
   80%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }         /* rebound tall */
@@ -506,9 +506,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   100% { transform: translateX(0) scaleX(1)    scaleY(1); }
 }
 @keyframes gooBirthRight {
-  0%   { transform: translateX(calc(-50% - 24px)) scaleX(0.5) scaleY(1);
+  0%   { transform: translateX(calc(-50% - 24px)) scaleX(0.46) scaleY(1);
          animation-timing-function: cubic-bezier(0.42, 0, 0.6, 0.5); }
-  44%  { transform: translateX(0) scaleX(0.5) scaleY(1.05);
+  44%  { transform: translateX(0) scaleX(0.46) scaleY(1.05);
          animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1); }
   62%  { transform: translateX(0) scaleX(1.1)  scaleY(0.84); }
   80%  { transform: translateX(0) scaleX(0.96) scaleY(1.07); }
@@ -525,13 +525,13 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    them), the centre circle grows back and the tick fades in. */
 @keyframes gooMergeLeft {
   0%   { transform: translateX(0) scaleX(1) scaleY(1); }
-  44%  { transform: translateX(0) scaleX(0.5) scaleY(1); }
-  100% { transform: translateX(calc(50% + 24px)) scaleX(0.5) scaleY(1); }
+  44%  { transform: translateX(0) scaleX(0.46) scaleY(1); }
+  100% { transform: translateX(calc(50% + 24px)) scaleX(0.46) scaleY(1); }
 }
 @keyframes gooMergeRight {
   0%   { transform: translateX(0) scaleX(1) scaleY(1); }
-  44%  { transform: translateX(0) scaleX(0.5) scaleY(1); }
-  100% { transform: translateX(calc(-50% - 24px)) scaleX(0.5) scaleY(1); }
+  44%  { transform: translateX(0) scaleX(0.46) scaleY(1); }
+  100% { transform: translateX(calc(-50% - 24px)) scaleX(0.46) scaleY(1); }
 }
 @keyframes centerBack { 0%, 52% { transform: scale(0.25); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes checkBack  { 0%, 60% { opacity: 0; } 100% { opacity: 1; } }
@@ -577,8 +577,8 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  width: 96px;
-  height: 80px;
+  width: 86px;
+  height: 72px;
   display: grid;
   place-items: center;
   border: 0;
@@ -600,9 +600,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 }
 .commit-pair button {
   flex: 1;
-  height: 80px;
+  height: 72px;
   border: 0;
-  border-radius: 22px;
+  border-radius: 20px;
   background: none;
   font: inherit;
   font-size: 16px;
@@ -664,10 +664,10 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
    coverflow. It reads as a bright bubble against the dark stage — icon on top,
    the place in line, then the ETA. */
 .queue-widget {
-  position: absolute;
-  right: 5%;
-  bottom: 7%;
-  z-index: 20;
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 60;
   width: 108px;
   height: 108px;
   padding: 0;
