@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.58.1 — 2026-08-27
+
+**The sticker no longer buries a small photo.**
+
+- The watercolor layout now *reserves* a corner for the sticker instead of dropping it
+  on top of the finished arrangement. The photos are fitted into a clear content rect
+  that clears a band on the cheaper axis (a short strip on a tall page, a narrow one on
+  a wide page), shrinking them only as far as it takes to keep the sticker over **no more
+  than 10% of any single photo** — verified across every design (Big #1–4, Four equal)
+  and every photo mix. Big photos already under the cap keep their full size; the sticker
+  just kisses a corner.
+- The sticker is a touch smaller (26% of the page width, was 32%), so it needs less room
+  and the photos stay larger.
+
 ## 1.58.0 — 2026-08-27
 
 **Event sticker on every print.**

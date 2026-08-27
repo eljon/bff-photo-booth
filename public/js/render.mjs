@@ -258,7 +258,24 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
     ctx.imageSmoothingQuality = q;
   }
 
-  const cells = frame.art ? insetCells(layout.cells, P, frame) : layout.cells;
+  // Art frames reshape the page: the photos are fitted into a clear content rect
+  // that also reserves room for the sticker, so the sticker never buries a small
+  // photo. planStickerLayout picks the cheaper corner band and shrinks the photos
+  // only as far as it takes to keep the sticker over ≤10% of any one of them.
+  let cells;
+  let stickerRect = null;
+  if (frame.art) {
+    const stImg = frame.sticker ? artImage(frame.sticker) : null;
+    if (stImg) {
+      const plan = planStickerLayout(layout.cells, P, frame, stImg);
+      cells = plan.cells;
+      stickerRect = plan.sticker;
+    } else {
+      cells = fitCells(layout.cells, P, insetRect(P, frame), frame.cell.radius);
+    }
+  } else {
+    cells = layout.cells;
+  }
 
   cells.forEach((cell, i) => {
     const photo = state.photos[cell.photo];
@@ -290,11 +307,11 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
     }
   });
 
-  // One sticker per page, dropped into whichever corner covers the photos the least.
-  if (frame.art && frame.sticker) {
+  // One sticker per page, in the corner band the layout reserved for it above.
+  if (stickerRect) {
     const st = artImage(frame.sticker);
     if (st) {
-      const s = placeSticker(st, cells, P, frame.stickerW || 0.32);
+      const s = stickerRect;
       ctx.save();
       ctx.shadowColor = 'rgba(40,30,20,0.3)';
       ctx.shadowBlur = Math.min(s.w * 0.03, 8);
@@ -316,47 +333,80 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   const iy = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
   return ix * iy;
 }
-/** Place the sticker in the page corner whose rectangle overlaps the photo cells the
- *  least — so it lands mostly on the decorative border and only kisses a photo edge. */
-function placeSticker(img, cells, page, widthFrac) {
-  const w = page.w * widthFrac;
-  const h = w * (img.height / img.width);
-  const m = page.w * 0.012; // a hair in from the paper edge
-  const corners = [
-    { x: m, y: m },
-    { x: page.w - w - m, y: m },
-    { x: m, y: page.h - h - m },
-    { x: page.w - w - m, y: page.h - h - m },
-  ];
-  let best = corners[0];
-  let least = Infinity;
-  for (const c of corners) {
-    let ov = 0;
-    for (const cell of cells) ov += rectOverlap(c.x, c.y, w, h, cell.x, cell.y, cell.w, cell.h);
-    if (ov < least) { least = ov; best = c; }
-  }
-  return { x: best.x, y: best.y, w, h };
+/** The paper's clear centre (inside the decorative border) as a rectangle. */
+function insetRect(page, frame) {
+  return {
+    x: frame.insetX * page.w,
+    y: frame.insetY * page.h,
+    w: page.w * (1 - 2 * frame.insetX),
+    h: page.h * (1 - 2 * frame.insetY),
+  };
 }
 
-/** Squeeze the layout's edge-to-edge cells into the paper's clear centre, and give
- *  each a corner radius, so the decorative border shows all around. */
-function insetCells(cells, page, frame) {
-  const ix = frame.insetX * page.w;
-  const iy = frame.insetY * page.h;
-  const cw = page.w - 2 * ix;
-  const ch = page.h - 2 * iy;
+/** Map the layout's edge-to-edge cells into an arbitrary content rectangle, giving
+ *  each a corner radius so the decorative border (and the reserved sticker band)
+ *  shows around them. */
+function fitCells(cells, page, content, radiusFrac) {
   return cells.map((c) => {
-    const nw = (c.w / page.w) * cw;
-    const nh = (c.h / page.h) * ch;
+    const nw = (c.w / page.w) * content.w;
+    const nh = (c.h / page.h) * content.h;
     return {
       ...c,
-      x: ix + (c.x / page.w) * cw,
-      y: iy + (c.y / page.h) * ch,
+      x: content.x + (c.x / page.w) * content.w,
+      y: content.y + (c.y / page.h) * content.h,
       w: nw,
       h: nh,
-      radius: Math.min(nw, nh) * frame.cell.radius,
+      radius: Math.min(nw, nh) * radiusFrac,
     };
   });
+}
+
+/** The largest fraction any single cell is covered by the sticker rect. */
+function maxStickerCoverage(cells, s) {
+  let max = 0;
+  for (const c of cells) {
+    const ov = rectOverlap(s.x, s.y, s.w, s.h, c.x, c.y, c.w, c.h);
+    if (ov > 0) max = Math.max(max, ov / (c.w * c.h));
+  }
+  return max;
+}
+
+/**
+ * Fit the photos AND reserve room for the sticker together, so the sticker never
+ * buries a small photo. The sticker sits in the bottom-right corner; we clear a
+ * band on the cheaper axis (a short strip loses less photo area on a tall page, a
+ * narrow strip on a wide one) and shrink the photos into what's left, going only as
+ * far as it takes to keep the sticker over ≤10% of any one photo. Big photos that
+ * are already under the cap keep their full size — the sticker just kisses a corner.
+ */
+function planStickerLayout(layoutCells, page, frame, img) {
+  const base = insetRect(page, frame);
+  const sw = page.w * (frame.stickerW || 0.26);
+  const sh = sw * (img.height / img.width);
+  const m = page.w * 0.012; // a hair in from the paper edge
+  const s = { x: page.w - m - sw, y: page.h - m - sh, w: sw, h: sh };
+  const TARGET = 0.095;
+
+  // Clear from the bottom (short strip) or the right (narrow strip) — whichever
+  // costs less photo area.
+  const horizontal = base.w * sh <= base.h * sw;
+  // How far we'd ever need to shrink: until the content edge meets the sticker's
+  // inner edge (coverage 0). A solution always exists within this range.
+  const maxShrink = Math.max(0, horizontal ? base.y + base.h - s.y : base.x + base.w - s.x);
+
+  const contentFor = (shrink) =>
+    horizontal
+      ? { x: base.x, y: base.y, w: base.w, h: base.h - shrink }
+      : { x: base.x, y: base.y, w: base.w - shrink, h: base.h };
+
+  const STEPS = 40;
+  let cells = fitCells(layoutCells, page, base, frame.cell.radius);
+  for (let i = 0; i <= STEPS; i++) {
+    const content = contentFor((maxShrink * i) / STEPS);
+    cells = fitCells(layoutCells, page, content, frame.cell.radius);
+    if (maxStickerCoverage(cells, s) <= TARGET) break;
+  }
+  return { cells, sticker: s };
 }
 
 // Layouts are described at 300 DPI. We render the PRINT at PRINT_SCALE× that

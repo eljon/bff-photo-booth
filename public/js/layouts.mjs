@@ -283,8 +283,8 @@ export const FRAMES = {
   watercolor: {
     id: 'watercolor', name: 'Watercolor', bg: '#f7f3ea', ink: '#4a3b2c', accent: '#c98d9c',
     art: WATERCOLOR_ART,
-    sticker: 'backgrounds/sticker.png', // one per page, auto-placed in the least-covering corner
-    stickerW: 0.32,                     // sticker width as a fraction of the page width
+    sticker: 'backgrounds/sticker.png', // one per page; the layout reserves a corner band for it
+    stickerW: 0.26,                     // sticker width as a fraction of the page width
     insetX: 0.075, insetY: 0.065,
     cell: { radius: 0.07, borderW: 0.02, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
   },
