@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.4 — 2026-08-26
+
+**The real cause of the intro freeze.**
+
+- When the fourth photo landed, the booth kicked off a background full-quality
+  (600 DPI) render of the print to have it ready for Save/Print — but it did so
+  ~half a second in, right in the middle of the coverflow's intro sweep, so the
+  heavy render blocked the screen just before the centre card snapped into place.
+  That pre-render now waits until the coverflow is completely still (intro done,
+  no swipe in progress), so the intro plays smoothly and the render happens only
+  when you're idle.
+
 ## 1.50.3 — 2026-08-26
 
 **Fixed the stutter when photos come in.**

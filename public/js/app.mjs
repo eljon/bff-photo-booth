@@ -186,8 +186,14 @@ function renderAll() {
 function warmPrint() {
   clearTimeout(warmTimer);
   if (filledCount() < 4 || lastPrintBlob) return;
+  // exportPrint is a heavy 600 DPI render that blocks the main thread. Never start
+  // it while the coverflow is animating (the intro sweep or a swipe/glide) — that
+  // was the freeze right before the centre card snapped into place. Each settle
+  // point re-calls warmPrint, so it still runs the moment things are still.
+  if (cfBusy) return;
 
   warmTimer = setTimeout(() => {
+    if (cfBusy) return; // a gesture began during the wait — the next settle re-warms
     const generation = printGeneration;
     exportPrint(state)
       .then((result) => {
