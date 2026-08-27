@@ -54,12 +54,20 @@
     </button>
 
     <div class="commit hidden" id="commit">
+      <!-- The gooey blob layer: rendered through the #goo filter so the shapes
+           merge into liquid and stretch apart like splitting slime. -->
+      <div class="commit-goo" aria-hidden="true">
+        <span class="blob b-save"></span>
+        <span class="blob b-print"></span>
+        <span class="blob b-center"></span>
+      </div>
+      <!-- Crisp icon + labels ride on top, unfiltered. -->
       <button class="check-btn" id="checkBtn" type="button" aria-label="Looks good — show save and print">
         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-11"/></svg>
       </button>
       <div class="commit-pair" id="commitPair">
-        <button class="btn commit-save" id="saveBtn" type="button">Save/Share</button>
-        <button class="btn commit-print" id="printBtn" type="button">Print</button>
+        <button class="commit-save" id="saveBtn" type="button">Save/Share</button>
+        <button class="commit-print" id="printBtn" type="button">Print</button>
       </div>
     </div>
 
@@ -127,6 +135,18 @@
 <input id="fileOne" type="file" accept="image/*" hidden>
 
 <div class="toast hidden" id="toast"></div>
+
+<!-- Gooey/metaball filter: blur then hard-threshold the alpha so nearby shapes
+     fuse into liquid blobs and pull apart with a stretching neck. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/>
+      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+    </filter>
+  </defs>
+</svg>
 
 <script type="module" src="/js/app.mjs"></script>
 </body>

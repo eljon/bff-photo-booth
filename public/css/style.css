@@ -475,69 +475,119 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .spacer { height: calc(env(safe-area-inset-bottom) + 14px); }
 
 /* ------------------------------------------------------------- commit control
-   A single check button that, when tapped, splits into Save (left) and Print
-   (right) — the two buttons emerge from where the check was and spread apart. */
+   A check button that, when tapped, splits into Save (left) and Print (right).
+   The colour lives in a gooey blob layer (#goo filter) so the shapes fuse into
+   liquid and pull apart with a stretching, pinching neck — like splitting slime.
+   The crisp icon and labels ride on top, unfiltered. */
 .commit {
   position: relative;
   width: 100%;
   max-width: 420px;
-  height: 54px;
+  height: 56px;
 }
+.commit-ease { transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.5, 1), opacity 0.3s ease; }
+
+/* the filtered slime layer */
+.commit-goo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  filter: url(#goo) drop-shadow(0 9px 18px #0006);
+}
+.blob {
+  position: absolute;
+  top: 0;
+  height: 56px;
+  border-radius: 28px;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+.b-center {
+  left: 50%; width: 82px; margin-left: -41px; background: var(--grad);
+  transition: transform 0.4s ease, opacity 0.35s ease;
+}
+.b-save   { left: 0;  width: calc(50% - 24px); background: #45414f; }
+.b-print  { right: 0; width: calc(50% - 24px); background: var(--grad); }
+/* Closed: the side blobs are tiny droplets pulled into the centre so the goo
+   fuses everything into a single check-sized pill. */
+.b-save   { transform: translateX(calc(50% + 24px)) scale(0.18); }
+.b-print  { transform: translateX(calc(-50% - 24px)) scale(0.18); }
+
+/* Open: the droplets first swell to full size while still stacked at the centre
+   (a fat blob), THEN slide apart — so the goo stretches a long neck that pinches
+   off, like pulling slime in two. The centre check blob shrinks away underneath. */
+@keyframes gooSplitLeft {
+  0%   { transform: translateX(calc(50% + 24px)) scale(0.18); }
+  36%  { transform: translateX(calc(50% + 24px)) scale(1); }
+  100% { transform: translateX(0) scale(1); }
+}
+@keyframes gooSplitRight {
+  0%   { transform: translateX(calc(-50% - 24px)) scale(0.18); }
+  36%  { transform: translateX(calc(-50% - 24px)) scale(1); }
+  100% { transform: translateX(0) scale(1); }
+}
+.commit.open .b-center { transform: scale(0.25); opacity: 0; }
+.commit.open .b-save  { animation: gooSplitLeft 0.72s cubic-bezier(0.5, 0.02, 0.32, 1) forwards; }
+.commit.open .b-print { animation: gooSplitRight 0.72s cubic-bezier(0.5, 0.02, 0.32, 1) forwards; }
+
+/* crisp overlays */
 .check-btn {
   position: absolute;
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  width: 72px;
-  height: 54px;
+  width: 82px;
+  height: 56px;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 16px;
+  background: none;
   color: #fff;
-  background: var(--grad);
-  box-shadow: 0 10px 26px -8px #a24bffaa, 0 4px 12px -6px #ff4d97aa;
   cursor: pointer;
   z-index: 2;
-  transition: opacity 0.28s ease, transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.2s ease;
 }
-.check-btn:active { filter: brightness(0.94); }
-.check-btn svg { display: block; }
+.check-btn svg { display: block; filter: drop-shadow(0 1px 1px #0006); }
 
 .commit-pair {
   position: absolute;
   inset: 0;
   display: flex;
-  gap: 10px;
+  gap: 48px;
+  z-index: 2;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.24s ease;
+  transition: opacity 0.28s ease 0.46s; /* let the goo split read before labels arrive */
 }
-.commit-pair .btn { flex: 1; height: 54px; white-space: nowrap; }
-.commit-save { background: #ffffff14; color: var(--ink); }
-.commit-print {
+.commit-pair button {
+  flex: 1;
+  height: 56px;
+  border: 0;
+  border-radius: 16px;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
   color: #fff;
   text-shadow: 0 1px 2px #0000005c;
-  background: var(--grad);
-  background-size: 220% 220%;
-  box-shadow: 0 8px 20px -8px #a24bffaa;
 }
-/* Closed: the two buttons sit collapsed over the centre (where the check is). */
-.commit-save { transform: translateX(calc(50% + 5px)); transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.commit-print { transform: translateX(calc(-50% - 5px)); transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.commit-save { color: var(--ink); text-shadow: none; }
 
-/* Open: check shrinks away at the centre, the pair fades in and spreads apart. */
-.commit.open .check-btn { opacity: 0; transform: translateX(-50%) scale(0.4); pointer-events: none; }
+.commit.open .check-btn { opacity: 0; pointer-events: none; }
 .commit.open .commit-pair { opacity: 1; pointer-events: auto; }
-.commit.open .commit-save,
-.commit.open .commit-print { transform: translateX(0); }
 
 /* Save-only booths (no printer): no split — the check reveals a full-width Save. */
+.commit.save-only .b-print,
 .commit.save-only .commit-print { display: none; }
-.commit.save-only .commit-save { transform: none; }
+.commit.save-only .b-save { width: 100%; }
+.commit.save-only.open .b-save { transform: translateX(0) scale(1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .check-btn, .commit-pair, .commit-save, .commit-print { transition: none; }
+  .b-center, .check-btn, .commit-pair { transition-duration: 0.001s; }
+  .commit.open .b-save { animation: none; transform: translateX(0) scale(1); }
+  .commit.open .b-print { animation: none; transform: translateX(0) scale(1); }
 }
 
 /* ---------------------------------------------------------------- sheet */

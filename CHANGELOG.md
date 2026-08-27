@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.50.0 — 2026-08-26
+
+**The check button splits like gooey slime.**
+
+- Tapping the check no longer just slides Save and Print apart — the button now
+  swells into a fat blob and pulls into two, stretching a liquid neck that
+  pinches off, like splitting slime. It's an SVG metaball (goo) filter behind the
+  controls; the crisp check icon and the Save/Print labels ride on top, unblurred.
+  Reduced-motion users get the buttons without the goo animation.
+
 ## 1.49.1 — 2026-08-26
 
 **Quieter — no more pop-up chatter.**
