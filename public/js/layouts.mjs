@@ -102,119 +102,47 @@ function partitions(arr) {
   return out;
 }
 
-/** Lay items out as ROWS that each fill width W at a common (per-row) height — no crop.
- *  Returns the placed cells (top-left origin) and the natural block height. */
-function rowsBlock(W, rowGroups, aspects) {
-  let y = 0;
-  const cells = [];
-  for (const row of rowGroups) {
-    const h = (W - GAP * (row.length - 1)) / row.reduce((s, i) => s + aspects[i], 0);
-    let x = 0;
-    for (const i of row) { const w = aspects[i] * h; cells.push({ x, y, w, h, item: i }); x += w + GAP; }
-    y += h + GAP;
-  }
-  return { cells, width: W, height: y - GAP };
-}
 
-/** Shrink a cell about its centre so its area is at most `maxArea` (keeps its aspect —
- *  the whole photo still shows, just smaller, with more paper around it). */
-function capCell(cell, maxArea) {
-  const area = cell.w * cell.h;
-  if (area <= maxArea) return cell;
-  const f = Math.sqrt(maxArea / area);
-  const w = cell.w * f, h = cell.h * f;
-  return { ...cell, x: cell.x + (cell.w - w) / 2, y: cell.y + (cell.h - h) / 2, w, h };
-}
+// Target AREA ratios for a hero design (rule 3 + 4 + 5): the hero is exactly 2× every
+// other photo — one unmistakable hero, and no photo more than 2× another — while the
+// sticker is a small badge, clearly the smallest thing on the page (never the hero).
+const HERO_RATIO = 2;
+const PHOTO_RATIO = 1;
+const STICKER_RATIO = 0.55;
 
-/** One hero-on-top candidate on a given sheet: the rail (the non-hero items) is justified
- *  into rows filling the width; the hero is centred above it at exactly 2× the smallest
- *  rail photo — the biggest the cap allows. Any rail cell that would out-size the hero (a
- *  wide photo among tall ones) is capped down, so the hero is always the biggest and the
- *  2× rule always holds. */
-function heroTopCandidate(page, heroAspect, rail) {
-  // rail: [{aspect, photo?|sticker:true}] — the three other photos plus the sticker.
-  const aspects = rail.map((r) => r.aspect);
-  let best = null;
-  for (const part of partitions(rail.map((_, i) => i))) {
-    const rl = rowsBlock(page.w, part, aspects);
-    const photoAreas = rl.cells.filter((c) => !rail[c.item].sticker).map((c) => c.w * c.h);
-    const minPhoto = Math.min(...photoAreas);
-    const heroArea = 2 * minPhoto;                       // hero at the cap: 2× smallest photo
-    const hH = Math.sqrt(heroArea / heroAspect);
-    const hW = heroAspect * hH;
-    if (hW > page.w + 1) continue;                        // hero too wide for this sheet
-    // Cap every rail cell to the hero (sticker a hair under), so the hero stays the biggest.
-    const railCells = rl.cells.map((c) => capCell(c, heroArea * (rail[c.item].sticker ? 0.9 : 1)));
-    const blockH = hH + GAP + rl.height;
-    const sc = Math.min(1, page.h / blockH);              // scale to fit the sheet height
-    const cov = (heroArea + railCells.reduce((s, c) => s + c.w * c.h, 0)) * sc * sc / (page.w * page.h);
-    if (!best || cov > best.cov) best = { cov, railCells, rl, hW, hH, sc };
-  }
-  if (!best) return null;
-  return {
-    cov: best.cov,
-    page,
-    build(heroIndex) {
-      const { railCells, rl, hW, hH, sc } = best;
-      const blockH = (hH + GAP + rl.height) * sc;
-      const y0 = (page.h - blockH) / 2;
-      const railX = (page.w - rl.width * sc) / 2;
-      const railY0 = y0 + hH * sc + GAP * sc;
-      const cells = [{ x: (page.w - hW * sc) / 2, y: y0, w: hW * sc, h: hH * sc, photo: heroIndex, fit: 'contain' }];
-      for (const c of railCells) {
-        const cell = { x: railX + c.x * sc, y: railY0 + c.y * sc, w: c.w * sc, h: c.h * sc, fit: 'contain' };
-        if (rail[c.item].sticker) cells.push({ ...cell, extra: 'sticker' });
-        else cells.push({ ...cell, photo: rail[c.item].photo });
-      }
-      return cells;
-    },
-  };
-}
-
-/** Best no-hero layout: all five items justified to fill as much paper as possible. */
-function evenCandidate(page, items) {
-  const aspects = items.map((it) => it.aspect);
-  let best = null;
-  for (const part of partitions(items.map((_, i) => i))) {
-    for (const asCols of [false, true]) {
-      const rl = asCols ? colsBlock(page.h, part, aspects) : rowsBlock(page.w, part, aspects);
-      const span = asCols ? page.w / rl.width : page.h / rl.height;
-      const sc = Math.min(1, span);
-      const areas = rl.cells.map((c) => c.w * c.h);
-      const stick = rl.cells.find((c) => items[c.item].sticker);
-      if (stick && stick.w * stick.h >= Math.max(...areas) - 1) continue; // sticker never biggest
-      const cov = areas.reduce((s, a) => s + a, 0) * sc * sc / (page.w * page.h);
-      if (!best || cov > best.cov) best = { cov, rl, sc, asCols };
+/** Pack fixed-size items (each shaped to its aspect, sized by √ratio so areas match the
+ *  ratios above) into stacked rows, top-to-bottom, each row centred. `asCols` transposes
+ *  the whole thing into side-by-side columns. Returns the cells and the bounding box —
+ *  the caller scales that box to the sheet, so we keep the exact area ratios (no crop,
+ *  and the hero stays exactly 2× every photo). */
+function packFixed(groups, items, asCols) {
+  const K = 1000;
+  // Build each line (a row, or a column when asCols). Along-axis = width for rows.
+  const lines = groups.map((g) => {
+    const cells = g.map((i) => {
+      const side = Math.sqrt(items[i].ratio) * K;      // area = ratio·K²
+      const w = side * Math.sqrt(items[i].aspect);
+      const h = side / Math.sqrt(items[i].aspect);
+      return { item: i, w, h };
+    });
+    const thick = asCols ? Math.max(...cells.map((c) => c.w)) : Math.max(...cells.map((c) => c.h));
+    const along = cells.reduce((s, c) => s + (asCols ? c.h : c.w), 0) + GAP * (cells.length - 1);
+    return { cells, thick, along };
+  });
+  const bboxAlong = Math.max(...lines.map((l) => l.along));
+  const bboxThick = lines.reduce((s, l) => s + l.thick, 0) + GAP * (lines.length - 1);
+  const out = [];
+  let off = 0; // across-axis offset (y for rows, x for cols)
+  for (const l of lines) {
+    let pos = (bboxAlong - l.along) / 2; // centre the line
+    for (const c of l.cells) {
+      if (asCols) out.push({ item: c.item, x: off + (l.thick - c.w) / 2, y: pos, w: c.w, h: c.h });
+      else out.push({ item: c.item, x: pos, y: off + (l.thick - c.h) / 2, w: c.w, h: c.h });
+      pos += (asCols ? c.h : c.w) + GAP;
     }
+    off += l.thick + GAP;
   }
-  if (!best) return null;
-  return {
-    cov: best.cov,
-    page,
-    build() {
-      const { rl, sc, asCols } = best;
-      const usedW = (asCols ? rl.width : page.w) * sc;
-      const usedH = (asCols ? page.h : rl.height) * sc;
-      const x0 = (page.w - usedW) / 2, y0 = (page.h - usedH) / 2;
-      return rl.cells.map((c) => {
-        const cell = { x: x0 + c.x * sc, y: y0 + c.y * sc, w: c.w * sc, h: c.h * sc, fit: 'contain' };
-        return items[c.item].sticker ? { ...cell, extra: 'sticker' } : { ...cell, photo: items[c.item].photo };
-      });
-    },
-  };
-}
-
-/** Lay items out as COLUMNS that each fill height H at a common (per-column) width. */
-function colsBlock(H, colGroups, aspects) {
-  let x = 0;
-  const cells = [];
-  for (const col of colGroups) {
-    const w = (H - GAP * (col.length - 1)) / col.reduce((s, i) => s + 1 / aspects[i], 0);
-    let y = 0;
-    for (const i of col) { const h = w / aspects[i]; cells.push({ x, y, w, h, item: i }); y += h + GAP; }
-    x += w + GAP;
-  }
-  return { cells, width: x - GAP, height: H };
+  return { cells: out, bboxW: asCols ? bboxThick : bboxAlong, bboxH: asCols ? bboxAlong : bboxThick };
 }
 
 /** The sticker's placement spec for a frame: its aspect ratio, or null for none. */
@@ -222,31 +150,60 @@ export function stickerSpec(frame) {
   return frame && frame.sticker ? { aspect: frame.stickerAR || STICKER_AR } : null;
 }
 
-/** Build one hero design's cells: search both sheets, keep the highest-coverage valid one. */
+/** Build one hero design's cells. The five items carry fixed area ratios (hero 2×, each
+ *  photo 1×, sticker 0.55×); we search both sheets and every row/column arrangement and
+ *  keep the one whose block scales up the most — i.e. fills the most paper. Because the
+ *  ratios are fixed, the hero is always exactly 2× every photo and the sticker is always
+ *  the smallest cell, whatever the packing chooses. */
 function heroDesign(aspects, heroIndex, stickerAR) {
-  const rail = aspects.map((a, i) => ({ aspect: a, photo: i })).filter((_, i) => i !== heroIndex);
-  if (stickerAR) rail.push({ aspect: stickerAR, sticker: true });
+  const items = aspects.map((a, i) => ({ aspect: a, photo: i, ratio: i === heroIndex ? HERO_RATIO : PHOTO_RATIO }));
+  if (stickerAR) items.push({ aspect: stickerAR, sticker: true, ratio: STICKER_RATIO });
+  const idx = items.map((_, i) => i);
   let best = null;
   for (const page of SHEETS) {
-    const c = heroTopCandidate(page, aspects[heroIndex], rail);
-    if (c && (!best || c.cov > best.cov)) best = c;
+    for (const part of partitions(idx)) {
+      for (const asCols of [false, true]) {
+        const pk = packFixed(part, items, asCols);
+        const sc = Math.min(page.w / pk.bboxW, page.h / pk.bboxH);
+        const cov = pk.cells.reduce((s, c) => s + c.w * c.h, 0) * sc * sc / (page.w * page.h);
+        if (!best || cov > best.cov) best = { cov, pk, sc, page };
+      }
+    }
   }
-  if (!best) { // degenerate fallback: even layout
-    const items = aspects.map((a, i) => ({ aspect: a, photo: i }));
-    if (stickerAR) items.push({ aspect: stickerAR, sticker: true });
-    let ev = null;
-    for (const page of SHEETS) { const c = evenCandidate(page, items); if (c && (!ev || c.cov > ev.cov)) ev = c; }
-    return { cells: ev.build(), page: ev.page };
-  }
-  return { cells: best.build(heroIndex), page: best.page };
+  const { pk, sc, page } = best;
+  const x0 = (page.w - pk.bboxW * sc) / 2, y0 = (page.h - pk.bboxH * sc) / 2;
+  const cells = pk.cells.map((c) => {
+    const cell = { x: x0 + c.x * sc, y: y0 + c.y * sc, w: c.w * sc, h: c.h * sc, fit: 'contain' };
+    return items[c.item].sticker ? { ...cell, extra: 'sticker' } : { ...cell, photo: items[c.item].photo };
+  });
+  cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : 0)); // hero leads
+  return { cells, page };
 }
 
+/** The no-hero design: four equal photos (all ratio 1) plus the small sticker, packed for
+ *  the most paper — same machinery as a hero design but with no cell enlarged. */
 function evenDesign(aspects, stickerAR) {
-  const items = aspects.map((a, i) => ({ aspect: a, photo: i }));
-  if (stickerAR) items.push({ aspect: stickerAR, sticker: true });
+  const items = aspects.map((a, i) => ({ aspect: a, photo: i, ratio: PHOTO_RATIO }));
+  if (stickerAR) items.push({ aspect: stickerAR, sticker: true, ratio: STICKER_RATIO });
+  const idx = items.map((_, i) => i);
   let best = null;
-  for (const page of SHEETS) { const c = evenCandidate(page, items); if (c && (!best || c.cov > best.cov)) best = c; }
-  return { cells: best.build(), page: best.page };
+  for (const page of SHEETS) {
+    for (const part of partitions(idx)) {
+      for (const asCols of [false, true]) {
+        const pk = packFixed(part, items, asCols);
+        const sc = Math.min(page.w / pk.bboxW, page.h / pk.bboxH);
+        const cov = pk.cells.reduce((s, c) => s + c.w * c.h, 0) * sc * sc / (page.w * page.h);
+        if (!best || cov > best.cov) best = { cov, pk, sc, page };
+      }
+    }
+  }
+  const { pk, sc, page } = best;
+  const x0 = (page.w - pk.bboxW * sc) / 2, y0 = (page.h - pk.bboxH * sc) / 2;
+  const cells = pk.cells.map((c) => {
+    const cell = { x: x0 + c.x * sc, y: y0 + c.y * sc, w: c.w * sc, h: c.h * sc, fit: 'contain' };
+    return items[c.item].sticker ? { ...cell, extra: 'sticker' } : { ...cell, photo: items[c.item].photo };
+  });
+  return { cells, page };
 }
 
 const media = (page) => (page.w > page.h ? 'Custom.6x4in' : 'Custom.4x6in');

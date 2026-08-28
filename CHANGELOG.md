@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.64.0 — 2026-08-28
+
+**One unmistakable hero again — fixes the tied-hero / bloated-sticker bug.**
+
+- 1.63.0 broke rule 3 ("exactly one hero"): it capped the other photos right up to the
+  hero, so a second photo could tie the hero and the sticker grew to nearly hero size.
+- Now the five cells carry fixed area ratios — the hero is **exactly 2× every other
+  photo** (the other three are equal), and the sticker is a small badge at ~0.55× a photo,
+  always the smallest cell. The optimizer searches both sheets and every row/column
+  arrangement and keeps the packing that fills the most paper, so coverage went up too
+  (~71–79% vs ~59%). Nothing is cropped.
+- "Four equal" is now actually four equal photos plus the small sticker (it used to let one
+  photo balloon).
+
 ## 1.63.0 — 2026-08-28
 
 **Layouts are now computed by an optimizer, and the sheet flips to fit the photos.**
