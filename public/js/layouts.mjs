@@ -80,46 +80,50 @@ const GAP = 26; // uniform gutter between photos, in print pixels
 // this so the art fills it exactly.
 const STICKER_AR = 1448 / 1086;
 
-// The layouts fill the paper. Rather than shaping each cell to its photo (which
-// always leaves gaps), we tile the sheet edge to edge with fixed cells and let each
-// photo cover-fit its cell — cropping to fill, the way a real collage does — so there
-// is no wasted paper. The sticker is a real 5th cell: a small, badge-shaped slot that
-// is always the smallest cell, so it can never become the hero.
+// Nothing is cropped. The page is divided into SLOTS (a big hero slot, three rail
+// slots, and a badge slot for the sticker); each photo is then shaped to its own real
+// proportions and centred inside its slot, so the whole photo shows with no bars and no
+// cropping. The hero's slot is about twice a rail slot, so the hero stands out — but
+// never more than 2×. Whatever the shaped photos don't cover of their slots is the
+// decorative watercolor paper showing through, which reads as matting around each photo.
 //
 // Everything is a 4×6 portrait sheet (the booth's paper). Two columns:
-//   • the hero column (left): the big hero photo on top, one photo below;
-//   • the rail column (right): two photos, and — when there's a sticker — the badge
-//     tucked in at the bottom in a cell shaped to the sticker's own aspect ratio.
-// The hero runs ~1.7× a rail photo — a clear hero, but never more than twice.
+//   • the hero column (left): the big hero slot on top, one rail slot below;
+//   • the rail column (right): two rail slots, and — when there's a sticker — the badge
+//     slot at the bottom, shaped to the sticker's own aspect ratio.
+// The sticker's slot is always smaller than a photo slot, so it can never be the hero.
 
 /** The hero design's five slots (hero + three photos + optional sticker), filling the
  *  page. `stick` is the sticker's aspect ratio, or null for no sticker. */
 function heroSlots(page, stick) {
   const g = GAP;
-  const colW = (page.w - g) / 2;
-  const railX = colW + g;
+  // The hero column is wider than the rail, so the hero photo sits in a bigger slot and
+  // clearly stands out (about 1.9× a rail photo for a portrait, always ≤ 2×).
+  const heroW = Math.round((page.w - g) * 0.58);
+  const railW = page.w - g - heroW;
+  const railX = heroW + g;
   if (stick) {
-    const stH = colW / stick;                    // badge-shaped cell (fills exactly)
-    const rp = (page.h - stH - 2 * g) / 2;        // rail photo height
-    const heroH = page.h - g - rp;                // hero ≈ 1.7× a rail photo
+    const stH = railW / stick;                     // badge-shaped cell (fills exactly)
+    const rp = (page.h - stH - 2 * g) / 2;         // rail photo height
+    const heroH = Math.round(page.h * 0.62);
     return {
-      hero: { x: 0, y: 0, w: colW, h: heroH },
+      hero: { x: 0, y: 0, w: heroW, h: heroH },
       photos: [
-        { x: 0, y: heroH + g, w: colW, h: rp },   // under the hero
-        { x: railX, y: 0, w: colW, h: rp },        // rail top
-        { x: railX, y: rp + g, w: colW, h: rp },   // rail middle
+        { x: 0, y: heroH + g, w: heroW, h: page.h - heroH - g }, // under the hero
+        { x: railX, y: 0, w: railW, h: rp },                      // rail top
+        { x: railX, y: rp + g, w: railW, h: rp },                 // rail middle
       ],
-      sticker: { x: railX, y: 2 * rp + 2 * g, w: colW, h: stH },
+      sticker: { x: railX, y: 2 * rp + 2 * g, w: railW, h: stH },
     };
   }
   const railH = (page.h - g) / 2;
-  const heroH = Math.round(page.h * 0.6);
+  const heroH = Math.round(page.h * 0.62);
   return {
-    hero: { x: 0, y: 0, w: colW, h: heroH },
+    hero: { x: 0, y: 0, w: heroW, h: heroH },
     photos: [
-      { x: 0, y: heroH + g, w: colW, h: page.h - heroH - g }, // under the hero
-      { x: railX, y: 0, w: colW, h: railH },                   // rail top
-      { x: railX, y: railH + g, w: colW, h: page.h - railH - g }, // rail bottom
+      { x: 0, y: heroH + g, w: heroW, h: page.h - heroH - g },  // under the hero
+      { x: railX, y: 0, w: railW, h: railH },                    // rail top
+      { x: railX, y: railH + g, w: railW, h: page.h - railH - g }, // rail bottom
     ],
     sticker: null,
   };
@@ -158,20 +162,41 @@ function evenSlots(page, stick) {
 const PAGE = PORTRAIT_4X6;
 const stickerCell = (rect) => ({ ...rect, extra: 'sticker', fit: 'contain' });
 
-/** Build the cells for one hero design: hero photo in the big slot, the rest in the
- *  rail, the sticker (if any) in its badge slot. Cover-fit fills every photo cell. */
-function heroCells(photoIndices, heroIndex, stick) {
+/** The largest rectangle of the given aspect that fits inside a slot, centred in it.
+ *  The cell then has the SAME aspect as the photo, so it shows whole — no crop, no bars —
+ *  and whatever slack is left around it is the paper showing through (matting). */
+function shapeToSlot(slot, aspect, photo) {
+  let w = slot.w;
+  let h = w / aspect;
+  if (h > slot.h) { h = slot.h; w = h * aspect; }
+  return { x: slot.x + (slot.w - w) / 2, y: slot.y + (slot.h - h) / 2, w, h, photo, fit: 'contain' };
+}
+
+/** Shrink a cell about its centre to `factor` of its linear size. */
+function scaleCell(cell, factor) {
+  const w = cell.w * factor, h = cell.h * factor;
+  return { ...cell, x: cell.x + (cell.w - w) / 2, y: cell.y + (cell.h - h) / 2, w, h };
+}
+
+/** Build the cells for one hero design: the hero photo shaped into the big slot, the
+ *  rest into the rail slots, the sticker (if any) into its badge slot. The hero is held
+ *  to at most 2× the smallest photo — if the shapes push it over (e.g. a wide hero beside
+ *  a tall rail photo), it's scaled down so the cap always holds. */
+function heroCells(aspects, heroIndex, stick) {
   const s = heroSlots(PAGE, stick);
-  const others = photoIndices.filter((i) => i !== heroIndex);
-  const cells = [{ ...s.hero, photo: heroIndex }];
-  s.photos.forEach((rect, k) => cells.push({ ...rect, photo: others[k] }));
+  const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
+  const hero = shapeToSlot(s.hero, aspects[heroIndex], heroIndex);
+  const rail = s.photos.map((slot, k) => shapeToSlot(slot, aspects[others[k]], others[k]));
+  const minPhoto = Math.min(...rail.map((c) => c.w * c.h));
+  const heroArea = hero.w * hero.h;
+  const cells = [heroArea > minPhoto * 2 ? scaleCell(hero, Math.sqrt((minPhoto * 2) / heroArea)) : hero, ...rail];
   if (s.sticker) cells.push(stickerCell(s.sticker));
   return cells;
 }
 
-function evenCells(photoIndices, stick) {
+function evenCells(aspects, stick) {
   const s = evenSlots(PAGE, stick);
-  const cells = s.photos.map((rect, k) => ({ ...rect, photo: photoIndices[k] }));
+  const cells = s.photos.map((slot, k) => shapeToSlot(slot, aspects[k], k));
   if (s.sticker) cells.push(stickerCell(s.sticker));
   return cells;
 }
@@ -188,7 +213,7 @@ export function stickerSpec(frame) {
  * portrait sheet edge to edge.
  */
 export function resolveGrid(base, photos, heroIndex = 0, sticker = null) {
-  const cells = heroCells(photos.map((_, i) => i), heroIndex, sticker && sticker.aspect);
+  const cells = heroCells(photos.map(photoAspect), heroIndex, sticker && sticker.aspect);
   return { cells, captions: [], page: PAGE, media: PAGE.media, paper: PAGE.paper };
 }
 
@@ -199,7 +224,7 @@ export function resolveGrid(base, photos, heroIndex = 0, sticker = null) {
  * the hero.
  */
 export function designVariants(base, photos, sticker = null) {
-  const idx = photos.map((_, i) => i);
+  const aspects = photos.map(photoAspect);
   const ar = sticker && sticker.aspect;
   const out = photos.map((_, hero) => ({
     key: `hero:${hero}`,
@@ -209,14 +234,14 @@ export function designVariants(base, photos, sticker = null) {
     title: `Big #${hero + 1}`,
     sub: 'featured',
     captions: [],
-    cells: heroCells(idx, hero, ar),
+    cells: heroCells(aspects, hero, ar),
     page: PAGE,
     media: PAGE.media,
     paper: PAGE.paper,
   }));
   out.push({
     key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [],
-    cells: evenCells(idx, ar), page: PAGE, media: PAGE.media, paper: PAGE.paper,
+    cells: evenCells(aspects, ar), page: PAGE, media: PAGE.media, paper: PAGE.paper,
   });
   return out;
 }

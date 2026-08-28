@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('the paper is filled: cells tile the sheet edge to edge, cover-fit (no gaps)', () => {
+test('nothing is cropped: each photo cell is shaped to its own photo', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -103,15 +103,13 @@ test('the paper is filled: cells tile the sheet edge to edge, cover-fit (no gaps
     assert.equal(cells.length, 4);
 
     for (const c of cells) {
-      // Photo cells cover-fit (crop to fill) rather than being shaped to the photo —
-      // that's what lets the layout fill the sheet with no leftover paper.
-      assert.notEqual(c.fit, 'contain', 'photo cells cover-fit so they fill their cell');
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
+      // The cell has the SAME aspect as its photo, so the whole photo shows — nothing is
+      // cropped and there are no letterbox bars. The paper around it is the matting.
+      const p = photos[c.photo].bitmap;
+      const photoAspect = p.width / p.height;
+      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, 'cell is shaped to its photo — no crop, no bars');
     }
-
-    // The cells tile the whole sheet; only the thin gutters between them are unfilled.
-    const coverage = cells.reduce((s, c) => s + c.w * c.h, 0) / (page.w * page.h);
-    assert.ok(coverage > 0.9, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should tile the sheet`);
   }
 });
 
@@ -225,21 +223,23 @@ test('the coverflow offers each photo as the hero plus an even grid, all distinc
   }
 });
 
-test('every coverflow design fills the sheet, cover-fit, no overlaps', () => {
+test('every coverflow design crops nothing and never overlaps', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
     for (const c of v.cells) {
-      assert.notEqual(c.fit, 'contain', `${v.key} photo cells cover-fit`);
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
+      if (c.photo !== undefined) {
+        const p = photos[c.photo].bitmap;
+        const photoAspect = p.width / p.height;
+        assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, `${v.key}: photo cell shaped to its photo — no crop`);
+      }
     }
     for (let i = 0; i < v.cells.length; i++) {
       for (let j = i + 1; j < v.cells.length; j++) {
         assert.ok(!overlaps(v.cells[i], v.cells[j]), `${v.key}: cells ${i} and ${j} overlap`);
       }
     }
-    const coverage = v.cells.reduce((s, c) => s + c.w * c.h, 0) / (v.page.w * v.page.h);
-    assert.ok(coverage > 0.9, `${v.key} only fills ${(coverage * 100).toFixed(0)}%`);
   }
 });
 

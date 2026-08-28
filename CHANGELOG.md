@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.62.0 — 2026-08-28
+
+**No cropping — whole photos, a hero that stands out, the sticker as a real 5th cell.**
+
+- Reverted the cropping from 1.61.0. **Nothing is cropped**: the page is divided into
+  slots (a big hero slot, three rail slots, a badge slot) and each photo is shown whole,
+  shaped to its own proportions and centred in its slot. The watercolor paper showing
+  around the photos is the matting — by design, since whole photos can't tile a sheet
+  without either cropping or some paper showing.
+- The **hero clearly stands out** — it sits in a wider slot, ~1.9× a rail photo for a
+  portrait — but is held to **at most 2×** the smallest photo (scaled down if the shapes
+  would push it over).
+- The **sticker is a real 5th cell** in the layout, shaped to its own aspect so the badge
+  fills it, and always the smallest cell — it can never be the hero.
+- Each **"Big #N"** features photo N in the big slot. Everything is a 4×6 portrait sheet.
+
 ## 1.61.0 — 2026-08-28
 
 **The paper is filled, and the sticker is a true 5th cell that can never be the hero.**
