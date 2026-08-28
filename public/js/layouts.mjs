@@ -147,35 +147,105 @@ function justifyCols(page, groups, aspects) {
   return { cells, coverage: area / (W * H) };
 }
 
+// The hero is never allowed to be more than this many times the area of the
+// smallest photo. A full-strip hero runs 15–45× the smallest — far too domineering
+// — so instead the hero takes a corner at a capped size and the other items fill the
+// strips beside and below it. We push the hero up to (but never past) this cap.
+const HERO_MAX_RATIO = 2.0;
+const HERO_EMPHASIS = 1.55; // aim for a hero at least this much bigger than the smallest
+
+/** Every way to split a list into two non-empty contiguous groups. */
+function twoWaySplits(ids) {
+  const out = [];
+  for (let k = 1; k < ids.length; k++) out.push([ids.slice(0, k), ids.slice(k)]);
+  return out;
+}
+/** Every subset of a small list (used to try each split of items between two strips). */
+function subsets(arr) {
+  let out = [[]];
+  for (const x of arr) { const n = out.length; for (let i = 0; i < n; i++) out.push([...out[i], x]); }
+  return out;
+}
+
+/** Best sub-tiling of a rectangle (offset ox,oy) for a set of items: try one row,
+ *  one column, or two of either, and keep whichever fills the box most. */
+function fillBox(ox, oy, W, H, ids, aspects) {
+  if (!ids.length) return { cells: [], coverage: 0 };
+  const page = { w: W, h: H };
+  const cands = [justifyRows(page, [ids], aspects), justifyCols(page, ids.map((i) => [i]), aspects)];
+  for (const sp of twoWaySplits(ids)) { cands.push(justifyRows(page, sp, aspects)); cands.push(justifyCols(page, sp, aspects)); }
+  let best = cands[0];
+  for (const c of cands) if (c.coverage > best.coverage) best = c;
+  return { cells: best.cells.map((c) => ({ ...c, x: c.x + ox, y: c.y + oy })), coverage: best.coverage };
+}
+
+/** One corner-hero candidate: the hero fills a `corner` at height `h` (aspect-correct
+ *  width), the `side` items fill the strip beside it, the `far` items the strip past it. */
+function cornerHero(page, heroIndex, side, far, aspects, h, corner) {
+  const W = page.w, H = page.h;
+  const hw = aspects[heroIndex] * h;
+  if (hw > W + 0.5 || h > H + 0.5) return null;
+  const left = corner[1] === 'l';
+  const top = corner[0] === 't';
+  const hx = left ? 0 : W - hw;
+  const hy = top ? 0 : H - h;
+  const cells = [{ x: hx, y: hy, w: hw, h, photo: heroIndex, fit: 'contain' }];
+  const sideW = W - hw - GAP;
+  const farH = H - h - GAP;
+  // A strip that has items but no room to hold them makes this an invalid candidate —
+  // dropping the items would lose photos, so reject it and let another split win.
+  if (side.length) { if (sideW < 60) return null; cells.push(...fillBox(left ? hw + GAP : 0, hy, sideW, h, side, aspects).cells); }
+  if (far.length) { if (farH < 60) return null; cells.push(...fillBox(0, top ? h + GAP : 0, W, farH, far, aspects).cells); }
+  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
+  return { cells, coverage: area / (W * H) };
+}
+
 /**
- * The best hero design for one photo: try the hero along the top, the bottom,
- * the left and the right, on both sheets, and keep whichever fills the most
- * paper. Because cells are shaped to their photos, "most paper filled" is the
- * layout with the least whitespace — nothing is cropped and nothing is skewed.
+ * The best hero design for one photo, with the hero held to at most HERO_MAX_RATIO×
+ * the smallest photo. The hero takes a corner; the other items (the remaining photos
+ * and the sticker) fill the strips beside and below it. We search the corner, how the
+ * items split between the two strips, the hero's size, and both sheets — keeping the
+ * hero the largest photo but within the cap, and filling as much paper as possible.
+ * (The leftover on the watercolor paper is the decorative border showing through.)
  */
-function heroDesign(aspects, heroIndex) {
+function heroDesign(aspects, heroIndex, nPhotos = aspects.length) {
   const others = aspects.map((_, i) => i).filter((i) => i !== heroIndex);
-  const plans = [
-    { arrange: 'top', fn: justifyRows, groups: [[heroIndex], others] },
-    { arrange: 'bottom', fn: justifyRows, groups: [others, [heroIndex]] },
-    { arrange: 'left', fn: justifyCols, groups: [[heroIndex], others] },
-    { arrange: 'right', fn: justifyCols, groups: [others, [heroIndex]] },
-  ];
-  let best = null;
+  let best = null;    // best scored design with a distinct, capped hero
+  let feasible = null; // best coverage with any capped, largest hero — a safety net
+
   for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
     const page = { w: paper.w, h: paper.h };
-    for (const plan of plans) {
-      const laid = plan.fn(page, plan.groups, aspects);
-      if (!best || laid.coverage > best.coverage) {
-        best = { ...laid, page, media: paper.media, paper: paper.paper, arrange: plan.arrange };
+    for (const corner of ['tl', 'tr', 'bl', 'br']) {
+      for (const side of subsets(others)) {
+        const far = others.filter((i) => !side.includes(i));
+        for (let f = 0.30; f <= 0.80; f += 0.025) {
+          const laid = cornerHero(page, heroIndex, side, far, aspects, page.h * f, corner);
+          if (!laid) continue;
+          const photoAreas = laid.cells.filter((c) => c.photo < nPhotos).map((c) => c.w * c.h).sort((a, b) => b - a);
+          const heroArea = laid.cells.find((c) => c.photo === heroIndex).w * laid.cells.find((c) => c.photo === heroIndex).h;
+          const mn = photoAreas[photoAreas.length - 1];
+          const second = photoAreas[1]; // largest non-hero (hero is photoAreas[0] once it's the max)
+          const ratio = heroArea / mn;
+          if (heroArea < photoAreas[0] - 1 || ratio > HERO_MAX_RATIO + 1e-6) continue; // hero must be largest and capped
+          const arrange = top(corner) ? 'top' : 'bottom';
+          const cand = { ...laid, page, media: paper.media, paper: paper.paper, arrange };
+          if (!feasible || laid.coverage > feasible.coverage) feasible = cand;
+          // Reward a hero that stands out from the next-biggest photo AND good fill, so the
+          // hero reads as the one big photo rather than one of two equal-ish big photos.
+          const distinctness = heroArea / second; // ≥1; higher = hero clearly the biggest
+          const score = laid.coverage * Math.min(distinctness, 1.6);
+          if (ratio >= HERO_EMPHASIS && (!best || score > best.score)) best = { ...cand, score };
+        }
       }
     }
   }
-  // Hero cell first, whatever the placement — downstream code reads cells[0] as
-  // the hero (the crop editor, the "biggest photo" checks).
-  best.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : a.photo - b.photo));
-  return best;
+
+  const chosen = best || feasible || { ...evenGrid(aspects), arrange: 'top' };
+  // Hero cell first — downstream reads cells[0] as the hero (crop editor, "biggest" checks).
+  chosen.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : a.photo - b.photo));
+  return chosen;
 }
+function top(corner) { return corner[0] === 't'; }
 
 /** Best no-hero layout: the items packed to fill the sheet as fully as they can.
  *  Works for any count (four photos, or four photos plus the sticker). */
@@ -229,7 +299,7 @@ function tagExtras(cells, nPhotos, extra) {
  */
 export function resolveGrid(base, photos, heroIndex = 0, extra = []) {
   const aspects = photos.map(photoAspect).concat(extra.map((e) => e.aspect));
-  const d = heroDesign(aspects, heroIndex);
+  const d = heroDesign(aspects, heroIndex, photos.length);
   return { cells: tagExtras(d.cells, photos.length, extra), captions: [], page: d.page, media: d.media, paper: d.paper };
 }
 
@@ -246,7 +316,7 @@ export function designVariants(base, photos, extra = []) {
 
   // Only the photos can be the hero — never the sticker.
   const out = photos.map((_, hero) => {
-    const d = heroDesign(aspects, hero);
+    const d = heroDesign(aspects, hero, nPhotos);
     return {
       key: `hero:${hero}`,
       kind: 'hero',

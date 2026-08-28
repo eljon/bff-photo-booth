@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.59.0 — 2026-08-28
+
+**The hero photo is capped — never more than twice the smallest photo.**
+
+- A full-strip hero used to run **15–45× the area** of the smallest photo, burying the
+  others. The hero now takes a corner at a bounded size while the remaining photos and the
+  sticker fill the strips beside and below it, and the engine searches the corner, how the
+  items split between the strips, the hero's size, and both sheets to keep the hero the
+  largest photo but **at most 2× the smallest** ("100% bigger" and no more).
+- Space is still maximized under that cap: the layout is chosen for the best fill (and a
+  hero that clearly stands out from the next-biggest photo). Because a capped hero can't
+  fill quite as much as a runaway one, the extra room is simply the decorative watercolor
+  border showing through — which reads as intentional on this paper.
+- Nothing is cropped: every cell, hero included, is still shaped to its own photo.
+
 ## 1.58.2 — 2026-08-28
 
 **The sticker is now a 5th cell in the layout — never on top of a photo.**

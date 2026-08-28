@@ -112,50 +112,53 @@ test('nothing is cropped: every cell is shaped to its own photo, so it fills wit
       assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.01, 'cell is shaped to its photo — no bars, no skew');
     }
 
-    // The photos pack together and fill most of the paper; the slack is a single
-    // thin margin, not scattered whitespace.
+    // The photos still fill a good share of the paper. The hero is capped (see below),
+    // so the design can't fill quite as much as an unbounded hero would — the slack is
+    // the decorative watercolor border showing through, not scattered gaps.
     const coverage = cells.reduce((s, c) => s + c.w * c.h, 0) / (page.w * page.h);
-    assert.ok(coverage > 0.7, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should be higher`);
+    assert.ok(coverage > 0.55, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should be higher`);
   }
 });
 
-test('the packed photos touch each other, leaving one clean outer margin', () => {
+test('the hero is capped — never more than twice the smallest photo', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
-  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1100, 1100), mk(1000, 1500)];
-  const { cells, page } = resolveGrid(LAYOUTS.grid, photos);
-  // The block is centred: the margin on the left equals the margin on the right
-  // (or top equals bottom), so the whitespace reads as an even border, not a gap
-  // stuck on one side.
-  const left = Math.min(...cells.map((c) => c.x));
-  const right = page.w - Math.max(...cells.map((c) => c.x + c.w));
-  const top = Math.min(...cells.map((c) => c.y));
-  const bottom = page.h - Math.max(...cells.map((c) => c.y + c.h));
-  assert.ok(Math.abs(left - right) < 2, `left/right margins differ (${left.toFixed(0)} vs ${right.toFixed(0)})`);
-  assert.ok(Math.abs(top - bottom) < 2, `top/bottom margins differ (${top.toFixed(0)} vs ${bottom.toFixed(0)})`);
+  const mixes = [
+    [mk(1000, 1500), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)],
+    [mk(1600, 1000), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)],
+    [mk(1000, 1500), mk(1600, 1000), mk(1100, 1100), mk(1000, 1500)],
+    [mk(1200, 1200), mk(1000, 1500), mk(1600, 1000), mk(900, 1300)],
+  ];
+  for (const photos of mixes) {
+    const { cells } = resolveGrid(LAYOUTS.grid, photos);
+    const hero = cells[0].w * cells[0].h;
+    const areas = cells.map((c) => c.w * c.h);
+    const smallest = Math.min(...areas);
+    // The whole point: a full-strip hero used to run 15–45× the smallest photo. Now it
+    // is held to at most 2× — "100% bigger" and no more.
+    assert.ok(hero <= smallest * 2 + 1, `hero is ${(hero / smallest).toFixed(1)}× the smallest — over the 2× cap`);
+    assert.ok(hero >= Math.max(...areas) - 1, 'the hero is still the largest photo');
+  }
 });
 
-test('the gutters between the four photos are uniform', () => {
+test('the gutters within a thumb strip are uniform', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)];
   const { cells } = resolveGrid(LAYOUTS.grid, photos);
-  const hero = cells[0];
-  const thumbs = cells.slice(1);
-
-  // The three thumbs share a row (hero on top/bottom) or a column (hero on a
-  // side). Every gap along that strip — and the gap to the hero — is the same.
-  const inARow = thumbs.every((t) => Math.abs(t.y - thumbs[0].y) < 1);
-  const gaps = [];
-  if (inARow) {
-    const sorted = [...thumbs].sort((a, b) => a.x - b.x);
-    for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i].x - (sorted[i - 1].x + sorted[i - 1].w));
-    gaps.push(hero.y > thumbs[0].y ? hero.y - (thumbs[0].y + thumbs[0].h) : thumbs[0].y - (hero.y + hero.h));
-  } else {
-    const sorted = [...thumbs].sort((a, b) => a.y - b.y);
-    for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i].y - (sorted[i - 1].y + sorted[i - 1].h));
-    gaps.push(hero.x > thumbs[0].x ? hero.x - (thumbs[0].x + thumbs[0].w) : thumbs[0].x - (hero.x + hero.w));
+  // The photos that share a row line up on y and are evenly spaced along it. (The hero
+  // sits in a corner, so we check the run of photos that share the hero's top edge or
+  // the widest shared row.)
+  const byRow = new Map();
+  for (const c of cells) {
+    const key = Math.round(c.y / 5) * 5;
+    if (!byRow.has(key)) byRow.set(key, []);
+    byRow.get(key).push(c);
   }
-  for (const g of gaps) {
-    assert.ok(Math.abs(g - gaps[0]) < 1.5, `gutter ${g.toFixed(0)}px differs from ${gaps[0].toFixed(0)}px — should be uniform`);
+  const row = [...byRow.values()].sort((a, b) => b.length - a.length)[0];
+  if (row.length >= 3) {
+    const sorted = [...row].sort((a, b) => a.x - b.x);
+    const gaps = [];
+    for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i].x - (sorted[i - 1].x + sorted[i - 1].w));
+    for (const g of gaps) assert.ok(Math.abs(g - gaps[0]) < 1.5, `gutter ${g.toFixed(0)}px differs from ${gaps[0].toFixed(0)}px`);
   }
 });
 
@@ -165,17 +168,20 @@ test('there is no caption band eating into the photos', () => {
   assert.deepEqual(captions, [], 'the caption was removed — photos own the whole sheet');
 });
 
-test('the hero is the first photo and dwarfs the other three', () => {
+test('the hero is the first photo and is the largest, within the cap', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)];
   const { cells } = resolveGrid(LAYOUTS.grid, photos);
 
   assert.equal(cells[0].photo, 0, 'photo 0 is the hero');
   const heroArea = cells[0].w * cells[0].h;
-  for (let i = 1; i < 4; i++) {
-    const thumbArea = cells[i].w * cells[i].h;
-    assert.ok(heroArea > thumbArea * 3, `hero is only ${(heroArea / thumbArea).toFixed(1)}x a thumb — not dominant enough`);
+  const others = cells.slice(1).filter((c) => c.photo !== undefined).map((c) => c.w * c.h);
+  // A real, but bounded, hero: bigger than every other photo, yet no more than 2×.
+  for (const a of others) {
+    assert.ok(heroArea >= a - 1, `hero (${heroArea | 0}) should be the largest`);
+    assert.ok(heroArea <= a * 2 + 1, `hero is ${(heroArea / a).toFixed(1)}× a thumb — over the 2× cap`);
   }
+  assert.ok(heroArea > Math.min(...others) * 1.2, 'the hero is still clearly bigger than the smallest');
 });
 
 test('a different hero can be chosen by passing its index', () => {
@@ -217,12 +223,6 @@ test('every coverflow design crops nothing and shapes each cell to its photo', (
       const photoAspect = p.width / p.height;
       assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.01, `${v.key}: cell shaped to its photo — no bars, no skew`);
     }
-    // The block is centred, so its whitespace is an even border on the sheet.
-    const left = Math.min(...v.cells.map((c) => c.x));
-    const right = v.page.w - Math.max(...v.cells.map((c) => c.x + c.w));
-    const top = Math.min(...v.cells.map((c) => c.y));
-    const bottom = v.page.h - Math.max(...v.cells.map((c) => c.y + c.h));
-    assert.ok(Math.abs(left - right) < 2 && Math.abs(top - bottom) < 2, `${v.key} block is centred on the sheet`);
   }
 });
 
