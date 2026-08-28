@@ -1,4 +1,4 @@
-import { LAYOUTS, FRAMES, resolveGrid, designVariants, stickerItems } from './layouts.mjs';
+import { LAYOUTS, FRAMES, resolveGrid, designVariants, stickerSpec } from './layouts.mjs';
 import { FILTERS, supportsCtxFilter, applyPixelFilter } from './filters.mjs';
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -218,12 +218,12 @@ export function resolveLayout(state) {
   const base = LAYOUTS[state.layoutId];
   if (!base.dynamic) return base;
   const frame = FRAMES[state.frameId] || FRAMES.white;
-  const extra = stickerItems(frame);
+  const sticker = stickerSpec(frame);
   if (state.designKey) {
-    const chosen = designVariants(base, state.photos, extra).find((d) => d.key === state.designKey);
+    const chosen = designVariants(base, state.photos, sticker).find((d) => d.key === state.designKey);
     if (chosen) return { ...base, ...chosen };
   }
-  return { ...base, ...resolveGrid(base, state.photos, 0, extra) };
+  return { ...base, ...resolveGrid(base, state.photos, 0, sticker) };
 }
 
 export function composePage(canvas, state, scale = 1, layoutOverride = null) {
@@ -260,13 +260,13 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
     ctx.imageSmoothingQuality = q;
   }
 
-  // Art frames sit the photos in the paper's clear centre. The sticker is packed
-  // into the layout as its own cell (see stickerItems / designVariants), so it
-  // never covers a photo — here we just fit every cell into the content rect.
+  // Art frames sit the photos in the paper's clear centre. The last cell may be the
+  // small sticker badge (see stickerSpec / withSticker) — fit every cell into the
+  // content rect; the badge draws last, on top, in whichever corner it landed.
   const cells = frame.art ? fitCells(layout.cells, P, insetRect(P, frame), frame.cell.radius) : layout.cells;
 
   cells.forEach((cell, i) => {
-    // The sticker is a cell too — drawn as the badge, with no mat, border or crop.
+    // The sticker is a cell too — a small badge drawn with no mat, border or crop.
     if (cell.extra === 'sticker') {
       const st = artImage(frame.sticker);
       if (st) {

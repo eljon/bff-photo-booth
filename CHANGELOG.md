@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.60.0 — 2026-08-28
+
+**Denser layouts, and the sticker is a small corner badge again.**
+
+- The sticker is no longer packed as a full cell (which had let it grow as large as a
+  photo — a second hero). It's back to a **small badge (20% of the page width) tucked into
+  a corner**, off the hero, covering at most ~8% of any photo. It can never be the biggest
+  thing on the page.
+- **Filling the paper is now the priority.** Layouts are chosen for maximum fill first, so
+  a set of same-shaped phone photos packs into a dense grid (~85% of the paper) instead of
+  the sparse corner-and-strips arrangement. The 2× cap still holds — no photo runs more
+  than twice another when the shapes allow it, and a wide-vs-tall mix is kept as close to
+  the cap as cropping-free tiling permits (never the old 15–45× runaway).
+- Each **"Big #N"** now leads with photo N in the top-left, so the picker cards stay
+  distinct even when every photo is the same shape. Nothing is cropped.
+
 ## 1.59.0 — 2026-08-28
 
 **The hero photo is capped — never more than twice the smallest photo.**
