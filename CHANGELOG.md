@@ -15,6 +15,25 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.63.0 — 2026-08-28
+
+**Layouts are now computed by an optimizer, and the sheet flips to fit the photos.**
+
+- The grid is chosen by search, not a fixed template: for each design it tries both sheet
+  orientations (4×6 portrait and 6×4 landscape) and every row arrangement, and keeps the
+  one that fills the most paper. This is the big fix for **landscape group photos**, which
+  the old portrait-only template squeezed into tiny cells with huge gaps.
+- Every rule holds together now: **nothing is cropped** (each cell has its photo's aspect),
+  there is **one hero** featured on top at **exactly 2× the smallest photo** (never more),
+  and the **sticker is a real 5th cell** that is capped so it can never be the hero.
+- The **"Four equal"** card is the no-hero option and packs densest (often ~95%), for when
+  filling the paper matters more than featuring one photo.
+- Recorded the layout rules in `CLAUDE.md` so they stop getting lost.
+
+Note: with whole photos and the 2× cap, the featured-hero cards can't fill 100% — the
+leftover watercolor paper is the matting, and it's the mathematical cost of "no crop +
+2× cap", not wasted space. The "Four equal" card is there when you want maximum fill.
+
 ## 1.62.0 — 2026-08-28
 
 **No cropping — whole photos, a hero that stands out, the sticker as a real 5th cell.**

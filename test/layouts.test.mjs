@@ -254,18 +254,19 @@ test('the first coverflow design is what the booth would pick on its own', () =>
   assert.deepEqual(first.cells.map((c) => c.photo), auto.cells.map((c) => c.photo), 'same cell order as auto');
 });
 
-test('the grid prints a 4×6 portrait sheet, whatever the photo shapes', () => {
+test('the grid prints on a 4×6 sheet in either orientation, media matching', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
-  // The booth is a portrait phone booth on 4×6 paper. Photos of any shape cover-fit their
-  // cells (crop to fill) rather than flipping the sheet, so the page is always portrait
-  // and the media always matches it.
+  // The optimiser chooses the sheet orientation (4×6 portrait or 6×4 landscape) by which
+  // fills more paper for the actual photo shapes. Either way it's the same 4×6 paper and
+  // the media string matches the chosen orientation.
   const mixes = [
-    [mk(3000, 1000), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)], // a panorama
-    [mk(1000, 1600), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)], // a tall portrait
+    [mk(1600, 1000), mk(1600, 1000), mk(1600, 1000), mk(1600, 1000)], // landscape group shots
+    [mk(1000, 1600), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)], // a tall portrait hero
   ];
   for (const photos of mixes) {
     const r = resolveGrid(LAYOUTS.grid, photos);
-    assert.ok(r.page.h > r.page.w, 'the sheet is portrait');
-    assert.equal(r.media, 'Custom.4x6in', 'media matches the portrait sheet');
+    const inches = [r.page.w / 300, r.page.h / 300].sort((a, b) => a - b);
+    assert.deepEqual(inches, [4, 6], 'a 4×6 sheet in some orientation');
+    assert.equal(r.media, r.page.w > r.page.h ? 'Custom.6x4in' : 'Custom.4x6in', 'media matches the orientation');
   }
 });
