@@ -76,6 +76,10 @@ const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper
 
 const GAP = 26; // uniform gutter between photos, in print pixels
 
+// The sticker asset's own aspect ratio (w/h) — it packs into the layout as one
+// more item, so its cell is shaped to this and the art fills it exactly.
+const STICKER_AR = 1448 / 1086;
+
 /**
  * Lay groups of photos out as justified ROWS. Every cell is shaped to its own
  * photo's aspect ratio, so a contain-fit fills it exactly — no matting inside a
@@ -173,13 +177,18 @@ function heroDesign(aspects, heroIndex) {
   return best;
 }
 
-/** Best no-hero layout: the four photos packed to fill the sheet as fully as they can. */
+/** Best no-hero layout: the items packed to fill the sheet as fully as they can.
+ *  Works for any count (four photos, or four photos plus the sticker). */
 function evenGrid(aspects) {
+  const idx = aspects.map((_, i) => i);
+  const half = Math.ceil(idx.length / 2);
+  const rowsSplit = [idx.slice(0, half), idx.slice(half)];
+  const colsSplit = [idx.filter((_, i) => i % 2 === 0), idx.filter((_, i) => i % 2 === 1)];
   const plans = [
-    (p) => justifyRows(p, [[0, 1], [2, 3]], aspects),
-    (p) => justifyCols(p, [[0, 2], [1, 3]], aspects),
-    (p) => justifyRows(p, [[0, 1, 2, 3]], aspects),
-    (p) => justifyCols(p, [[0], [1], [2], [3]], aspects),
+    (p) => justifyRows(p, rowsSplit, aspects),
+    (p) => justifyCols(p, colsSplit, aspects),
+    (p) => justifyRows(p, [idx], aspects),
+    (p) => justifyCols(p, idx.map((i) => [i]), aspects),
   ];
   let best = null;
   for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
@@ -197,12 +206,31 @@ function evenGrid(aspects) {
 const ARRANGE_SUB = { top: 'on top', bottom: 'on the bottom', left: 'on the left', right: 'on the right' };
 
 /**
+ * Extra non-photo cells to pack alongside the photos — today just the sticker,
+ * which the layout treats as one more item so it gets its own slot instead of
+ * being dropped on top of a photo. Extras are never the hero.
+ */
+export function stickerItems(frame) {
+  return frame && frame.sticker ? [{ aspect: frame.stickerAR || STICKER_AR, kind: 'sticker' }] : [];
+}
+
+/** Mark the cells the packer built for the `extra` items (indices past the photos)
+ *  so the renderer draws them as their kind (a sticker), not as a photo slot. */
+function tagExtras(cells, nPhotos, extra) {
+  if (!extra.length) return cells;
+  return cells.map((c) =>
+    c.photo >= nPhotos ? { ...c, photo: undefined, extra: extra[c.photo - nPhotos].kind } : c
+  );
+}
+
+/**
  * The booth's own pick: photo 0 as the hero (unless told otherwise), in the
  * placement and on the sheet that fill the most paper without cropping.
  */
-export function resolveGrid(base, photos, heroIndex = 0) {
-  const d = heroDesign(photos.map(photoAspect), heroIndex);
-  return { cells: d.cells, captions: [], page: d.page, media: d.media, paper: d.paper };
+export function resolveGrid(base, photos, heroIndex = 0, extra = []) {
+  const aspects = photos.map(photoAspect).concat(extra.map((e) => e.aspect));
+  const d = heroDesign(aspects, heroIndex);
+  return { cells: tagExtras(d.cells, photos.length, extra), captions: [], page: d.page, media: d.media, paper: d.paper };
 }
 
 /**
@@ -212,9 +240,11 @@ export function resolveGrid(base, photos, heroIndex = 0) {
  * to the real photos, so nothing is cropped, nothing is skewed, and the only
  * whitespace is one thin even margin.
  */
-export function designVariants(base, photos) {
-  const aspects = photos.map(photoAspect);
+export function designVariants(base, photos, extra = []) {
+  const aspects = photos.map(photoAspect).concat(extra.map((e) => e.aspect));
+  const nPhotos = photos.length;
 
+  // Only the photos can be the hero — never the sticker.
   const out = photos.map((_, hero) => {
     const d = heroDesign(aspects, hero);
     return {
@@ -225,14 +255,18 @@ export function designVariants(base, photos) {
       title: `Big #${hero + 1}`,
       sub: ARRANGE_SUB[d.arrange],
       captions: [],
-      cells: d.cells,
+      cells: tagExtras(d.cells, nPhotos, extra),
       page: d.page,
       media: d.media,
       paper: d.paper,
     };
   });
 
-  out.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [], ...evenGrid(aspects) });
+  const even = evenGrid(aspects);
+  out.push({
+    key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [],
+    ...even, cells: tagExtras(even.cells, nPhotos, extra),
+  });
   return out;
 }
 
@@ -283,8 +317,8 @@ export const FRAMES = {
   watercolor: {
     id: 'watercolor', name: 'Watercolor', bg: '#f7f3ea', ink: '#4a3b2c', accent: '#c98d9c',
     art: WATERCOLOR_ART,
-    sticker: 'backgrounds/sticker.png', // one per page; the layout reserves a corner band for it
-    stickerW: 0.26,                     // sticker width as a fraction of the page width
+    sticker: 'backgrounds/sticker.png', // one per page; packed as a 5th cell so it never covers a photo
+    stickerAR: STICKER_AR,              // the sticker's own aspect ratio, for its cell
     insetX: 0.075, insetY: 0.065,
     cell: { radius: 0.07, borderW: 0.02, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
   },

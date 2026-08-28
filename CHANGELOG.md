@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.58.2 — 2026-08-28
+
+**The sticker is now a 5th cell in the layout — never on top of a photo.**
+
+- Instead of dropping the sticker onto the finished arrangement, the layout engine now
+  packs it as one more item, so it gets its own slot beside the photos. The packer shapes
+  every cell to its aspect ratio with a gutter between them, so the sticker covers **0% of
+  any photo** in every design — no overlap math, no reserved band, nothing to tune.
+- The sticker is **never the hero**: the "Big #N" designs only ever promote one of the four
+  photos, and the sticker rides along as a small badge in whichever slot the packing gives
+  it. The "Four equal" design lays all five out together.
+
 ## 1.58.1 — 2026-08-27
 
 **The sticker no longer buries a small photo.**

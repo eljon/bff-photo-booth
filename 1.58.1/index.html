@@ -1151,6 +1151,10 @@ const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper
 
 const GAP = 26; // uniform gutter between photos, in print pixels
 
+// The sticker asset's own aspect ratio (w/h) — it packs into the layout as one
+// more item, so its cell is shaped to this and the art fills it exactly.
+const STICKER_AR = 1448 / 1086;
+
 /**
  * Lay groups of photos out as justified ROWS. Every cell is shaped to its own
  * photo's aspect ratio, so a contain-fit fills it exactly — no matting inside a
@@ -1248,13 +1252,18 @@ function heroDesign(aspects, heroIndex) {
   return best;
 }
 
-/** Best no-hero layout: the four photos packed to fill the sheet as fully as they can. */
+/** Best no-hero layout: the items packed to fill the sheet as fully as they can.
+ *  Works for any count (four photos, or four photos plus the sticker). */
 function evenGrid(aspects) {
+  const idx = aspects.map((_, i) => i);
+  const half = Math.ceil(idx.length / 2);
+  const rowsSplit = [idx.slice(0, half), idx.slice(half)];
+  const colsSplit = [idx.filter((_, i) => i % 2 === 0), idx.filter((_, i) => i % 2 === 1)];
   const plans = [
-    (p) => justifyRows(p, [[0, 1], [2, 3]], aspects),
-    (p) => justifyCols(p, [[0, 2], [1, 3]], aspects),
-    (p) => justifyRows(p, [[0, 1, 2, 3]], aspects),
-    (p) => justifyCols(p, [[0], [1], [2], [3]], aspects),
+    (p) => justifyRows(p, rowsSplit, aspects),
+    (p) => justifyCols(p, colsSplit, aspects),
+    (p) => justifyRows(p, [idx], aspects),
+    (p) => justifyCols(p, idx.map((i) => [i]), aspects),
   ];
   let best = null;
   for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
@@ -1272,12 +1281,31 @@ function evenGrid(aspects) {
 const ARRANGE_SUB = { top: 'on top', bottom: 'on the bottom', left: 'on the left', right: 'on the right' };
 
 /**
+ * Extra non-photo cells to pack alongside the photos — today just the sticker,
+ * which the layout treats as one more item so it gets its own slot instead of
+ * being dropped on top of a photo. Extras are never the hero.
+ */
+function stickerItems(frame) {
+  return frame && frame.sticker ? [{ aspect: frame.stickerAR || STICKER_AR, kind: 'sticker' }] : [];
+}
+
+/** Mark the cells the packer built for the `extra` items (indices past the photos)
+ *  so the renderer draws them as their kind (a sticker), not as a photo slot. */
+function tagExtras(cells, nPhotos, extra) {
+  if (!extra.length) return cells;
+  return cells.map((c) =>
+    c.photo >= nPhotos ? { ...c, photo: undefined, extra: extra[c.photo - nPhotos].kind } : c
+  );
+}
+
+/**
  * The booth's own pick: photo 0 as the hero (unless told otherwise), in the
  * placement and on the sheet that fill the most paper without cropping.
  */
-function resolveGrid(base, photos, heroIndex = 0) {
-  const d = heroDesign(photos.map(photoAspect), heroIndex);
-  return { cells: d.cells, captions: [], page: d.page, media: d.media, paper: d.paper };
+function resolveGrid(base, photos, heroIndex = 0, extra = []) {
+  const aspects = photos.map(photoAspect).concat(extra.map((e) => e.aspect));
+  const d = heroDesign(aspects, heroIndex);
+  return { cells: tagExtras(d.cells, photos.length, extra), captions: [], page: d.page, media: d.media, paper: d.paper };
 }
 
 /**
@@ -1287,9 +1315,11 @@ function resolveGrid(base, photos, heroIndex = 0) {
  * to the real photos, so nothing is cropped, nothing is skewed, and the only
  * whitespace is one thin even margin.
  */
-function designVariants(base, photos) {
-  const aspects = photos.map(photoAspect);
+function designVariants(base, photos, extra = []) {
+  const aspects = photos.map(photoAspect).concat(extra.map((e) => e.aspect));
+  const nPhotos = photos.length;
 
+  // Only the photos can be the hero — never the sticker.
   const out = photos.map((_, hero) => {
     const d = heroDesign(aspects, hero);
     return {
@@ -1300,14 +1330,18 @@ function designVariants(base, photos) {
       title: `Big #${hero + 1}`,
       sub: ARRANGE_SUB[d.arrange],
       captions: [],
-      cells: d.cells,
+      cells: tagExtras(d.cells, nPhotos, extra),
       page: d.page,
       media: d.media,
       paper: d.paper,
     };
   });
 
-  out.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [], ...evenGrid(aspects) });
+  const even = evenGrid(aspects);
+  out.push({
+    key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [],
+    ...even, cells: tagExtras(even.cells, nPhotos, extra),
+  });
   return out;
 }
 
@@ -1358,8 +1392,8 @@ const FRAMES = {
   watercolor: {
     id: 'watercolor', name: 'Watercolor', bg: '#f7f3ea', ink: '#4a3b2c', accent: '#c98d9c',
     art: WATERCOLOR_ART,
-    sticker: 'backgrounds/sticker.png', // one per page; the layout reserves a corner band for it
-    stickerW: 0.26,                     // sticker width as a fraction of the page width
+    sticker: 'backgrounds/sticker.png', // one per page; packed as a 5th cell so it never covers a photo
+    stickerAR: STICKER_AR,              // the sticker's own aspect ratio, for its cell
     insetX: 0.075, insetY: 0.065,
     cell: { radius: 0.07, borderW: 0.02, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
   },
@@ -1590,11 +1624,13 @@ function drawCutLine(ctx, layout, frame) {
 function resolveLayout(state) {
   const base = LAYOUTS[state.layoutId];
   if (!base.dynamic) return base;
+  const frame = FRAMES[state.frameId] || FRAMES.white;
+  const extra = stickerItems(frame);
   if (state.designKey) {
-    const chosen = designVariants(base, state.photos).find((d) => d.key === state.designKey);
+    const chosen = designVariants(base, state.photos, extra).find((d) => d.key === state.designKey);
     if (chosen) return { ...base, ...chosen };
   }
-  return { ...base, ...resolveGrid(base, state.photos) };
+  return { ...base, ...resolveGrid(base, state.photos, 0, extra) };
 }
 
 function composePage(canvas, state, scale = 1, layoutOverride = null) {
@@ -1631,26 +1667,25 @@ function composePage(canvas, state, scale = 1, layoutOverride = null) {
     ctx.imageSmoothingQuality = q;
   }
 
-  // Art frames reshape the page: the photos are fitted into a clear content rect
-  // that also reserves room for the sticker, so the sticker never buries a small
-  // photo. planStickerLayout picks the cheaper corner band and shrinks the photos
-  // only as far as it takes to keep the sticker over ≤10% of any one of them.
-  let cells;
-  let stickerRect = null;
-  if (frame.art) {
-    const stImg = frame.sticker ? artImage(frame.sticker) : null;
-    if (stImg) {
-      const plan = planStickerLayout(layout.cells, P, frame, stImg);
-      cells = plan.cells;
-      stickerRect = plan.sticker;
-    } else {
-      cells = fitCells(layout.cells, P, insetRect(P, frame), frame.cell.radius);
-    }
-  } else {
-    cells = layout.cells;
-  }
+  // Art frames sit the photos in the paper's clear centre. The sticker is packed
+  // into the layout as its own cell (see stickerItems / designVariants), so it
+  // never covers a photo — here we just fit every cell into the content rect.
+  const cells = frame.art ? fitCells(layout.cells, P, insetRect(P, frame), frame.cell.radius) : layout.cells;
 
   cells.forEach((cell, i) => {
+    // The sticker is a cell too — drawn as the badge, with no mat, border or crop.
+    if (cell.extra === 'sticker') {
+      const st = artImage(frame.sticker);
+      if (st) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(40,30,20,0.3)';
+        ctx.shadowBlur = Math.min(cell.w * 0.03, 8);
+        ctx.shadowOffsetY = 3;
+        drawContain(ctx, st, cell.x, cell.y, cell.w, cell.h);
+        ctx.restore();
+      }
+      return;
+    }
     const photo = state.photos[cell.photo];
     if (frame.art) {
       // White mat + soft drop shadow behind each photo. shadowBlur is very expensive
@@ -1680,20 +1715,6 @@ function composePage(canvas, state, scale = 1, layoutOverride = null) {
     }
   });
 
-  // One sticker per page, in the corner band the layout reserved for it above.
-  if (stickerRect) {
-    const st = artImage(frame.sticker);
-    if (st) {
-      const s = stickerRect;
-      ctx.save();
-      ctx.shadowColor = 'rgba(40,30,20,0.3)';
-      ctx.shadowBlur = Math.min(s.w * 0.03, 8);
-      ctx.shadowOffsetY = 3;
-      ctx.drawImage(st, s.x, s.y, s.w, s.h);
-      ctx.restore();
-    }
-  }
-
   drawCutLine(ctx, layout, frame);
   for (const box of layout.captions) drawCaption(ctx, box, frame, state.caption, state.subtitle);
 
@@ -1701,11 +1722,6 @@ function composePage(canvas, state, scale = 1, layoutOverride = null) {
   return canvas;
 }
 
-function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
-  const ix = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx));
-  const iy = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
-  return ix * iy;
-}
 /** The paper's clear centre (inside the decorative border) as a rectangle. */
 function insetRect(page, frame) {
   return {
@@ -1717,8 +1733,7 @@ function insetRect(page, frame) {
 }
 
 /** Map the layout's edge-to-edge cells into an arbitrary content rectangle, giving
- *  each a corner radius so the decorative border (and the reserved sticker band)
- *  shows around them. */
+ *  each a corner radius so the decorative border shows around them. */
 function fitCells(cells, page, content, radiusFrac) {
   return cells.map((c) => {
     const nw = (c.w / page.w) * content.w;
@@ -1734,52 +1749,13 @@ function fitCells(cells, page, content, radiusFrac) {
   });
 }
 
-/** The largest fraction any single cell is covered by the sticker rect. */
-function maxStickerCoverage(cells, s) {
-  let max = 0;
-  for (const c of cells) {
-    const ov = rectOverlap(s.x, s.y, s.w, s.h, c.x, c.y, c.w, c.h);
-    if (ov > 0) max = Math.max(max, ov / (c.w * c.h));
-  }
-  return max;
-}
-
-/**
- * Fit the photos AND reserve room for the sticker together, so the sticker never
- * buries a small photo. The sticker sits in the bottom-right corner; we clear a
- * band on the cheaper axis (a short strip loses less photo area on a tall page, a
- * narrow strip on a wide one) and shrink the photos into what's left, going only as
- * far as it takes to keep the sticker over ≤10% of any one photo. Big photos that
- * are already under the cap keep their full size — the sticker just kisses a corner.
- */
-function planStickerLayout(layoutCells, page, frame, img) {
-  const base = insetRect(page, frame);
-  const sw = page.w * (frame.stickerW || 0.26);
-  const sh = sw * (img.height / img.width);
-  const m = page.w * 0.012; // a hair in from the paper edge
-  const s = { x: page.w - m - sw, y: page.h - m - sh, w: sw, h: sh };
-  const TARGET = 0.095;
-
-  // Clear from the bottom (short strip) or the right (narrow strip) — whichever
-  // costs less photo area.
-  const horizontal = base.w * sh <= base.h * sw;
-  // How far we'd ever need to shrink: until the content edge meets the sticker's
-  // inner edge (coverage 0). A solution always exists within this range.
-  const maxShrink = Math.max(0, horizontal ? base.y + base.h - s.y : base.x + base.w - s.x);
-
-  const contentFor = (shrink) =>
-    horizontal
-      ? { x: base.x, y: base.y, w: base.w, h: base.h - shrink }
-      : { x: base.x, y: base.y, w: base.w - shrink, h: base.h };
-
-  const STEPS = 40;
-  let cells = fitCells(layoutCells, page, base, frame.cell.radius);
-  for (let i = 0; i <= STEPS; i++) {
-    const content = contentFor((maxShrink * i) / STEPS);
-    cells = fitCells(layoutCells, page, content, frame.cell.radius);
-    if (maxStickerCoverage(cells, s) <= TARGET) break;
-  }
-  return { cells, sticker: s };
+/** Draw an image contained (whole, uncropped) inside a rect, centred. The sticker
+ *  cell is already shaped to the sticker's aspect, so this fills it edge to edge. */
+function drawContain(ctx, img, x, y, w, h) {
+  const s = Math.min(w / img.width, h / img.height);
+  const dw = img.width * s;
+  const dh = img.height * s;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
 // Layouts are described at 300 DPI. We render the PRINT at PRINT_SCALE× that
@@ -2464,7 +2440,7 @@ function rebuildCoverflow(playIntro = false) {
   stopIntro();
   cfBusy = false; // a rebuild is not a gesture — let it warm the print normally
   const base = LAYOUTS[state.layoutId];
-  cfDesigns = designVariants(base, state.photos);
+  cfDesigns = designVariants(base, state.photos, stickerItems(FRAMES[state.frameId]));
   let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
   if (idx < 0) idx = 0;
 

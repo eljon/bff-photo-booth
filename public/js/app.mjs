@@ -1,4 +1,4 @@
-import { LAYOUTS, LAYOUT_ORDER, FRAMES, designVariants } from './layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, designVariants, stickerItems } from './layouts.mjs';
 import { FILTERS, FILTER_ORDER } from './filters.mjs';
 import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayout, preloadArt, SAVE_SCALE } from './render.mjs';
 
@@ -619,7 +619,7 @@ function rebuildCoverflow(playIntro = false) {
   stopIntro();
   cfBusy = false; // a rebuild is not a gesture — let it warm the print normally
   const base = LAYOUTS[state.layoutId];
-  cfDesigns = designVariants(base, state.photos);
+  cfDesigns = designVariants(base, state.photos, stickerItems(FRAMES[state.frameId]));
   let idx = cfDesigns.findIndex((d) => d.key === state.designKey);
   if (idx < 0) idx = 0;
 
