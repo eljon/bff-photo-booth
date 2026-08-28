@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.61.0 — 2026-08-28
+
+**The paper is filled, and the sticker is a true 5th cell that can never be the hero.**
+
+- Layouts now **tile the sheet edge to edge** and cover-fit each photo (crop to fill),
+  the way a real collage does, instead of shaping every cell to its photo (which always
+  left gaps). The photos fill the paper — only the thin gutters and the decorative
+  watercolor border remain.
+- The **sticker is a real 5th cell** in the layout — not an overlay badge. It sits in its
+  own slot, shaped to the sticker's aspect ratio so the art fills it exactly, and it is
+  always the **smallest** cell, so it can never become the hero.
+- Each **"Big #N"** features photo N as the hero at ~1.7× a rail photo (a clear hero,
+  never more than 2×). "Four equal" gives four ~equal photos plus the sticker.
+- Everything prints on the booth's **4×6 portrait** sheet; wide photos crop to fill their
+  cell (adjust the framing in the photo editor).
+
 ## 1.60.0 — 2026-08-28
 
 **Denser layouts, and the sticker is a small corner badge again.**

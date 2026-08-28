@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('nothing is cropped: every cell is shaped to its own photo, so it fills with no bars', () => {
+test('the paper is filled: cells tile the sheet edge to edge, cover-fit (no gaps)', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -103,20 +103,15 @@ test('nothing is cropped: every cell is shaped to its own photo, so it fills wit
     assert.equal(cells.length, 4);
 
     for (const c of cells) {
-      assert.equal(c.fit, 'contain', 'contain-fit is what guarantees no crop');
+      // Photo cells cover-fit (crop to fill) rather than being shaped to the photo —
+      // that's what lets the layout fill the sheet with no leftover paper.
+      assert.notEqual(c.fit, 'contain', 'photo cells cover-fit so they fill their cell');
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
-      // The cell has the SAME aspect as its photo, so a contain-fit fills it
-      // exactly — no matting inside the frame, and no skew.
-      const p = photos[c.photo].bitmap;
-      const photoAspect = p.width / p.height;
-      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.01, 'cell is shaped to its photo — no bars, no skew');
     }
 
-    // The photos still fill a good share of the paper. The hero is capped (see below),
-    // so the design can't fill quite as much as an unbounded hero would — the slack is
-    // the decorative watercolor border showing through, not scattered gaps.
+    // The cells tile the whole sheet; only the thin gutters between them are unfilled.
     const coverage = cells.reduce((s, c) => s + c.w * c.h, 0) / (page.w * page.h);
-    assert.ok(coverage > 0.55, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should be higher`);
+    assert.ok(coverage > 0.9, `only ${(coverage * 100).toFixed(0)}% of the paper filled — should tile the sheet`);
   }
 });
 
@@ -230,17 +225,21 @@ test('the coverflow offers each photo as the hero plus an even grid, all distinc
   }
 });
 
-test('every coverflow design crops nothing and shapes each cell to its photo', () => {
+test('every coverflow design fills the sheet, cover-fit, no overlaps', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
     for (const c of v.cells) {
-      assert.equal(c.fit, 'contain', `${v.key} crops nothing`);
+      assert.notEqual(c.fit, 'contain', `${v.key} photo cells cover-fit`);
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
-      const p = photos[c.photo].bitmap;
-      const photoAspect = p.width / p.height;
-      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.01, `${v.key}: cell shaped to its photo — no bars, no skew`);
     }
+    for (let i = 0; i < v.cells.length; i++) {
+      for (let j = i + 1; j < v.cells.length; j++) {
+        assert.ok(!overlaps(v.cells[i], v.cells[j]), `${v.key}: cells ${i} and ${j} overlap`);
+      }
+    }
+    const coverage = v.cells.reduce((s, c) => s + c.w * c.h, 0) / (v.page.w * v.page.h);
+    assert.ok(coverage > 0.9, `${v.key} only fills ${(coverage * 100).toFixed(0)}%`);
   }
 });
 
@@ -255,22 +254,18 @@ test('the first coverflow design is what the booth would pick on its own', () =>
   assert.deepEqual(first.cells.map((c) => c.photo), auto.cells.map((c) => c.photo), 'same cell order as auto');
 });
 
-test('the print picks the sheet orientation whose media matches it', () => {
+test('the grid prints a 4×6 portrait sheet, whatever the photo shapes', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
-
-  // A wide-panorama hero fills a landscape sheet better and should rotate to it.
-  const pano = resolveGrid(LAYOUTS.grid, [mk(3000, 1000), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)]);
-  assert.ok(pano.page.w > pano.page.h, 'a panorama hero should print landscape');
-  assert.equal(pano.media, 'Custom.6x4in');
-
-  // A tall portrait hero stays on a portrait sheet.
-  const tall = resolveGrid(LAYOUTS.grid, [mk(1000, 1600), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)]);
-  assert.ok(tall.page.h > tall.page.w, 'a portrait hero should print portrait');
-  assert.equal(tall.media, 'Custom.4x6in');
-
-  // Media always matches the chosen sheet, never contradicts it.
-  for (const r of [pano, tall]) {
-    const wantLandscape = r.page.w > r.page.h;
-    assert.equal(r.media, wantLandscape ? 'Custom.6x4in' : 'Custom.4x6in');
+  // The booth is a portrait phone booth on 4×6 paper. Photos of any shape cover-fit their
+  // cells (crop to fill) rather than flipping the sheet, so the page is always portrait
+  // and the media always matches it.
+  const mixes = [
+    [mk(3000, 1000), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)], // a panorama
+    [mk(1000, 1600), mk(1200, 1200), mk(1200, 1200), mk(1200, 1200)], // a tall portrait
+  ];
+  for (const photos of mixes) {
+    const r = resolveGrid(LAYOUTS.grid, photos);
+    assert.ok(r.page.h > r.page.w, 'the sheet is portrait');
+    assert.equal(r.media, 'Custom.4x6in', 'media matches the portrait sheet');
   }
 });

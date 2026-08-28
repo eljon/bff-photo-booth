@@ -80,243 +80,143 @@ const GAP = 26; // uniform gutter between photos, in print pixels
 // this so the art fills it exactly.
 const STICKER_AR = 1448 / 1086;
 
-/**
- * Lay groups of photos out as justified ROWS. Every cell is shaped to its own
- * photo's aspect ratio, so a contain-fit fills it exactly — no matting inside a
- * frame, no skew, and every photo keeps its true orientation. Each row is scaled
- * so the photos in it span the full width edge to edge (they touch, save for the
- * gutter). The stack of rows is scaled to fit the sheet and centred, so the only
- * whitespace is one thin, even margin on the axis the shapes could not fill.
- */
-function justifyRows(page, groups, aspects) {
-  const W = page.w;
-  const H = page.h;
-  const rows = groups.map((g) => {
-    const sumA = g.reduce((s, i) => s + aspects[i], 0);
-    return { g, h: (W - GAP * (g.length - 1)) / sumA };
-  });
-  const naturalH = rows.reduce((s, r) => s + r.h, 0) + GAP * (rows.length - 1);
-  const scale = naturalH > H ? H / naturalH : 1;
-  const finalW = W * scale;
-  const finalH = naturalH * scale;
-  const x0 = (W - finalW) / 2;
-  let y = (H - finalH) / 2;
+// The layouts fill the paper. Rather than shaping each cell to its photo (which
+// always leaves gaps), we tile the sheet edge to edge with fixed cells and let each
+// photo cover-fit its cell — cropping to fill, the way a real collage does — so there
+// is no wasted paper. The sticker is a real 5th cell: a small, badge-shaped slot that
+// is always the smallest cell, so it can never become the hero.
+//
+// Everything is a 4×6 portrait sheet (the booth's paper). Two columns:
+//   • the hero column (left): the big hero photo on top, one photo below;
+//   • the rail column (right): two photos, and — when there's a sticker — the badge
+//     tucked in at the bottom in a cell shaped to the sticker's own aspect ratio.
+// The hero runs ~1.7× a rail photo — a clear hero, but never more than twice.
 
-  const cells = [];
-  for (const r of rows) {
-    const h = r.h * scale;
-    let x = x0;
-    for (const i of r.g) {
-      const w = aspects[i] * h;
-      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
-      x += w + GAP * scale;
-    }
-    y += h + GAP * scale;
+/** The hero design's five slots (hero + three photos + optional sticker), filling the
+ *  page. `stick` is the sticker's aspect ratio, or null for no sticker. */
+function heroSlots(page, stick) {
+  const g = GAP;
+  const colW = (page.w - g) / 2;
+  const railX = colW + g;
+  if (stick) {
+    const stH = colW / stick;                    // badge-shaped cell (fills exactly)
+    const rp = (page.h - stH - 2 * g) / 2;        // rail photo height
+    const heroH = page.h - g - rp;                // hero ≈ 1.7× a rail photo
+    return {
+      hero: { x: 0, y: 0, w: colW, h: heroH },
+      photos: [
+        { x: 0, y: heroH + g, w: colW, h: rp },   // under the hero
+        { x: railX, y: 0, w: colW, h: rp },        // rail top
+        { x: railX, y: rp + g, w: colW, h: rp },   // rail middle
+      ],
+      sticker: { x: railX, y: 2 * rp + 2 * g, w: colW, h: stH },
+    };
   }
-  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
-  return { cells, coverage: area / (W * H) };
+  const railH = (page.h - g) / 2;
+  const heroH = Math.round(page.h * 0.6);
+  return {
+    hero: { x: 0, y: 0, w: colW, h: heroH },
+    photos: [
+      { x: 0, y: heroH + g, w: colW, h: page.h - heroH - g }, // under the hero
+      { x: railX, y: 0, w: colW, h: railH },                   // rail top
+      { x: railX, y: railH + g, w: colW, h: page.h - railH - g }, // rail bottom
+    ],
+    sticker: null,
+  };
 }
 
-/** As justifyRows, but as COLUMNS: each group fills the full height, side by side. */
-function justifyCols(page, groups, aspects) {
-  const W = page.w;
-  const H = page.h;
-  const cols = groups.map((g) => {
-    const sumInv = g.reduce((s, i) => s + 1 / aspects[i], 0);
-    return { g, w: (H - GAP * (g.length - 1)) / sumInv };
-  });
-  const naturalW = cols.reduce((s, c) => s + c.w, 0) + GAP * (cols.length - 1);
-  const scale = naturalW > W ? W / naturalW : 1;
-  const finalW = naturalW * scale;
-  const finalH = H * scale;
-  const y0 = (H - finalH) / 2;
-  let x = (W - finalW) / 2;
-
-  const cells = [];
-  for (const c of cols) {
-    const w = c.w * scale;
-    let y = y0;
-    for (const i of c.g) {
-      const h = w / aspects[i];
-      cells.push({ x, y, w, h, photo: i, fit: 'contain' });
-      y += h + GAP * scale;
-    }
-    x += w + GAP * scale;
+/** The even design's slots (four ~equal photos + optional sticker), filling the page. */
+function evenSlots(page, stick) {
+  const g = GAP;
+  const colW = (page.w - g) / 2;
+  const railX = colW + g;
+  const leftH = (page.h - g) / 2;
+  if (stick) {
+    const stH = colW / stick;
+    const rp = (page.h - stH - 2 * g) / 2;
+    return {
+      photos: [
+        { x: 0, y: 0, w: colW, h: leftH },
+        { x: 0, y: leftH + g, w: colW, h: page.h - leftH - g },
+        { x: railX, y: 0, w: colW, h: rp },
+        { x: railX, y: rp + g, w: colW, h: rp },
+      ],
+      sticker: { x: railX, y: 2 * rp + 2 * g, w: colW, h: stH },
+    };
   }
-  const area = cells.reduce((s, c) => s + c.w * c.h, 0);
-  return { cells, coverage: area / (W * H) };
+  return {
+    photos: [
+      { x: 0, y: 0, w: colW, h: leftH },
+      { x: 0, y: leftH + g, w: colW, h: page.h - leftH - g },
+      { x: railX, y: 0, w: colW, h: leftH },
+      { x: railX, y: leftH + g, w: colW, h: page.h - leftH - g },
+    ],
+    sticker: null,
+  };
 }
 
-// The hero is never allowed to be more than this many times the area of the smallest
-// photo — "100% bigger" and no more. A full-strip hero runs 15–45× the smallest, so we
-// simply don't use those arrangements: among every way to tile the four photos we keep
-// only those within the cap, and pick the one that fills the most paper.
-const HERO_MAX_RATIO = 2.0;
+const PAGE = PORTRAIT_4X6;
+const stickerCell = (rect) => ({ ...rect, extra: 'sticker', fit: 'contain' });
 
-/** Every ordered partition of a list into non-empty groups (each a row, or a column). */
-function allPartitions(arr) {
-  if (arr.length === 0) return [[]];
-  const [first, ...rest] = arr;
-  const out = [];
-  for (const p of allPartitions(rest)) {
-    for (let i = 0; i < p.length; i++) out.push(p.map((g, j) => (j === i ? [first, ...g] : g)));
-    out.push([[first], ...p]);
-  }
-  return out;
+/** Build the cells for one hero design: hero photo in the big slot, the rest in the
+ *  rail, the sticker (if any) in its badge slot. Cover-fit fills every photo cell. */
+function heroCells(photoIndices, heroIndex, stick) {
+  const s = heroSlots(PAGE, stick);
+  const others = photoIndices.filter((i) => i !== heroIndex);
+  const cells = [{ ...s.hero, photo: heroIndex }];
+  s.photos.forEach((rect, k) => cells.push({ ...rect, photo: others[k] }));
+  if (s.sticker) cells.push(stickerCell(s.sticker));
+  return cells;
 }
 
-/**
- * The best hero design for one photo. Filling the paper is the priority, so we take the
- * densest tiling of the four photos whose hero is within the 2× cap — and, only when it
- * costs no fill, nudge toward one where the hero is the biggest cell. Because cells are
- * shaped to their photos, nothing is cropped; because we never give the hero a strip to
- * itself, it never balloons past the cap.
- */
-function heroDesign(aspects, heroIndex) {
-  // Order the hero first, so it leads (top-left) and each "Big #N" reads differently even
-  // when the photos are the same shape.
-  const order = [heroIndex, ...aspects.map((_, i) => i).filter((i) => i !== heroIndex)];
-  let best = null;
-  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
-    const page = { w: paper.w, h: paper.h };
-    for (const part of allPartitions(order)) {
-      for (const fn of [justifyRows, justifyCols]) {
-        const laid = fn(page, part, aspects);
-        const areas = laid.cells.map((c) => c.w * c.h);
-        const heroArea = laid.cells.find((c) => c.photo === heroIndex).w * laid.cells.find((c) => c.photo === heroIndex).h;
-        const mn = Math.min(...areas);
-        const mx = Math.max(...areas);
-        // Filling the paper is the priority (coverage leads the score). We subtract a
-        // penalty for ANY photo dominating past the 2× cap — which keeps every photo
-        // within 2× when the aspects allow it, and as close as possible when a wide-vs-tall
-        // mix makes a perfect cap geometrically impossible. A gentle bonus makes photo N
-        // the biggest cell so "Big #N" is truthful, without ever sacrificing fill for it.
-        const over = Math.max(0, mx / mn - HERO_MAX_RATIO);
-        const score = laid.coverage - 0.6 * over + 0.2 * (heroArea / mx);
-        if (!best || score > best.score) {
-          best = { ...laid, page, media: paper.media, paper: paper.paper, arrange: 'top', score };
-        }
-      }
-    }
-  }
-  // Hero cell first — downstream reads cells[0] as the hero (crop editor, "biggest" checks).
-  best.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : a.photo - b.photo));
-  return best;
+function evenCells(photoIndices, stick) {
+  const s = evenSlots(PAGE, stick);
+  const cells = s.photos.map((rect, k) => ({ ...rect, photo: photoIndices[k] }));
+  if (s.sticker) cells.push(stickerCell(s.sticker));
+  return cells;
 }
 
-/** Best no-hero layout: the items packed to fill the sheet as fully as they can.
- *  Works for any count (four photos, or four photos plus the sticker). */
-function evenGrid(aspects) {
-  const idx = aspects.map((_, i) => i);
-  const half = Math.ceil(idx.length / 2);
-  const rowsSplit = [idx.slice(0, half), idx.slice(half)];
-  const colsSplit = [idx.filter((_, i) => i % 2 === 0), idx.filter((_, i) => i % 2 === 1)];
-  const plans = [
-    (p) => justifyRows(p, rowsSplit, aspects),
-    (p) => justifyCols(p, colsSplit, aspects),
-    (p) => justifyRows(p, [idx], aspects),
-    (p) => justifyCols(p, idx.map((i) => [i]), aspects),
-  ];
-  let best = null;
-  for (const paper of [PORTRAIT_4X6, LANDSCAPE_6X4]) {
-    const page = { w: paper.w, h: paper.h };
-    for (const fn of plans) {
-      const laid = fn(page);
-      if (!best || laid.coverage > best.coverage) {
-        best = { ...laid, page, media: paper.media, paper: paper.paper };
-      }
-    }
-  }
-  return best;
-}
-
-const ARRANGE_SUB = { top: 'on top', bottom: 'on the bottom', left: 'on the left', right: 'on the right' };
-
-/**
- * The sticker's placement spec, or null for frames without one. The sticker is NOT
- * packed with the photos (that let it grow to hero size) — it's a small fixed badge
- * dropped into a corner afterwards, so it never competes with the photos for space.
- */
+/** The sticker's placement spec for a frame: its aspect ratio, or null for none. The
+ *  sticker is a real cell in the layout — never packed with the photos so it can't grow
+ *  to hero size, and never omitted so its slot is always filled. */
 export function stickerSpec(frame) {
-  return frame && frame.sticker
-    ? { aspect: frame.stickerAR || STICKER_AR, widthFrac: frame.stickerW || 0.2 }
-    : null;
-}
-
-function rectOverlap(ax, ay, aw, ah, b) {
-  const ix = Math.max(0, Math.min(ax + aw, b.x + b.w) - Math.max(ax, b.x));
-  const iy = Math.max(0, Math.min(ay + ah, b.y + b.h) - Math.max(ay, b.y));
-  return ix * iy;
-}
-
-/** Append a small sticker badge to a set of photo cells, in whichever corner covers the
- *  photos the least — so it reads as a corner badge, never a hero, and hides as little
- *  of any photo as it can. */
-function withSticker(cells, page, spec) {
-  if (!spec) return cells;
-  const w = page.w * spec.widthFrac;
-  const h = w / spec.aspect;
-  const m = page.w * 0.02;
-  const corners = [
-    { x: m, y: m }, { x: page.w - w - m, y: m },
-    { x: m, y: page.h - h - m }, { x: page.w - w - m, y: page.h - h - m },
-  ];
-  // The hero leads (cells[0]); keep the badge off it when overlaps are otherwise similar.
-  const hero = cells[0];
-  const hcx = hero.x + hero.w / 2, hcy = hero.y + hero.h / 2;
-  const diag = Math.hypot(page.w, page.h);
-  let best = corners[0];
-  let bestScore = Infinity;
-  for (const c of corners) {
-    let ov = 0;
-    for (const cell of cells) ov += rectOverlap(c.x, c.y, w, h, cell);
-    const dist = Math.hypot(c.x + w / 2 - hcx, c.y + h / 2 - hcy);
-    // Least overlap wins; near-ties break toward the corner farthest from the hero.
-    const score = ov / (page.w * page.h) - 0.02 * (dist / diag);
-    if (score < bestScore) { bestScore = score; best = c; }
-  }
-  return [...cells, { x: best.x, y: best.y, w, h, extra: 'sticker', fit: 'contain' }];
+  return frame && frame.sticker ? { aspect: frame.stickerAR || STICKER_AR } : null;
 }
 
 /**
- * The booth's own pick: photo 0 as the hero (unless told otherwise), in the
- * placement and on the sheet that fill the most paper without cropping.
+ * The booth's own pick: photo 0 as the hero (unless told otherwise), filling a 4×6
+ * portrait sheet edge to edge.
  */
 export function resolveGrid(base, photos, heroIndex = 0, sticker = null) {
-  const d = heroDesign(photos.map(photoAspect), heroIndex);
-  return { cells: withSticker(d.cells, d.page, sticker), captions: [], page: d.page, media: d.media, paper: d.paper };
+  const cells = heroCells(photos.map((_, i) => i), heroIndex, sticker && sticker.aspect);
+  return { cells, captions: [], page: PAGE, media: PAGE.media, paper: PAGE.paper };
 }
 
 /**
- * The designs offered as cards in the picker: each photo as the (capped) hero, plus an
- * even layout with no hero. Photo 0 leads, so the default card matches resolveGrid. Every
- * design shapes its cells to the real photos, so nothing is cropped or skewed, and the
- * sticker rides along as a small corner badge.
+ * The designs offered as cards in the picker: each photo as the hero (big, but never
+ * more than 2× the smallest photo), plus an even layout with no hero. Every design fills
+ * the paper, and the sticker is a small badge cell that is always the smallest — never
+ * the hero.
  */
 export function designVariants(base, photos, sticker = null) {
-  const aspects = photos.map(photoAspect);
-
-  const out = photos.map((_, hero) => {
-    const d = heroDesign(aspects, hero);
-    return {
-      key: `hero:${hero}`,
-      kind: 'hero',
-      heroIndex: hero,
-      arrange: d.arrange,
-      title: `Big #${hero + 1}`,
-      sub: ARRANGE_SUB[d.arrange],
-      captions: [],
-      cells: withSticker(d.cells, d.page, sticker),
-      page: d.page,
-      media: d.media,
-      paper: d.paper,
-    };
-  });
-
-  const even = evenGrid(aspects);
+  const idx = photos.map((_, i) => i);
+  const ar = sticker && sticker.aspect;
+  const out = photos.map((_, hero) => ({
+    key: `hero:${hero}`,
+    kind: 'hero',
+    heroIndex: hero,
+    arrange: 'top',
+    title: `Big #${hero + 1}`,
+    sub: 'featured',
+    captions: [],
+    cells: heroCells(idx, hero, ar),
+    page: PAGE,
+    media: PAGE.media,
+    paper: PAGE.paper,
+  }));
   out.push({
     key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [],
-    ...even, cells: withSticker(even.cells, even.page, sticker),
+    cells: evenCells(idx, ar), page: PAGE, media: PAGE.media, paper: PAGE.paper,
   });
   return out;
 }
