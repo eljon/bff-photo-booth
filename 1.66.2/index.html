@@ -296,9 +296,20 @@ body {
   font-family: "Caveat", "Comic Sans MS", cursive;
   font-size: 21px;
   font-weight: 700;
-  color: #ffffffcf;
+  /* Same moving gradient as the primary button, clipped to the text. The dark
+     text-shadow rides behind the glyphs (unaffected by the transparent fill) so
+     it stays legible over the print. */
+  background: var(--grad);
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   text-shadow: 0 2px 8px #000a;
-  animation: floatText 3.4s ease-in-out infinite;
+  animation: floatText 3.4s ease-in-out infinite, btnGrad 9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-kicker { animation: floatText 3.4s ease-in-out infinite; }
 }
 .step-text {
   font-family: "Caveat", "Comic Sans MS", cursive;
@@ -360,7 +371,9 @@ body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
 /* At the top of the stage: a little breathing room below the header. In the
    welcome screen it's centred with the button; over the coverflow it sits above. */
 .stage > .step-guide { margin: 2px 0 10px; }
-body.is-empty .stage > .step-guide { margin: 0 0 22px; }
+/* Extra gap in the welcome screen so the instructions clear the bobbing arrow
+   that rises up toward the pick button. */
+body.is-empty .stage > .step-guide { margin: 0 0 52px; }
 
 /* The one button lives on top of the print itself, so there is never an empty
    grid sitting next to a button asking to fill it. */

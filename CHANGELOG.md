@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.66.3 — 2026-08-29
+
+**Step counter picks up the button's moving gradient.**
+
+- "Step X of 3" now shifts through the same animated purple→pink→orange gradient as the
+  primary button, instead of plain grey.
+- Moved the step instructions up so they clear the bobbing hand-drawn arrow on the welcome
+  screen.
+
 ## 1.66.2 — 2026-08-29
 
 **Cleaner step instructions.**
