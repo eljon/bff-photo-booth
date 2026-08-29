@@ -291,7 +291,7 @@ export const FRAMES = {
     sticker: 'backgrounds/sticker.png', // one per page; a small corner badge, never a hero
     stickerAR: STICKER_AR,              // the sticker's own aspect ratio
     stickerW: 0.2,                      // badge width as a fraction of the page — kept small
-    insetX: 0.075, insetY: 0.065,
+    insetX: 0.035, insetY: 0.03,
     cell: { radius: 0.07, borderW: 0.02, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
   },
   white: { id: 'white', name: 'White', bg: '#ffffff', ink: '#101010', accent: '#9a9a9a' },

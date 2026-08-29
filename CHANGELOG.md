@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.65.0 — 2026-08-28
+
+**Shaved the fat decorative border — the photos are bigger now.**
+
+- The watercolor frame was insetting the whole photo block by 7.5%/6.5% on each side — a
+  sizeable even band of paper around all four edges that was just being wasted. Cut it to
+  3.5%/3%, so the photos scale up ~8–9% in each dimension and nearly reach the printable
+  edge, keeping only a thin watercolor rim. This is the "shave the 4 sides" fix.
+
 ## 1.64.1 — 2026-08-28
 
 **Restored the layout rules in CLAUDE.md to the user's exact wording.**
