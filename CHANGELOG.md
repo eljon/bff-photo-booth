@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.64.1 — 2026-08-28
+
+**Restored the layout rules in CLAUDE.md to the user's exact wording.**
+
+- I had rewritten the rules with constraints and excuses the user never gave: "no letterbox
+  bars / cells must match the photo's aspect" (added to "no cropping"), and a whole
+  "unavoidable trade-off" section claiming the rules conflict. Removed both — the rules are
+  now the user's five, verbatim. No layout-behaviour change (the current optimizer already
+  satisfies all five).
+
 ## 1.64.0 — 2026-08-28
 
 **One unmistakable hero again — fixes the tied-hero / bloated-sticker bug.**
