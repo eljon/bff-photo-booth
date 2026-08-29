@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.66.0 — 2026-08-29
+
+**Whimsical, hand-drawn step instructions.**
+
+- The step-by-step guide is now big, playful handwriting (Caveat) in white with a gentle
+  floating bob, plus a friendlier helper line under each step ("Pick your 4 best shots!" →
+  "tap the button to add or snap them ✨"; "Swipe to find your fave!" → "then tap the ✓
+  when you love it 💫").
+- Added **hand-drawn arrows** (roughened with an SVG sketch filter, softly bobbing) that
+  point right at the button for the current step — at the "add photos" button on step 1 and
+  the ✓ button on step 2.
+
 ## 1.65.0 — 2026-08-28
 
 **Shaved the fat decorative border — the photos are bigger now.**

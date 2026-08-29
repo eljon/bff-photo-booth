@@ -290,11 +290,61 @@ body {
   background-clip: text;
 }
 .step-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ink);
+  font-family: "Caveat", "Comic Sans MS", cursive;
+  font-size: 32px;
+  line-height: 1.02;
+  font-weight: 700;
+  color: #fff;
   text-wrap: balance;
+  text-shadow: 0 3px 12px #000a, 0 1px 0 #0007;
+  animation: floatText 3.4s ease-in-out infinite;
+  will-change: transform;
 }
+.step-hint {
+  font-family: "Caveat", "Comic Sans MS", cursive;
+  font-size: 19px;
+  font-weight: 600;
+  color: #ffffffcf;
+  text-shadow: 0 2px 8px #000a;
+  margin-top: -3px;
+  animation: floatText 3.4s ease-in-out infinite 0.3s;
+}
+@keyframes floatText {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50%      { transform: translateY(-7px) rotate(1.2deg); }
+}
+
+/* Hand-drawn arrows that gesture at the button for the current step. Positioned
+   over the button's container; the #sketch filter roughens the strokes so they
+   read as pencil doodles, and they bob so they catch the eye. */
+.doodle {
+  position: absolute;
+  width: 66px;
+  height: 60px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 8;
+}
+.doodle path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 3px #0009);
+}
+@keyframes bobArrow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(8px) rotate(-4deg); }
+}
+.doodle-pick, .doodle-check { animation: bobArrow 2.2s ease-in-out infinite; }
+/* Step 1: above the "add photos" button, pointing down at it. */
+.doodle-pick { left: calc(50% + 34px); top: calc(50% - 104px); }
+.pick-overlay.compact .doodle-pick { display: none; } /* gone once photos are in */
+body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
+/* Step 2: above the check button, pointing down at it; gone once it opens to Save/Print. */
+.doodle-check { left: calc(50% + 26px); top: -56px; }
+.commit.open .doodle-check { display: none; }
 /* A segmented progress bar (not page dots): short bars that fill left→right for
    each step completed, so it reads as "how far along", not a swipeable carousel. */
 .step-prog { display: flex; gap: 5px; margin-top: 5px; }
@@ -356,7 +406,7 @@ body.is-empty .stage > .step-guide { margin: 0 0 22px; }
 body.is-empty #preview { display: none; }
 body.is-empty .paper-shadow { background: none; box-shadow: none; padding: 0; }
 body.is-empty .pick-overlay {
-  position: static;
+  position: relative; /* anchor the doodle arrow to the button */
   inset: auto;
   padding: 0;
   background: none;

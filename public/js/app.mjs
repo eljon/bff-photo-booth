@@ -278,9 +278,10 @@ function updatePickButton() {
   // print step (3) surfaces above the action bar.
   const step = full ? 2 : 1;
   $('stepKicker').textContent = `Step ${step} of 3`;
-  $('stepText').textContent = full
-    ? 'Swipe to choose your favourite layout'
-    : 'Choose or take your 4 photos';
+  $('stepText').textContent = full ? 'Swipe to find your fave!' : 'Pick your 4 best shots!';
+  $('stepHint').textContent = full
+    ? 'then tap the ✓ when you love it 💫'
+    : 'tap the button to add or snap them ✨';
   // A progress bar fills left→right through the steps completed so far — reads as
   // progress, not as swipeable pages.
   $('seg1').classList.toggle('done', step >= 1);
