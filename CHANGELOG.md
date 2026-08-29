@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.7 — 2026-08-29
+
+**Step text stays gone once committed; Replace photos sits lower.**
+
+- Once the "Step 2 of 3" instruction shrinks away (you tapped the check), it no longer comes
+  back when you swipe to another design. It still returns for a fresh set of four photos.
+- Gave the Replace photos button more top spacing so it isn't crowded against the
+  Save/Print (or check) buttons above it.
+
 ## 1.67.6 — 2026-08-29
 
 **The pictures no longer jump up when the step text disappears.**

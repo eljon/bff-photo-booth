@@ -246,7 +246,6 @@ function collapseCommit() {
   if (!commit.classList.contains('open') || commit.classList.contains('closing')) return;
   clearTimeout(gooTimer);
   clearCheckPop(); // the merge animation owns the check; drop any stale pop state
-  showStepGuide(); // back to browsing — bring the step-2 guide back
   if (reduceMotion()) { commit.classList.remove('open'); return; }
   commit.classList.add('closing', 'animating');
   rampGooBlur(GOO_MIN, GOO_MAX, 0, 220);  // crisp pills → liquid as they fuse back

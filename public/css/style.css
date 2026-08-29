@@ -256,7 +256,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 2px 0 4px;
+  margin: 18px 0 4px; /* extra top gap so it clears the Save/Print (or check) above */
   padding: 12px 24px;
   border-radius: 999px;
   background: #ffffff33;
