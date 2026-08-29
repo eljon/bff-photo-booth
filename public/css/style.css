@@ -768,6 +768,23 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 }
 .check-btn svg { display: block; filter: drop-shadow(0 1px 1px #0006); }
 
+/* Swipe pop: while the coverflow is in motion the whole check button (the gradient
+   circle AND its tick) shrinks away with a little burst, then springs back once the
+   deck settles. Scoped away from the open/animating/closing states so it never fights
+   the gooey Save/Print split. The tick keeps its centring translateX(-50%). */
+@keyframes checkPopOut  { 0% { transform: scale(1); } 26% { transform: scale(1.22); } 100% { transform: scale(0); } }
+@keyframes checkPopIn   { 0% { transform: scale(0); } 62% { transform: scale(1.16); } 100% { transform: scale(1); } }
+@keyframes checkTickOut { 0% { transform: translateX(-50%) scale(1); } 26% { transform: translateX(-50%) scale(1.22); } 100% { transform: translateX(-50%) scale(0); } }
+@keyframes checkTickIn  { 0% { transform: translateX(-50%) scale(0); } 62% { transform: translateX(-50%) scale(1.16); } 100% { transform: translateX(-50%) scale(1); } }
+.commit.check-out:not(.open):not(.animating):not(.closing) .b-center  { animation: checkPopOut  0.26s ease-in forwards; }
+.commit.check-out:not(.open):not(.animating):not(.closing) .check-btn { animation: checkTickOut 0.26s ease-in forwards; }
+.commit.check-in:not(.open):not(.animating):not(.closing)  .b-center  { animation: checkPopIn  0.44s cubic-bezier(0.3, 1.5, 0.5, 1) forwards; }
+.commit.check-in:not(.open):not(.animating):not(.closing)  .check-btn { animation: checkTickIn 0.44s cubic-bezier(0.3, 1.5, 0.5, 1) forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .commit.check-out .b-center, .commit.check-out .check-btn,
+  .commit.check-in .b-center,  .commit.check-in .check-btn { animation: none; }
+}
+
 .commit-pair {
   position: absolute;
   inset: 0;

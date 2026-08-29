@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.2 — 2026-08-29
+
+**The check button pops while you swipe.**
+
+- While you're swiping through the layouts, the check button now pops away with a little
+  burst, then pops back in with a springy bounce the moment the deck settles — replacing the
+  old slide-out tick.
+
 ## 1.67.1 — 2026-08-29
 
 **Step 2 polish: the swipe cue pops away, and "the check" is the real button.**

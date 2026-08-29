@@ -245,10 +245,14 @@ function collapseCommit() {
   const commit = $('commit');
   if (!commit.classList.contains('open') || commit.classList.contains('closing')) return;
   clearTimeout(gooTimer);
+  clearCheckPop(); // the merge animation owns the check; drop any stale pop state
   if (reduceMotion()) { commit.classList.remove('open'); return; }
   commit.classList.add('closing', 'animating');
   rampGooBlur(GOO_MIN, GOO_MAX, 0, 220);  // crisp pills → liquid as they fuse back
-  gooTimer = setTimeout(() => commit.classList.remove('open', 'closing', 'animating'), 700);
+  gooTimer = setTimeout(() => {
+    commit.classList.remove('open', 'closing', 'animating');
+    clearCheckPop(); // land on a plain resting check, ready to pop on the next swipe
+  }, 700);
 }
 
 // The step-2 swipe cue pops away on the first swipe and stays gone until a fresh
@@ -550,31 +554,35 @@ function stopSpring() {
   }
 }
 
-// Just the TICK (the ✓ glyph) flies fully OUT of the button, OPPOSITE the swipe
-// direction, the moment the deck starts moving — even a slight swipe sends it all the
-// way out (the button's circular clip hides it past the edge) — and it stays out for
-// the whole coverflow, then flies back to centre once the deck settles. It's not
-// proportional to speed: any swipe latches a direction and drives it to a fixed offset.
+// The whole check button POPS away the moment the deck starts moving — it shrinks
+// out with a little burst — and stays gone for the coverflow browse, then POPS back
+// in with a springy overshoot once the deck settles. A tap that doesn't actually move
+// the deck leaves it be.
 let flyRaf = null;
 let flyLast = 0;
-let flyX = 0;    // current x offset (px), eased toward the target
-let flyDir = 0;  // latched swipe direction (-1 left, +1 right, 0 none yet)
-const FLY_OUT = 70; // past the circle's edge → the tick is fully clipped away
+let checkOut = false; // is the check currently popped away?
+function setCheckPopped(out) {
+  if (out === checkOut) return;
+  const commit = $('commit');
+  if (commit.classList.contains('open')) return; // Save/Print showing — no check to pop
+  checkOut = out;
+  if (reduceMotion()) return; // no popping under reduced motion — leave the check put
+  commit.classList.toggle('check-out', out);
+  commit.classList.toggle('check-in', !out);
+}
+function clearCheckPop() {
+  checkOut = false;
+  $('commit').classList.remove('check-out', 'check-in');
+}
 function startFly() {
   if (flyRaf !== null || reduceMotion()) return;
   flyLast = cfPos;
-  const tick = $('checkBtn').querySelector('svg');
   const loop = () => {
     const vel = cfPos - flyLast; // deck speed, card-units per frame
     flyLast = cfPos;
-    if (Math.abs(vel) > 0.002) flyDir = Math.sign(vel); // latch OPPOSITE the swipe direction
-    // Fully out while the deck is in motion; home once it has settled.
-    const target = cfBusy ? FLY_OUT * flyDir : 0;
-    flyX += (target - flyX) * 0.4;
-    tick.style.transform = Math.abs(flyX) < 0.15 ? '' : `translateX(${flyX.toFixed(1)}px)`;
-    if (!cfBusy && Math.abs(flyX) < 0.4) {
-      tick.style.transform = '';
-      flyDir = 0;
+    if (Math.abs(vel) > 0.004) setCheckPopped(true); // real motion — pop the check away
+    if (!cfBusy) {
+      setCheckPopped(false); // settled — pop it back in
       flyRaf = null;
       return;
     }
@@ -1998,6 +2006,7 @@ function bind() {
 
   $('checkBtn').addEventListener('click', () => {
     const commit = $('commit');
+    clearCheckPop(); // leaving the check behind — clear any swipe-pop state
     commit.classList.add('open');
     clearTimeout(gooTimer);
     if (reduceMotion()) { setGooBlur(GOO_MIN); return; } // no goo pulse, just show the pair
