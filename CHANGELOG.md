@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.3 — 2026-08-29
+
+**The check's pop now scatters confetti.**
+
+- When the check button pops away on a swipe it now bursts into several colored confetti
+  bits, matching the swipe cue's pop, then springs back when the deck settles.
+
 ## 1.67.2 — 2026-08-29
 
 **The check button pops while you swipe.**

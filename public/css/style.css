@@ -780,9 +780,36 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .commit.check-out:not(.open):not(.animating):not(.closing) .check-btn { animation: checkTickOut 0.26s ease-in forwards; }
 .commit.check-in:not(.open):not(.animating):not(.closing)  .b-center  { animation: checkPopIn  0.44s cubic-bezier(0.3, 1.5, 0.5, 1) forwards; }
 .commit.check-in:not(.open):not(.animating):not(.closing)  .check-btn { animation: checkTickIn 0.44s cubic-bezier(0.3, 1.5, 0.5, 1) forwards; }
+
+/* Confetti bits that burst radially out of the check as it pops away — the same
+   celebratory pop as the swipe cue, so the button breaks into several pieces. */
+.cbit {
+  position: absolute;
+  top: 36px; /* the check circle's centre within the 72px-tall commit */
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--g3);
+  box-shadow: 0 2px 6px -1px #0007;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.cbit:nth-child(odd) { background: #6a5cff; }
+.cbit:nth-child(3n)  { background: #ff7a4d; width: 9px; height: 9px; }
+.commit.check-out:not(.open):not(.animating):not(.closing) .cbit { animation: cbitBurst 0.5s ease-out forwards; }
+@keyframes cbitBurst {
+  0%   { opacity: 0; transform: rotate(var(--a)) translateX(6px)  scale(0.4); }
+  25%  { opacity: 1; transform: rotate(var(--a)) translateX(26px) scale(1); }
+  60%  { opacity: 1; transform: rotate(var(--a)) translateX(44px) scale(0.9); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(58px) scale(0.3); }
+}
 @media (prefers-reduced-motion: reduce) {
   .commit.check-out .b-center, .commit.check-out .check-btn,
-  .commit.check-in .b-center,  .commit.check-in .check-btn { animation: none; }
+  .commit.check-in .b-center,  .commit.check-in .check-btn,
+  .commit.check-out .cbit { animation: none; }
 }
 
 .commit-pair {
