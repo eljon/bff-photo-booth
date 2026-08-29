@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.66.2 — 2026-08-29
+
+**Cleaner step instructions.**
+
+- The "Step X of 3" line now uses the same handwriting font as the instruction, just a
+  little smaller, so the whole guide reads as one voice.
+- Removed the little segmented progress bar under the step text.
+- Removed the emojis from the step instructions.
+
 ## 1.66.1 — 2026-08-29
 
 **Removed the placeholder demo photos from the GitHub Pages preview.**

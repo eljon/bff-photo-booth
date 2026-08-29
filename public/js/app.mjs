@@ -280,13 +280,8 @@ function updatePickButton() {
   $('stepKicker').textContent = `Step ${step} of 3`;
   $('stepText').textContent = full ? 'Swipe to find your fave!' : 'Pick your 4 best shots!';
   $('stepHint').textContent = full
-    ? 'then tap the ✓ when you love it 💫'
-    : 'tap the button to add or snap them ✨';
-  // A progress bar fills left→right through the steps completed so far — reads as
-  // progress, not as swipeable pages.
-  $('seg1').classList.toggle('done', step >= 1);
-  $('seg2').classList.toggle('done', step >= 2);
-  $('seg3').classList.toggle('done', step >= 3);
+    ? 'then tap the check when you love it'
+    : 'tap the button to add or snap them';
   $('commit').classList.toggle('hidden', !full);
   if (full) layoutGoo();
 }

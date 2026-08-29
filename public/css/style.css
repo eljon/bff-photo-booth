@@ -280,14 +280,12 @@ body {
   text-align: center;
 }
 .step-kicker {
-  font-size: 11px;
+  font-family: "Caveat", "Comic Sans MS", cursive;
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: transparent;
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
+  color: #ffffffcf;
+  text-shadow: 0 2px 8px #000a;
+  animation: floatText 3.4s ease-in-out infinite;
 }
 .step-text {
   font-family: "Caveat", "Comic Sans MS", cursive;
@@ -345,15 +343,6 @@ body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
 /* Step 2: above the check button, pointing down at it; gone once it opens to Save/Print. */
 .doodle-check { left: calc(50% + 26px); top: -56px; }
 .commit.open .doodle-check { display: none; }
-/* A segmented progress bar (not page dots): short bars that fill left→right for
-   each step completed, so it reads as "how far along", not a swipeable carousel. */
-.step-prog { display: flex; gap: 5px; margin-top: 5px; }
-.step-prog i {
-  width: 26px; height: 4px; border-radius: 2px;
-  background: #ffffff24;
-  transition: background 0.25s ease;
-}
-.step-prog i.done { background: var(--grad); }
 
 /* At the top of the stage: a little breathing room below the header. In the
    welcome screen it's centred with the button; over the coverflow it sits above. */
