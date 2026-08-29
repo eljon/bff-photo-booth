@@ -251,6 +251,19 @@ function collapseCommit() {
   gooTimer = setTimeout(() => commit.classList.remove('open', 'closing', 'animating'), 700);
 }
 
+// The step-2 swipe cue pops away on the first swipe and stays gone until a fresh
+// set of four brings the coverflow back (reset in updateStep when not full).
+let swipeHintDismissed = false;
+function dismissSwipeHint() {
+  if (swipeHintDismissed) return;
+  swipeHintDismissed = true;
+  const el = $('swipeHint');
+  if (!el || el.classList.contains('hidden')) return;
+  if (reduceMotion()) { el.classList.add('hidden'); return; }
+  el.classList.add('popping'); // burst the arrow, fingertip and confetti bits
+  setTimeout(() => { el.classList.add('hidden'); el.classList.remove('popping'); }, 460);
+}
+
 /** The picker is the main event: one tap should get all four photos. */
 function updatePickButton() {
   const missing = 4 - filledCount();
@@ -280,11 +293,25 @@ function updatePickButton() {
   const step = full ? 2 : 1;
   $('stepKicker').textContent = `Step ${step} of 3`;
   $('stepText').textContent = full ? 'Swipe to find your fave!' : 'Pick your 4 best shots!';
-  $('stepHint').textContent = full
-    ? 'then tap the check when you love it'
-    : 'tap the button to add or snap them';
+  // On step 2, "the check" is shown as the actual check button, inline in the line.
+  if (full) {
+    $('stepHint').innerHTML =
+      'then tap the <span class="hint-check" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5 11-11"/></svg>' +
+      '</span> when you love it';
+  } else {
+    $('stepHint').textContent = 'tap the button to add or snap them';
+  }
   $('commit').classList.toggle('hidden', !full);
-  $('swipeHint').classList.toggle('hidden', !full); // swipe cue only over the coverflow
+
+  // Swipe cue: shows over the coverflow, then pops away on the first swipe. Reset so
+  // it returns the next time a fresh set of four brings the coverflow back.
+  if (!full) swipeHintDismissed = false;
+  const hint = $('swipeHint');
+  if (!hint.classList.contains('popping')) {
+    hint.classList.toggle('hidden', !full || swipeHintDismissed);
+  }
   if (full) layoutGoo();
 }
 
@@ -919,6 +946,7 @@ function bindCoverflow() {
 
     const dx = event.clientX - startX;
     moved = Math.max(moved, Math.abs(dx));
+    if (moved > 8) dismissSwipeHint(); // first real drag — pop the swipe cue away
     // Rubber-band past the ends instead of hard-stopping: drag beyond the first
     // or last design and it follows with easing resistance (iOS end-of-list feel).
     const raw = startPos - dx / cfSpacing();
@@ -958,6 +986,7 @@ function bindCoverflow() {
       // geometrically (pointer-capture retargets event.target to the container,
       // so it can't tell us which card); falls back to the current centre.
       const i = cardIndexAt(event.clientX, event.clientY);
+      if (i >= 0 && i !== from) dismissSwipeHint(); // tapped a side card into view
       glideTo(i >= 0 ? i : from);
       return;
     }

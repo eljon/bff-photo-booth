@@ -253,9 +253,10 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  /* Lift the whole control up over the coverflow's reflection. A transform (not a
-     margin) so the flex stage above doesn't just grow to swallow the shift. */
-  transform: translateY(-96px);
+  /* Lift the whole control up a touch — but not so far it collides with the
+     coverflow pictures above. A transform (not a margin) so the flex stage above
+     doesn't just grow to swallow the shift. */
+  transform: translateY(-34px);
   position: relative;
   z-index: 5;
 }
@@ -331,6 +332,26 @@ body {
   margin-top: -3px;
   animation: floatText 3.4s ease-in-out infinite 0.3s;
 }
+/* A miniature of the real check button, dropped inline where the word "check"
+   would go, so the guest sees the exact button they need to tap. */
+.hint-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  vertical-align: -0.28em;
+  margin: 0 1px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--grad);
+  background-size: 220% 220%;
+  box-shadow: 0 3px 8px -2px #a24bffcc, inset 0 1px 0 #ffffff55;
+  text-shadow: none;
+  animation: btnGrad 9s ease-in-out infinite;
+}
+.hint-check svg { width: 68%; height: 68%; }
+@media (prefers-reduced-motion: reduce) { .hint-check { animation: none; } }
 @keyframes floatText {
   0%, 100% { transform: translateY(0) rotate(-1.2deg); }
   50%      { transform: translateY(-7px) rotate(1.2deg); }
@@ -402,6 +423,47 @@ body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .swipe-finger { animation: none; }
+}
+
+/* First-swipe pop: the arrow and the fingertip burst, and six confetti bits fly
+   out radially — the whole cue vanishes with a little celebration. */
+.pop-bit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--g3);
+  opacity: 0;
+  pointer-events: none;
+}
+.pop-bit:nth-child(odd)  { background: #6a5cff; }
+.pop-bit:nth-child(3n)   { background: #ff7a4d; width: 7px; height: 7px; }
+.swipe-hint.popping { pointer-events: none; }
+.swipe-hint.popping .swipe-finger { animation: popFinger 0.32s ease-out forwards; }
+.swipe-hint.popping .swipe-track  { animation: popTrack 0.3s ease-out forwards; }
+.swipe-hint.popping .pop-bit      { animation: popBit 0.42s ease-out forwards; }
+@keyframes popFinger {
+  0%   { transform: scale(1); opacity: 1; }
+  35%  { transform: scale(1.7); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+@keyframes popTrack {
+  0%   { transform: scale(1); opacity: 1; }
+  40%  { transform: scale(1.14); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+@keyframes popBit {
+  0%   { opacity: 0; transform: rotate(var(--a)) translateX(4px)  scale(0.4); }
+  30%  { opacity: 1; transform: rotate(var(--a)) translateX(18px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(44px) scale(0.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-hint.popping .swipe-finger,
+  .swipe-hint.popping .swipe-track,
+  .swipe-hint.popping .pop-bit { animation: none; }
 }
 
 /* At the top of the stage: a little breathing room below the header. In the
@@ -936,6 +998,13 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
         <path d="M118 9 L135 20 L118 31"/>
       </svg>
       <span class="swipe-finger"></span>
+      <!-- Confetti bits that burst outward when the hint pops away on the first swipe. -->
+      <i class="pop-bit" style="--a:0deg"></i>
+      <i class="pop-bit" style="--a:60deg"></i>
+      <i class="pop-bit" style="--a:120deg"></i>
+      <i class="pop-bit" style="--a:180deg"></i>
+      <i class="pop-bit" style="--a:240deg"></i>
+      <i class="pop-bit" style="--a:300deg"></i>
     </div>
 
     <div class="paper-shadow" id="singleWrap">
@@ -2157,6 +2226,19 @@ function collapseCommit() {
   gooTimer = setTimeout(() => commit.classList.remove('open', 'closing', 'animating'), 700);
 }
 
+// The step-2 swipe cue pops away on the first swipe and stays gone until a fresh
+// set of four brings the coverflow back (reset in updateStep when not full).
+let swipeHintDismissed = false;
+function dismissSwipeHint() {
+  if (swipeHintDismissed) return;
+  swipeHintDismissed = true;
+  const el = $('swipeHint');
+  if (!el || el.classList.contains('hidden')) return;
+  if (reduceMotion()) { el.classList.add('hidden'); return; }
+  el.classList.add('popping'); // burst the arrow, fingertip and confetti bits
+  setTimeout(() => { el.classList.add('hidden'); el.classList.remove('popping'); }, 460);
+}
+
 /** The picker is the main event: one tap should get all four photos. */
 function updatePickButton() {
   const missing = 4 - filledCount();
@@ -2186,11 +2268,25 @@ function updatePickButton() {
   const step = full ? 2 : 1;
   $('stepKicker').textContent = `Step ${step} of 3`;
   $('stepText').textContent = full ? 'Swipe to find your fave!' : 'Pick your 4 best shots!';
-  $('stepHint').textContent = full
-    ? 'then tap the check when you love it'
-    : 'tap the button to add or snap them';
+  // On step 2, "the check" is shown as the actual check button, inline in the line.
+  if (full) {
+    $('stepHint').innerHTML =
+      'then tap the <span class="hint-check" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5 11-11"/></svg>' +
+      '</span> when you love it';
+  } else {
+    $('stepHint').textContent = 'tap the button to add or snap them';
+  }
   $('commit').classList.toggle('hidden', !full);
-  $('swipeHint').classList.toggle('hidden', !full); // swipe cue only over the coverflow
+
+  // Swipe cue: shows over the coverflow, then pops away on the first swipe. Reset so
+  // it returns the next time a fresh set of four brings the coverflow back.
+  if (!full) swipeHintDismissed = false;
+  const hint = $('swipeHint');
+  if (!hint.classList.contains('popping')) {
+    hint.classList.toggle('hidden', !full || swipeHintDismissed);
+  }
   if (full) layoutGoo();
 }
 
@@ -2825,6 +2921,7 @@ function bindCoverflow() {
 
     const dx = event.clientX - startX;
     moved = Math.max(moved, Math.abs(dx));
+    if (moved > 8) dismissSwipeHint(); // first real drag — pop the swipe cue away
     // Rubber-band past the ends instead of hard-stopping: drag beyond the first
     // or last design and it follows with easing resistance (iOS end-of-list feel).
     const raw = startPos - dx / cfSpacing();
@@ -2864,6 +2961,7 @@ function bindCoverflow() {
       // geometrically (pointer-capture retargets event.target to the container,
       // so it can't tell us which card); falls back to the current centre.
       const i = cardIndexAt(event.clientX, event.clientY);
+      if (i >= 0 && i !== from) dismissSwipeHint(); // tapped a side card into view
       glideTo(i >= 0 ? i : from);
       return;
     }

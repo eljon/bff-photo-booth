@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.1 — 2026-08-29
+
+**Step 2 polish: the swipe cue pops away, and "the check" is the real button.**
+
+- The swipe cue now bursts away with a little confetti pop the moment you make your first
+  swipe, instead of lingering.
+- "then tap the check" now shows the actual check button inline in the sentence, so it's
+  clear exactly what to tap.
+- Moved the check and Replace-photos controls down so they no longer overlap the layout
+  pictures above them.
+
 ## 1.67.0 — 2026-08-29
 
 **A swipe cue on step 2, and a Print button in the hosted preview.**

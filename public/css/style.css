@@ -240,9 +240,10 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  /* Lift the whole control up over the coverflow's reflection. A transform (not a
-     margin) so the flex stage above doesn't just grow to swallow the shift. */
-  transform: translateY(-96px);
+  /* Lift the whole control up a touch — but not so far it collides with the
+     coverflow pictures above. A transform (not a margin) so the flex stage above
+     doesn't just grow to swallow the shift. */
+  transform: translateY(-34px);
   position: relative;
   z-index: 5;
 }
@@ -318,6 +319,26 @@ body {
   margin-top: -3px;
   animation: floatText 3.4s ease-in-out infinite 0.3s;
 }
+/* A miniature of the real check button, dropped inline where the word "check"
+   would go, so the guest sees the exact button they need to tap. */
+.hint-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  vertical-align: -0.28em;
+  margin: 0 1px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--grad);
+  background-size: 220% 220%;
+  box-shadow: 0 3px 8px -2px #a24bffcc, inset 0 1px 0 #ffffff55;
+  text-shadow: none;
+  animation: btnGrad 9s ease-in-out infinite;
+}
+.hint-check svg { width: 68%; height: 68%; }
+@media (prefers-reduced-motion: reduce) { .hint-check { animation: none; } }
 @keyframes floatText {
   0%, 100% { transform: translateY(0) rotate(-1.2deg); }
   50%      { transform: translateY(-7px) rotate(1.2deg); }
@@ -389,6 +410,47 @@ body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .swipe-finger { animation: none; }
+}
+
+/* First-swipe pop: the arrow and the fingertip burst, and six confetti bits fly
+   out radially — the whole cue vanishes with a little celebration. */
+.pop-bit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--g3);
+  opacity: 0;
+  pointer-events: none;
+}
+.pop-bit:nth-child(odd)  { background: #6a5cff; }
+.pop-bit:nth-child(3n)   { background: #ff7a4d; width: 7px; height: 7px; }
+.swipe-hint.popping { pointer-events: none; }
+.swipe-hint.popping .swipe-finger { animation: popFinger 0.32s ease-out forwards; }
+.swipe-hint.popping .swipe-track  { animation: popTrack 0.3s ease-out forwards; }
+.swipe-hint.popping .pop-bit      { animation: popBit 0.42s ease-out forwards; }
+@keyframes popFinger {
+  0%   { transform: scale(1); opacity: 1; }
+  35%  { transform: scale(1.7); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+@keyframes popTrack {
+  0%   { transform: scale(1); opacity: 1; }
+  40%  { transform: scale(1.14); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+@keyframes popBit {
+  0%   { opacity: 0; transform: rotate(var(--a)) translateX(4px)  scale(0.4); }
+  30%  { opacity: 1; transform: rotate(var(--a)) translateX(18px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(44px) scale(0.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-hint.popping .swipe-finger,
+  .swipe-hint.popping .swipe-track,
+  .swipe-hint.popping .pop-bit { animation: none; }
 }
 
 /* At the top of the stage: a little breathing room below the header. In the
