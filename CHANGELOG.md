@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.9 — 2026-08-29
+
+**Print status bubble moved to the top.**
+
+- The little print-queue widget ("Printing now") now floats in the upper-right, just below
+  the app title, instead of the bottom-right corner.
+
 ## 1.67.8 — 2026-08-29
 
 **The step guide truly appears only once, and the swipe cue no longer nudges the pictures.**

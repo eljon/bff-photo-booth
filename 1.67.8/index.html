@@ -915,13 +915,13 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 /* Collapsed print-status chip — shown when the guest taps Done while a print is
    still in the queue, so they can keep browsing and watch their place. */
-/* A round, light badge floating in the reflection area to the right of the
-   coverflow. It reads as a bright bubble against the dark stage — icon on top,
-   the place in line, then the ETA. */
+/* A round, light badge floating in the upper-right, just below the app title. It
+   reads as a bright bubble against the dark stage — icon on top, the place in line,
+   then the ETA. */
 .queue-widget {
   position: fixed;
   right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  top: calc(env(safe-area-inset-top) + 78px);
   z-index: 60;
   width: 108px;
   height: 108px;
