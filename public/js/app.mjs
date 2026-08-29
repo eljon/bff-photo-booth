@@ -246,6 +246,7 @@ function collapseCommit() {
   if (!commit.classList.contains('open') || commit.classList.contains('closing')) return;
   clearTimeout(gooTimer);
   clearCheckPop(); // the merge animation owns the check; drop any stale pop state
+  showStepGuide(); // back to browsing — bring the step-2 guide back
   if (reduceMotion()) { commit.classList.remove('open'); return; }
   commit.classList.add('closing', 'animating');
   rampGooBlur(GOO_MIN, GOO_MAX, 0, 220);  // crisp pills → liquid as they fuse back
@@ -266,6 +267,25 @@ function dismissSwipeHint() {
   if (reduceMotion()) { el.classList.add('hidden'); return; }
   el.classList.add('popping'); // burst the arrow, fingertip and confetti bits
   setTimeout(() => { el.classList.add('hidden'); el.classList.remove('popping'); }, 460);
+}
+
+// Tapping the check commits the design and reveals Save/Print, so the step-2 guide
+// pops away (its lines burst with confetti). It comes back if the guest swipes to a
+// new design (the commit collapses back to the check).
+let stepGuideTimer = null;
+function popStepGuide() {
+  const g = $('stepGuide');
+  if (!g || g.classList.contains('hidden')) return;
+  clearTimeout(stepGuideTimer);
+  if (reduceMotion()) { g.classList.add('hidden'); return; }
+  g.classList.add('popping');
+  stepGuideTimer = setTimeout(() => { g.classList.add('hidden'); g.classList.remove('popping'); }, 500);
+}
+function showStepGuide() {
+  const g = $('stepGuide');
+  if (!g) return;
+  clearTimeout(stepGuideTimer);
+  g.classList.remove('popping', 'hidden');
 }
 
 /** The picker is the main event: one tap should get all four photos. */
@@ -295,6 +315,7 @@ function updatePickButton() {
   // and the layouts appear, the top line advances to step 2 (swipe) and the
   // print step (3) surfaces above the action bar.
   const step = full ? 2 : 1;
+  showStepGuide(); // any step change lands on a visible guide (clears a lingering pop)
   $('stepKicker').textContent = `Step ${step} of 3`;
   $('stepText').textContent = full ? 'Swipe to find your fave!' : 'Pick your 4 best shots!';
   // On step 2, "the check" is shown as the actual check button, inline in the line.
@@ -2007,6 +2028,7 @@ function bind() {
   $('checkBtn').addEventListener('click', () => {
     const commit = $('commit');
     clearCheckPop(); // leaving the check behind — clear any swipe-pop state
+    popStepGuide();  // committed — the step-2 guide bursts away
     commit.classList.add('open');
     clearTimeout(gooTimer);
     if (reduceMotion()) { setGooBlur(GOO_MIN); return; } // no goo pulse, just show the pair

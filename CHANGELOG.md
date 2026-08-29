@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.4 — 2026-08-29
+
+**Tapping the check pops the step instructions away.**
+
+- When you tap the check to commit a layout, the "Step 2 of 3" instruction now bursts away —
+  its three lines pop out and confetti bits scatter — clearing the stage for Save/Print. It
+  comes back if you swipe to a different design.
+
 ## 1.67.3 — 2026-08-29
 
 **The check's pop now scatters confetti.**
