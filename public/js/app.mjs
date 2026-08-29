@@ -686,7 +686,15 @@ function rebuildCoverflow(playIntro = false) {
   // Fit each card inside a box while keeping its true paper aspect: the display
   // size comes from ONE scale for both axes, so nothing is squished. A landscape
   // sheet fits by width, a portrait sheet by height. Big box → big photos.
-  const boxH = Math.min(window.innerHeight * 0.37, 350);
+  // Cards rest their bottom on the glass line at 76% of the coverflow and rise by
+  // their full height, so a card taller than ~76% of the coverflow would poke past
+  // the top edge and get clipped (overflow:hidden). Cap the height to the space that
+  // actually sits above that line (minus a small top gap), so a short screen shrinks
+  // the cards instead of slicing their tops — tall screens keep the window-based size.
+  const CF_BASELINE = 0.76;
+  const cfH = $('coverflow').clientHeight || window.innerHeight * 0.5;
+  const aboveGlass = cfH * CF_BASELINE - 12;
+  const boxH = Math.min(window.innerHeight * 0.37, aboveGlass, 350);
   // boxW caps a landscape card's width — keep it tighter so its side photos show.
   const boxW = Math.min(window.innerWidth * 0.55, 300);
 
@@ -2033,7 +2041,8 @@ function bind() {
   $('checkBtn').addEventListener('click', () => {
     const commit = $('commit');
     clearCheckPop(); // leaving the check behind — clear any swipe-pop state
-    popStepGuide();  // committed — the step-2 guide bursts away
+    popStepGuide();     // committed — the step-2 guide bursts away
+    dismissSwipeHint(); // and the swipe cue too, if it hasn't been swiped away yet
     commit.classList.add('open');
     clearTimeout(gooTimer);
     if (reduceMotion()) { setGooBlur(GOO_MIN); return; } // no goo pulse, just show the pair

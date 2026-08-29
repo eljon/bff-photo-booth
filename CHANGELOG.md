@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.68.1 — 2026-08-29
+
+**Swipe cue clears on commit; coverflow cards no longer clip at the top.**
+
+- Tapping the check now also clears the swipe cue if you hadn't swiped yet.
+- Fixed the layout cards getting their tops sliced off on shorter screens — the card size
+  is now capped to the room actually above the glass line, so a short screen shrinks the
+  cards a touch instead of clipping them. Tall screens are unchanged.
+
 ## 1.68.0 — 2026-08-29
 
 **Borderless prints no longer crop the photos.**
