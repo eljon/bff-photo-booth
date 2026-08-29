@@ -226,7 +226,7 @@ export function resolveLayout(state) {
   return { ...base, ...resolveGrid(base, state.photos, 0, sticker) };
 }
 
-export function composePage(canvas, state, scale = 1, layoutOverride = null) {
+export function composePage(canvas, state, scale = 1, layoutOverride = null, safeInset = 0) {
   const layout = layoutOverride || resolveLayout(state);
   const frame = FRAMES[state.frameId] || FRAMES.white;
   const w = Math.round(layout.page.w * scale);
@@ -263,7 +263,7 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
   // Art frames sit the photos in the paper's clear centre. The last cell may be the
   // small sticker badge (see stickerSpec / withSticker) — fit every cell into the
   // content rect; the badge draws last, on top, in whichever corner it landed.
-  const cells = frame.art ? fitCells(layout.cells, P, insetRect(P, frame), frame.cell.radius) : layout.cells;
+  const cells = frame.art ? fitCells(layout.cells, P, insetRect(P, frame, safeInset), frame.cell.radius) : layout.cells;
 
   cells.forEach((cell, i) => {
     // The sticker is a cell too — a small badge drawn with no mat, border or crop.
@@ -315,13 +315,18 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null) {
   return canvas;
 }
 
-/** The paper's clear centre (inside the decorative border) as a rectangle. */
-function insetRect(page, frame) {
+/** The paper's clear centre (inside the decorative border) as a rectangle. `safeInset`
+ *  is an extra margin (fraction of the page per side) pulled in ONLY for the borderless
+ *  print, so the printer's edge overscan trims the decorative watercolor rather than the
+ *  photos. It's 0 for the preview and the saved-to-phone image, which keep the full look. */
+function insetRect(page, frame, safeInset = 0) {
+  const ix = frame.insetX + safeInset;
+  const iy = frame.insetY + safeInset;
   return {
-    x: frame.insetX * page.w,
-    y: frame.insetY * page.h,
-    w: page.w * (1 - 2 * frame.insetX),
-    h: page.h * (1 - 2 * frame.insetY),
+    x: ix * page.w,
+    y: iy * page.h,
+    w: page.w * (1 - 2 * ix),
+    h: page.h * (1 - 2 * iy),
   };
 }
 
@@ -370,9 +375,14 @@ export const SAVE_SCALE = 1;
  *  4×6 photo paper feeds one way (portrait), and borderless is only offered at
  *  that size, so a wide design must be rotated to fill the sheet or it prints
  *  sideways. The saved-to-phone image is NOT rotated — it keeps its true look. */
-export async function exportPrint(state, { rotateForPaper = false, scale = PRINT_SCALE } = {}) {
+// Extra margin pulled in per side for the borderless print only, so the printer's
+// edge overscan (typically ~2–4% of a 4×6) trims the decorative watercolor border
+// instead of eating into the photos. Applied on the rotateForPaper path.
+export const PRINT_SAFE_INSET = 0.05;
+
+export async function exportPrint(state, { rotateForPaper = false, scale = PRINT_SCALE, safeInset = 0 } = {}) {
   const page = document.createElement('canvas');
-  composePage(page, state, scale);
+  composePage(page, state, scale, null, safeInset);
 
   let canvas = page;
   if (rotateForPaper && page.width > page.height) {

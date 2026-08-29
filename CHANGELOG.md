@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.68.0 — 2026-08-29
+
+**Borderless prints no longer crop the photos.**
+
+- A borderless 4×6 printer enlarges the image slightly to bleed off the edges, which was
+  eating into the photos near the border. The print now pulls the photos in by a small
+  safe margin (5% per side) so that edge overscan trims the decorative watercolor border
+  instead of the pictures. The on-screen preview and the saved-to-phone image are unchanged
+  — they keep the full, maximized look.
+
 ## 1.67.9 — 2026-08-29
 
 **Print status bubble moved to the top.**
