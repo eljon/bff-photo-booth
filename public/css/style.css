@@ -283,14 +283,19 @@ body {
 }
 
 /* Tap the check → the whole step guide shrinks into nothing, clearing the stage
-   for Save/Print. Same duration as the earlier pop, just a clean scale-down. */
-.step-guide.shrinking { animation: stepShrink 0.34s ease-in forwards; transform-origin: center; }
+   for Save/Print. It KEEPS its layout box (no display:none) while shrunk, so the
+   coverflow and pictures below never jump up. Same duration as the earlier pop. */
+.step-guide.shrinking {
+  animation: stepShrink 0.34s ease-in forwards;
+  transform-origin: center;
+  pointer-events: none;
+}
 @keyframes stepShrink {
   from { opacity: 1; transform: scale(1); }
   to   { opacity: 0; transform: scale(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .step-guide.shrinking { animation: none; }
+  .step-guide.shrinking { animation: none; opacity: 0; visibility: hidden; }
 }
 .step-kicker {
   font-family: "Caveat", "Comic Sans MS", cursive;

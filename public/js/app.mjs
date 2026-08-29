@@ -272,19 +272,16 @@ function dismissSwipeHint() {
 // Tapping the check commits the design and reveals Save/Print, so the step-2 guide
 // shrinks into nothing. It comes back if the guest swipes to a new design (the commit
 // collapses back to the check).
-let stepGuideTimer = null;
 function popStepGuide() {
   const g = $('stepGuide');
   if (!g || g.classList.contains('hidden')) return;
-  clearTimeout(stepGuideTimer);
-  if (reduceMotion()) { g.classList.add('hidden'); return; }
+  // Shrink to nothing but KEEP the element in the layout (no display:none), so the
+  // coverflow and pictures below it don't jump up into the freed space.
   g.classList.add('shrinking');
-  stepGuideTimer = setTimeout(() => { g.classList.add('hidden'); g.classList.remove('shrinking'); }, 340);
 }
 function showStepGuide() {
   const g = $('stepGuide');
   if (!g) return;
-  clearTimeout(stepGuideTimer);
   g.classList.remove('shrinking', 'hidden');
 }
 

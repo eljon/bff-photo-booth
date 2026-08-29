@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.6 — 2026-08-29
+
+**The pictures no longer jump up when the step text disappears.**
+
+- The shrinking step instruction now keeps its space reserved, so the coverflow and layout
+  pictures stay put instead of sliding up to fill the gap.
+
 ## 1.67.5 — 2026-08-29
 
 **The step instructions shrink away instead of popping.**
