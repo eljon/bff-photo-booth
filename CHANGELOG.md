@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.8 — 2026-08-29
+
+**The step guide truly appears only once, and the swipe cue no longer nudges the pictures.**
+
+- Once the "Step 2 of 3" guide has shrunk away, it stays gone for the rest of the session —
+  it won't come back even if you pick a fresh set of four photos.
+- Fixed the swipe cue: when it pops away it now keeps its space reserved, so the coverflow
+  and layout pictures no longer jump up.
+
 ## 1.67.7 — 2026-08-29
 
 **Step text stays gone once committed; Replace photos sits lower.**

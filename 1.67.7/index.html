@@ -412,6 +412,9 @@ body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
   height: 40px;
   margin: 0 auto 8px;
 }
+/* After it pops away: invisible but still occupying its fixed-height box, so the
+   coverflow and pictures below stay put (never display:none on step 2). */
+.swipe-hint.spent { visibility: hidden; }
 .swipe-track { display: block; width: 100%; height: 100%; overflow: visible; }
 .swipe-track path {
   fill: none;
@@ -2306,22 +2309,27 @@ function dismissSwipeHint() {
   swipeHintDismissed = true;
   const el = $('swipeHint');
   if (!el || el.classList.contains('hidden')) return;
-  if (reduceMotion()) { el.classList.add('hidden'); return; }
+  // Go to `spent` (invisible but KEEPS its fixed-height box) — never display:none here,
+  // or the coverflow below would jump up into the freed space.
+  if (reduceMotion()) { el.classList.add('spent'); return; }
   el.classList.add('popping'); // burst the arrow, fingertip and confetti bits
-  setTimeout(() => { el.classList.add('hidden'); el.classList.remove('popping'); }, 460);
+  setTimeout(() => { el.classList.add('spent'); el.classList.remove('popping'); }, 460);
 }
 
-// Tapping the check commits the design and reveals Save/Print, so the step-2 guide
-// shrinks into nothing. It comes back if the guest swipes to a new design (the commit
-// collapses back to the check).
+// Tapping the check commits the design and reveals Save/Print, so the step guide
+// shrinks into nothing — once and for all. It never comes back this session, not even
+// for a fresh set of four photos.
+let stepGuideRetired = false;
 function popStepGuide() {
   const g = $('stepGuide');
   if (!g || g.classList.contains('hidden')) return;
+  stepGuideRetired = true;
   // Shrink to nothing but KEEP the element in the layout (no display:none), so the
   // coverflow and pictures below it don't jump up into the freed space.
   g.classList.add('shrinking');
 }
 function showStepGuide() {
+  if (stepGuideRetired) return; // the guide only ever appears once
   const g = $('stepGuide');
   if (!g) return;
   g.classList.remove('shrinking', 'hidden');
@@ -2370,11 +2378,14 @@ function updatePickButton() {
   $('commit').classList.toggle('hidden', !full);
 
   // Swipe cue: shows over the coverflow, then pops away on the first swipe. Reset so
-  // it returns the next time a fresh set of four brings the coverflow back.
+  // it returns the next time a fresh set of four brings the coverflow back. Off step 2
+  // it's fully hidden (display:none); once dismissed on step 2 it goes `spent` —
+  // invisible but keeping its box so the pictures below never shift.
   if (!full) swipeHintDismissed = false;
   const hint = $('swipeHint');
   if (!hint.classList.contains('popping')) {
-    hint.classList.toggle('hidden', !full || swipeHintDismissed);
+    hint.classList.toggle('hidden', !full);
+    hint.classList.toggle('spent', full && swipeHintDismissed);
   }
   if (full) layoutGoo();
 }

@@ -399,6 +399,9 @@ body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
   height: 40px;
   margin: 0 auto 8px;
 }
+/* After it pops away: invisible but still occupying its fixed-height box, so the
+   coverflow and pictures below stay put (never display:none on step 2). */
+.swipe-hint.spent { visibility: hidden; }
 .swipe-track { display: block; width: 100%; height: 100%; overflow: visible; }
 .swipe-track path {
   fill: none;
