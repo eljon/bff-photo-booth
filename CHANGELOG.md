@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.66.1 — 2026-08-29
+
+**Removed the placeholder demo photos from the GitHub Pages preview.**
+
+- The hosted preview used to auto-drop four coloured placeholder photos on load so it
+  landed straight on the coverflow. Removed for now — the preview opens on the real empty
+  welcome screen, and you add your own photos with the pick button. (Older version
+  snapshots keep their old behaviour; only the current build changed.)
+
 ## 1.66.0 — 2026-08-29
 
 **Whimsical, hand-drawn step instructions.**
