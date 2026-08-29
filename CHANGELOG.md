@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.0 — 2026-08-29
+
+**A swipe cue on step 2, and a Print button in the hosted preview.**
+
+- Replaced the arrow above the check on step 2 with a hand-drawn double-headed arrow and a
+  gradient "fingertip" that glides left↔right, sitting between the instruction and the
+  layouts — so it reads as "swipe to browse".
+- The GitHub Pages preview now shows the Print button alongside Save/Share, exactly like the
+  real guest app. There's no printer behind it, so tapping Print does nothing.
+
 ## 1.66.3 — 2026-08-29
 
 **Step counter picks up the button's moving gradient.**

@@ -27,6 +27,7 @@ const session = {
   remote: false,
   dryRun: false,
   online: false,
+  previewNoPrint: false, // true only in the hosted preview: Print shows but is a no-op
 };
 
 const KEY_STORAGE = 'booth.key';
@@ -283,6 +284,7 @@ function updatePickButton() {
     ? 'then tap the check when you love it'
     : 'tap the button to add or snap them';
   $('commit').classList.toggle('hidden', !full);
+  $('swipeHint').classList.toggle('hidden', !full); // swipe cue only over the coverflow
   if (full) layoutGoo();
 }
 
@@ -1734,6 +1736,9 @@ function beginSending(blob) {
 }
 
 async function doPrint() {
+  // The hosted (GitHub Pages) preview shows the Print button exactly like the
+  // real booth, but there is no printer behind it — tapping it does nothing.
+  if (session.previewNoPrint) return;
   if (filledCount() < 4) {
     toast('Four photos first.');
     return;

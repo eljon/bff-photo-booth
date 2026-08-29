@@ -346,14 +346,50 @@ body {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50%      { transform: translateY(8px) rotate(-4deg); }
 }
-.doodle-pick, .doodle-check { animation: bobArrow 2.2s ease-in-out infinite; }
+.doodle-pick { animation: bobArrow 2.2s ease-in-out infinite; }
 /* Step 1: above the "add photos" button, pointing down at it. */
 .doodle-pick { left: calc(50% + 34px); top: calc(50% - 104px); }
 .pick-overlay.compact .doodle-pick { display: none; } /* gone once photos are in */
 body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
-/* Step 2: above the check button, pointing down at it; gone once it opens to Save/Print. */
-.doodle-check { left: calc(50% + 26px); top: -56px; }
-.commit.open .doodle-check { display: none; }
+
+/* Step 2 swipe cue: a hand-drawn double-headed arrow with a gradient fingertip
+   that glides left↔right, so the guest reads "swipe the layouts". Sits between
+   the instruction and the coverflow. */
+.swipe-hint {
+  position: relative;
+  width: 150px;
+  height: 40px;
+  margin: 0 auto 8px;
+}
+.swipe-track { display: block; width: 100%; height: 100%; overflow: visible; }
+.swipe-track path {
+  fill: none;
+  stroke: #ffffffde;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 3px #0009);
+}
+.swipe-finger {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--grad);
+  background-size: 220% 220%;
+  box-shadow: 0 6px 16px -4px #a24bffbb, 0 2px 6px -3px #ff4d97aa;
+  animation: swipeSlide 2.4s ease-in-out infinite, btnGrad 9s ease-in-out infinite;
+}
+@keyframes swipeSlide {
+  0%, 100% { transform: translateX(-50px) scale(0.94); }
+  50%      { transform: translateX(50px)  scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-finger { animation: none; }
+}
 
 /* At the top of the stage: a little breathing room below the header. In the
    welcome screen it's centred with the button; over the coverflow it sits above. */

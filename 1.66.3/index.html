@@ -359,14 +359,50 @@ body {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50%      { transform: translateY(8px) rotate(-4deg); }
 }
-.doodle-pick, .doodle-check { animation: bobArrow 2.2s ease-in-out infinite; }
+.doodle-pick { animation: bobArrow 2.2s ease-in-out infinite; }
 /* Step 1: above the "add photos" button, pointing down at it. */
 .doodle-pick { left: calc(50% + 34px); top: calc(50% - 104px); }
 .pick-overlay.compact .doodle-pick { display: none; } /* gone once photos are in */
 body.is-empty .doodle-pick { top: -58px; left: calc(50% + 22px); }
-/* Step 2: above the check button, pointing down at it; gone once it opens to Save/Print. */
-.doodle-check { left: calc(50% + 26px); top: -56px; }
-.commit.open .doodle-check { display: none; }
+
+/* Step 2 swipe cue: a hand-drawn double-headed arrow with a gradient fingertip
+   that glides left↔right, so the guest reads "swipe the layouts". Sits between
+   the instruction and the coverflow. */
+.swipe-hint {
+  position: relative;
+  width: 150px;
+  height: 40px;
+  margin: 0 auto 8px;
+}
+.swipe-track { display: block; width: 100%; height: 100%; overflow: visible; }
+.swipe-track path {
+  fill: none;
+  stroke: #ffffffde;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 3px #0009);
+}
+.swipe-finger {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--grad);
+  background-size: 220% 220%;
+  box-shadow: 0 6px 16px -4px #a24bffbb, 0 2px 6px -3px #ff4d97aa;
+  animation: swipeSlide 2.4s ease-in-out infinite, btnGrad 9s ease-in-out infinite;
+}
+@keyframes swipeSlide {
+  0%, 100% { transform: translateX(-50px) scale(0.94); }
+  50%      { transform: translateX(50px)  scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-finger { animation: none; }
+}
 
 /* At the top of the stage: a little breathing room below the header. In the
    welcome screen it's centred with the button; over the coverflow it sits above. */
@@ -890,6 +926,18 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
       <span class="step-hint" id="stepHint">tap the button to add or snap them</span>
     </div>
 
+    <!-- Step 2 only: a hand-drawn double-headed arrow with a gradient "fingertip"
+         gliding left↔right, telling the guest they can swipe the layouts. Sits
+         between the instruction and the coverflow. -->
+    <div class="swipe-hint hidden" id="swipeHint" aria-hidden="true">
+      <svg class="swipe-track" viewBox="0 0 150 40" aria-hidden="true" filter="url(#sketch)">
+        <path d="M18 20 H132"/>
+        <path d="M32 9 L15 20 L32 31"/>
+        <path d="M118 9 L135 20 L118 31"/>
+      </svg>
+      <span class="swipe-finger"></span>
+    </div>
+
     <div class="paper-shadow" id="singleWrap">
       <canvas id="preview" aria-label="Live preview of your print"></canvas>
       <div class="pick-overlay" id="pickOverlay">
@@ -921,10 +969,6 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
           <rect class="blob b-print"></rect>
           <rect class="blob b-center"></rect>
         </g>
-      </svg>
-      <svg class="doodle doodle-check" viewBox="0 0 96 86" aria-hidden="true" filter="url(#sketch)">
-        <path class="dl-line" d="M20 8 C 60 12, 76 34, 54 62"/>
-        <path class="dl-head" d="M38 50 L 55 66 L 74 54"/>
       </svg>
       <!-- Crisp icon + labels ride on top, unfiltered. -->
       <button class="check-btn" id="checkBtn" type="button" aria-label="Looks good — show save and print">
@@ -1057,13 +1101,14 @@ const __PREVIEW_SESSION = {
   version: "1.66.3", boothName: 'BFF Photo Booth',
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
-  printingEnabled: false, requireApproval: false, keyRequired: false,
+  printingEnabled: true, previewNoPrint: true, requireApproval: false, keyRequired: false,
   remote: false, dryRun: false,
 };
 const __origFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
   const u = typeof input === 'string' ? input : (input && input.url) || '';
   if (u.includes('/api/session')) return Promise.resolve(new Response(JSON.stringify(__PREVIEW_SESSION), { status: 200, headers: { 'content-type': 'application/json' } }));
+  if (u.includes('/api/printers')) return Promise.resolve(new Response(JSON.stringify({ printers: [{ name: 'Preview Printer' }], remote: false, agentOnline: true }), { status: 200, headers: { 'content-type': 'application/json' } }));
   if (u.includes('/api/')) return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'Preview mode — printing needs the booth.' }), { status: 503, headers: { 'content-type': 'application/json' } }));
   return __origFetch(input, init);
 };
@@ -1888,6 +1933,7 @@ const session = {
   remote: false,
   dryRun: false,
   online: false,
+  previewNoPrint: false, // true only in the hosted preview: Print shows but is a no-op
 };
 
 const KEY_STORAGE = 'booth.key';
@@ -2144,6 +2190,7 @@ function updatePickButton() {
     ? 'then tap the check when you love it'
     : 'tap the button to add or snap them';
   $('commit').classList.toggle('hidden', !full);
+  $('swipeHint').classList.toggle('hidden', !full); // swipe cue only over the coverflow
   if (full) layoutGoo();
 }
 
@@ -3595,6 +3642,9 @@ function beginSending(blob) {
 }
 
 async function doPrint() {
+  // The hosted (GitHub Pages) preview shows the Print button exactly like the
+  // real booth, but there is no printer behind it — tapping it does nothing.
+  if (session.previewNoPrint) return;
   if (filledCount() < 4) {
     toast('Four photos first.');
     return;

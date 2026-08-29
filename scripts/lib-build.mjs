@@ -29,20 +29,23 @@ export function buildDocument({ files, version, bodyOnly = false }) {
     ['js/app.mjs', files.app],
   ].map(([name, src]) => `\n/* ===== ${name} ===== */\n${strip(src)}`);
 
-  // No booth behind a static preview, so answer /api/* locally. printingEnabled:
-  // false puts the app in save/share mode — the real download-only experience.
+  // No booth behind a static preview, so answer /api/* locally. printingEnabled is
+  // true so the Print button shows exactly like the real guest app, but
+  // previewNoPrint makes the actual Print tap a no-op (there's no printer to hit),
+  // and the printers shim reports one healthy printer so no "offline" banner shows.
   const shim = `
 const __PREVIEW_SESSION = {
   version: ${JSON.stringify(version)}, boothName: 'BFF Photo Booth',
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
-  printingEnabled: false, requireApproval: false, keyRequired: false,
+  printingEnabled: true, previewNoPrint: true, requireApproval: false, keyRequired: false,
   remote: false, dryRun: false,
 };
 const __origFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
   const u = typeof input === 'string' ? input : (input && input.url) || '';
   if (u.includes('/api/session')) return Promise.resolve(new Response(JSON.stringify(__PREVIEW_SESSION), { status: 200, headers: { 'content-type': 'application/json' } }));
+  if (u.includes('/api/printers')) return Promise.resolve(new Response(JSON.stringify({ printers: [{ name: 'Preview Printer' }], remote: false, agentOnline: true }), { status: 200, headers: { 'content-type': 'application/json' } }));
   if (u.includes('/api/')) return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'Preview mode — printing needs the booth.' }), { status: 503, headers: { 'content-type': 'application/json' } }));
   return __origFetch(input, init);
 };

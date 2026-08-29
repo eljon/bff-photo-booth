@@ -31,6 +31,18 @@
       <span class="step-hint" id="stepHint">tap the button to add or snap them</span>
     </div>
 
+    <!-- Step 2 only: a hand-drawn double-headed arrow with a gradient "fingertip"
+         gliding left↔right, telling the guest they can swipe the layouts. Sits
+         between the instruction and the coverflow. -->
+    <div class="swipe-hint hidden" id="swipeHint" aria-hidden="true">
+      <svg class="swipe-track" viewBox="0 0 150 40" aria-hidden="true" filter="url(#sketch)">
+        <path d="M18 20 H132"/>
+        <path d="M32 9 L15 20 L32 31"/>
+        <path d="M118 9 L135 20 L118 31"/>
+      </svg>
+      <span class="swipe-finger"></span>
+    </div>
+
     <div class="paper-shadow" id="singleWrap">
       <canvas id="preview" aria-label="Live preview of your print"></canvas>
       <div class="pick-overlay" id="pickOverlay">
@@ -62,10 +74,6 @@
           <rect class="blob b-print"></rect>
           <rect class="blob b-center"></rect>
         </g>
-      </svg>
-      <svg class="doodle doodle-check" viewBox="0 0 96 86" aria-hidden="true" filter="url(#sketch)">
-        <path class="dl-line" d="M20 8 C 60 12, 76 34, 54 62"/>
-        <path class="dl-head" d="M38 50 L 55 66 L 74 54"/>
       </svg>
       <!-- Crisp icon + labels ride on top, unfiltered. -->
       <button class="check-btn" id="checkBtn" type="button" aria-label="Looks good — show save and print">
