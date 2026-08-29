@@ -270,22 +270,22 @@ function dismissSwipeHint() {
 }
 
 // Tapping the check commits the design and reveals Save/Print, so the step-2 guide
-// pops away (its lines burst with confetti). It comes back if the guest swipes to a
-// new design (the commit collapses back to the check).
+// shrinks into nothing. It comes back if the guest swipes to a new design (the commit
+// collapses back to the check).
 let stepGuideTimer = null;
 function popStepGuide() {
   const g = $('stepGuide');
   if (!g || g.classList.contains('hidden')) return;
   clearTimeout(stepGuideTimer);
   if (reduceMotion()) { g.classList.add('hidden'); return; }
-  g.classList.add('popping');
-  stepGuideTimer = setTimeout(() => { g.classList.add('hidden'); g.classList.remove('popping'); }, 500);
+  g.classList.add('shrinking');
+  stepGuideTimer = setTimeout(() => { g.classList.add('hidden'); g.classList.remove('shrinking'); }, 340);
 }
 function showStepGuide() {
   const g = $('stepGuide');
   if (!g) return;
   clearTimeout(stepGuideTimer);
-  g.classList.remove('popping', 'hidden');
+  g.classList.remove('shrinking', 'hidden');
 }
 
 /** The picker is the main event: one tap should get all four photos. */

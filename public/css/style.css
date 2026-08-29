@@ -282,42 +282,15 @@ body {
   position: relative; /* anchors the confetti bits for the tap-to-commit pop */
 }
 
-/* Tap the check → the whole step guide pops away: its three lines burst out
-   (staggered) and confetti bits scatter, matching the swipe/check pops. */
-.step-guide.popping .step-kicker { animation: stepPop 0.34s ease-in forwards; }
-.step-guide.popping .step-text   { animation: stepPop 0.34s ease-in 0.05s forwards; }
-.step-guide.popping .step-hint   { animation: stepPop 0.34s ease-in 0.1s forwards; }
-@keyframes stepPop {
-  0%   { opacity: 1; transform: scale(1); }
-  28%  { opacity: 1; transform: scale(1.12); }
-  100% { opacity: 0; transform: scale(0.35); }
-}
-.sbit {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 11px;
-  height: 11px;
-  margin: -5.5px 0 0 -5.5px;
-  border-radius: 50%;
-  background: var(--g3);
-  box-shadow: 0 2px 6px -1px #0007;
-  opacity: 0;
-  pointer-events: none;
-}
-.sbit:nth-of-type(odd) { background: #6a5cff; }
-.sbit:nth-of-type(3n)  { background: #ff7a4d; width: 9px; height: 9px; }
-.step-guide.popping .sbit { animation: sbitBurst 0.5s ease-out forwards; }
-@keyframes sbitBurst {
-  0%   { opacity: 0; transform: rotate(var(--a)) translateX(10px) scale(0.4); }
-  25%  { opacity: 1; transform: rotate(var(--a)) translateX(46px) scale(1); }
-  100% { opacity: 0; transform: rotate(var(--a)) translateX(96px) scale(0.3); }
+/* Tap the check → the whole step guide shrinks into nothing, clearing the stage
+   for Save/Print. Same duration as the earlier pop, just a clean scale-down. */
+.step-guide.shrinking { animation: stepShrink 0.34s ease-in forwards; transform-origin: center; }
+@keyframes stepShrink {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .step-guide.popping .step-kicker,
-  .step-guide.popping .step-text,
-  .step-guide.popping .step-hint,
-  .step-guide.popping .sbit { animation: none; }
+  .step-guide.shrinking { animation: none; }
 }
 .step-kicker {
   font-family: "Caveat", "Comic Sans MS", cursive;

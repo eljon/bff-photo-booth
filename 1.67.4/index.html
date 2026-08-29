@@ -295,42 +295,15 @@ body {
   position: relative; /* anchors the confetti bits for the tap-to-commit pop */
 }
 
-/* Tap the check → the whole step guide pops away: its three lines burst out
-   (staggered) and confetti bits scatter, matching the swipe/check pops. */
-.step-guide.popping .step-kicker { animation: stepPop 0.34s ease-in forwards; }
-.step-guide.popping .step-text   { animation: stepPop 0.34s ease-in 0.05s forwards; }
-.step-guide.popping .step-hint   { animation: stepPop 0.34s ease-in 0.1s forwards; }
-@keyframes stepPop {
-  0%   { opacity: 1; transform: scale(1); }
-  28%  { opacity: 1; transform: scale(1.12); }
-  100% { opacity: 0; transform: scale(0.35); }
-}
-.sbit {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 11px;
-  height: 11px;
-  margin: -5.5px 0 0 -5.5px;
-  border-radius: 50%;
-  background: var(--g3);
-  box-shadow: 0 2px 6px -1px #0007;
-  opacity: 0;
-  pointer-events: none;
-}
-.sbit:nth-of-type(odd) { background: #6a5cff; }
-.sbit:nth-of-type(3n)  { background: #ff7a4d; width: 9px; height: 9px; }
-.step-guide.popping .sbit { animation: sbitBurst 0.5s ease-out forwards; }
-@keyframes sbitBurst {
-  0%   { opacity: 0; transform: rotate(var(--a)) translateX(10px) scale(0.4); }
-  25%  { opacity: 1; transform: rotate(var(--a)) translateX(46px) scale(1); }
-  100% { opacity: 0; transform: rotate(var(--a)) translateX(96px) scale(0.3); }
+/* Tap the check → the whole step guide shrinks into nothing, clearing the stage
+   for Save/Print. Same duration as the earlier pop, just a clean scale-down. */
+.step-guide.shrinking { animation: stepShrink 0.34s ease-in forwards; transform-origin: center; }
+@keyframes stepShrink {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .step-guide.popping .step-kicker,
-  .step-guide.popping .step-text,
-  .step-guide.popping .step-hint,
-  .step-guide.popping .sbit { animation: none; }
+  .step-guide.shrinking { animation: none; }
 }
 .step-kicker {
   font-family: "Caveat", "Comic Sans MS", cursive;
@@ -1069,13 +1042,6 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
       <span class="step-kicker" id="stepKicker">Step 1 of 3</span>
       <span class="step-text" id="stepText">Pick your 4 best shots!</span>
       <span class="step-hint" id="stepHint">tap the button to add or snap them</span>
-      <!-- Confetti bits that burst when the guide pops away as you tap the check. -->
-      <i class="sbit" style="--a:15deg"></i>
-      <i class="sbit" style="--a:75deg"></i>
-      <i class="sbit" style="--a:135deg"></i>
-      <i class="sbit" style="--a:200deg"></i>
-      <i class="sbit" style="--a:255deg"></i>
-      <i class="sbit" style="--a:320deg"></i>
     </div>
 
     <!-- Step 2 only: a hand-drawn double-headed arrow with a gradient "fingertip"
@@ -2342,22 +2308,22 @@ function dismissSwipeHint() {
 }
 
 // Tapping the check commits the design and reveals Save/Print, so the step-2 guide
-// pops away (its lines burst with confetti). It comes back if the guest swipes to a
-// new design (the commit collapses back to the check).
+// shrinks into nothing. It comes back if the guest swipes to a new design (the commit
+// collapses back to the check).
 let stepGuideTimer = null;
 function popStepGuide() {
   const g = $('stepGuide');
   if (!g || g.classList.contains('hidden')) return;
   clearTimeout(stepGuideTimer);
   if (reduceMotion()) { g.classList.add('hidden'); return; }
-  g.classList.add('popping');
-  stepGuideTimer = setTimeout(() => { g.classList.add('hidden'); g.classList.remove('popping'); }, 500);
+  g.classList.add('shrinking');
+  stepGuideTimer = setTimeout(() => { g.classList.add('hidden'); g.classList.remove('shrinking'); }, 340);
 }
 function showStepGuide() {
   const g = $('stepGuide');
   if (!g) return;
   clearTimeout(stepGuideTimer);
-  g.classList.remove('popping', 'hidden');
+  g.classList.remove('shrinking', 'hidden');
 }
 
 /** The picker is the main event: one tap should get all four photos. */

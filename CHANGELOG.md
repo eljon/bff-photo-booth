@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.67.5 — 2026-08-29
+
+**The step instructions shrink away instead of popping.**
+
+- Reverted the confetti pop: when you tap the check, the "Step 2 of 3" instruction now
+  simply shrinks into nothing (same duration as the pop). It still comes back if you swipe
+  to a different design.
+
 ## 1.67.4 — 2026-08-29
 
 **Tapping the check pops the step instructions away.**
