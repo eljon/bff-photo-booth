@@ -9,7 +9,7 @@
 <title>Photo Booth</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0c0c0f;
@@ -63,26 +63,25 @@ body {
 .topbar { text-align: center; padding: 10px 0 14px; }
 .brand {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: 7px;
 }
+/* Chunky, rounded, playful wordmark echoing the "Building Forever Families" logo —
+   a friendly rounded face in the logo's bright orange, with a blue→green tail to pick
+   up its multicolour feel. Title Case (not shouty caps), tight tracking like the logo. */
 .topbar h1 {
   margin: 0;
-  font-size: 26px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-family: "Baloo 2", "Fredoka", system-ui, sans-serif;
+  font-size: 31px;
+  line-height: 1.05;
+  letter-spacing: 0.005em;
   font-weight: 800;
-}
-/* version sits as a small superscript tag right beside the title */
-.brand .version {
-  margin-top: 3px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--ink-dim);
-  opacity: 0.7;
-  white-space: nowrap;
+  background: linear-gradient(100deg, #ff8320 0%, #ffa32e 30%, #49c23d 68%, #2ea6df 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 5px #0007);
 }
 .topbar p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
 
@@ -1041,7 +1040,6 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   <header class="topbar">
     <div class="brand">
       <h1 id="boothName">Photo Booth</h1>
-      <span class="version" id="version"></span>
     </div>
   </header>
 
@@ -4024,7 +4022,6 @@ async function loadSession() {
   document.title = session.boothName;
   const msgEl = $('boothMessage');
   if (msgEl && session.message) msgEl.textContent = session.message;
-  $('version').textContent = session.version ? `v${session.version}` : '';
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
   // Print vs save-only — toggled BOTH ways, so when the booth comes back after a

@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.68.2 — 2026-08-29
+
+**Playful new wordmark; version tag hidden.**
+
+- Restyled the "BFF Photo Booth" title with a chunky, rounded, friendly font and a bright
+  orange→green→blue gradient, echoing the event logo.
+- Hid the little version tag next to the title. (The version is still tracked and shown on
+  the versions page and the host screen.)
+
 ## 1.68.1 — 2026-08-29
 
 **Swipe cue clears on commit; coverflow cards no longer clip at the top.**

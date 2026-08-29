@@ -1968,7 +1968,6 @@ async function loadSession() {
   document.title = session.boothName;
   const msgEl = $('boothMessage');
   if (msgEl && session.message) msgEl.textContent = session.message;
-  $('version').textContent = session.version ? `v${session.version}` : '';
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
   // Print vs save-only — toggled BOTH ways, so when the booth comes back after a
