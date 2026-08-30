@@ -21,6 +21,11 @@ function strip(src) {
  * @param {boolean} [bodyOnly]  emit body-only content for a claude.ai artifact
  * @returns {string} the HTML, or '' if the source didn't have the expected hooks
  */
+// The hosted preview has no live booth, so its name is fixed. Bake it into both the
+// session shim AND the initial <h1> so the title shows the real name immediately —
+// no "Photo Booth" → "BFF Photo Booth" flash while the shim session loads.
+const PREVIEW_BOOTH_NAME = 'BFF Photo Booth';
+
 export function buildDocument({ files, version, bodyOnly = false }) {
   const modules = [
     ['js/filters.mjs', files.filters],
@@ -35,7 +40,7 @@ export function buildDocument({ files, version, bodyOnly = false }) {
   // and the printers shim reports one healthy printer so no "offline" banner shows.
   const shim = `
 const __PREVIEW_SESSION = {
-  version: ${JSON.stringify(version)}, boothName: 'BFF Photo Booth',
+  version: ${JSON.stringify(version)}, boothName: ${JSON.stringify(PREVIEW_BOOTH_NAME)},
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
   printingEnabled: true, previewNoPrint: true, requireApproval: false, keyRequired: false,
@@ -56,6 +61,7 @@ window.fetch = (input, init) => {
     const html = files.index;
     const bodyInner = html
       .slice(html.indexOf('<body>') + '<body>'.length, html.indexOf('</body>'))
+      .replace(/(<h1 id="boothName">)[^<]*(<\/h1>)/, `$1${PREVIEW_BOOTH_NAME}$2`)
       .replace(/<script[^>]*src="\/js\/app\.mjs"[^>]*><\/script>\s*/, '')
       .trim();
     return `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
@@ -77,6 +83,7 @@ ${scriptTag}
     .replace(/^\s*<link rel="manifest"[^>]*>\s*$\n?/m, '')
     .replace(/^\s*<link rel="icon"[^>]*>\s*$\n?/m, '')
     .replace(/^\s*<link rel="apple-touch-icon"[^>]*>\s*$\n?/m, '')
+    .replace(/(<h1 id="boothName">)[^<]*(<\/h1>)/, `$1${PREVIEW_BOOTH_NAME}$2`)
     .replace(/<link rel="stylesheet" href="\/css\/style\.css">/, `<style>\n${files.css}\n</style>`)
     .replace(/<script type="module" src="\/js\/app\.mjs"><\/script>/, scriptTag);
 

@@ -66,22 +66,18 @@ body {
   align-items: center;
   justify-content: center;
 }
-/* Chunky, rounded, playful wordmark echoing the "Building Forever Families" logo —
-   a friendly rounded face in the logo's bright orange, with a blue→green tail to pick
-   up its multicolour feel. Title Case (not shouty caps), tight tracking like the logo. */
+/* Chunky, rounded, playful wordmark echoing the "Building Forever Families" logo:
+   a friendly rounded face in the logo's solid bright orange, with a slight extruded
+   bottom edge so it reads like a sticker. Title Case (not shouty caps), tight tracking. */
 .topbar h1 {
   margin: 0;
   font-family: "Baloo 2", "Fredoka", system-ui, sans-serif;
-  font-size: 31px;
+  font-size: 32px;
   line-height: 1.05;
   letter-spacing: 0.005em;
   font-weight: 800;
-  background: linear-gradient(100deg, #ff8320 0%, #ffa32e 30%, #49c23d 68%, #2ea6df 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 5px #0007);
+  color: #ff8a1e;
+  text-shadow: 0 2px 0 #d1670c, 0 3px 10px #0008;
 }
 .topbar p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
 
@@ -1039,7 +1035,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 <div class="app">
   <header class="topbar">
     <div class="brand">
-      <h1 id="boothName">Photo Booth</h1>
+      <h1 id="boothName">BFF Photo Booth</h1>
     </div>
   </header>
 
@@ -1236,7 +1232,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 <script type="module">
 
 const __PREVIEW_SESSION = {
-  version: "1.68.2", boothName: 'BFF Photo Booth',
+  version: "1.68.2", boothName: "BFF Photo Booth",
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
   printingEnabled: true, previewNoPrint: true, requireApproval: false, keyRequired: false,

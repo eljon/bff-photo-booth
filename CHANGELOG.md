@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.68.3 — 2026-08-29
+
+**Solid-orange wordmark; no more title flash.**
+
+- Reworked the title into a solid bright-orange, chunky rounded sticker wordmark that
+  matches the event logo (dropped the rainbow gradient).
+- The hosted preview now shows the real booth name from the very first paint, so the title
+  no longer flickers from "Photo Booth" to "BFF Photo Booth" on load.
+
 ## 1.68.2 — 2026-08-29
 
 **Playful new wordmark; version tag hidden.**
