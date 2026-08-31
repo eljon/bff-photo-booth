@@ -1,8 +1,34 @@
 # Deploying the relay
 
-The relay is the public half of the booth: it serves the guest app and parks
-prints until your MacBook's agent collects them. It never touches a printer, so
-it can run on the smallest instance anywhere. The printer stays on your Mac.
+The relay is the public, always-on half of the booth: it serves the guest app and
+holds the print queue on disk until a printer collects it. It never touches a printer
+itself. **Nothing is installed on the machine that prints** — that computer just opens
+`<your-url>/print` in a browser (see the bottom of this doc). The one-time job below is
+standing up the relay in the cloud.
+
+## The easy way: deploy from the browser (no CLI, nothing installed locally)
+
+The relay only has to be *created* once. You can do the whole thing in a web browser by
+pointing a host at this GitHub repo — no terminal, no `npm`, no CLI:
+
+1. Push this repo to your own GitHub (already done if you're reading it there).
+2. On **[Render](https://render.com)**: sign in with GitHub → **New ▸ Blueprint** →
+   pick this repo → **Apply**. `render.yaml` tells Render everything: build the
+   Dockerfile, mount a 1 GB disk at `/data` for the durable queue, health-check
+   `/api/health`, and generate `BOOTH_TOKEN` + `ACCESS_KEY`.
+3. When it's live you get a URL like `https://bff-photo-booth.onrender.com`. Open the
+   service's **Environment** tab and copy the generated **`BOOTH_TOKEN`** — that's the
+   printer/host password.
+
+That's the entire setup. Guests use the URL; the printer computer opens `<url>/print`
+and pastes the token once. (Railway works the same way — New Project → Deploy from repo
+→ it reads the Dockerfile → add a volume at `/data` and the two env vars.)
+
+A note on cost: the durable queue and an always-awake connection need a small **paid**
+instance (Render's Starter, ~US$7/mo). Free tiers sleep and have no disk, which drops
+the printer's connection and loses queued prints.
+
+## If you prefer a CLI
 
 You need two secrets. Generate them once and keep them:
 

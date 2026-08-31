@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.70.1 — 2026-08-29
+
+**One-click browser deploy; the QR figures out its own address.**
+
+- Added a `render.yaml` blueprint so the cloud relay can be stood up entirely from a web
+  browser — connect the repo on Render, Apply, done. No local CLI, nothing installed on any
+  machine (the printer computer still just opens `<url>/print`).
+- In relay mode the guest QR now derives the public address from the request itself, so it
+  points at the real URL on any host with no `PUBLIC_URL` to set.
+
 ## 1.70.0 — 2026-08-29
 
 **A durable server queue, and a printer that's just a URL.**

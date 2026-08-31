@@ -1,26 +1,31 @@
-# Render blueprint — the relay half only. The printer stays on your MacBook.
+# One-click cloud relay, deployed from the browser — no local CLI, nothing installed
+# on any machine. On https://render.com:  New → Blueprint → connect this repo → Apply.
+# Render reads this file and the Dockerfile, generates the secrets, and gives you a
+# public https URL. The printer computer then just opens  <that-url>/print .
 #
-#   1. push this repo to GitHub
-#   2. Render ▸ New ▸ Blueprint ▸ pick the repo
-#   3. copy the generated BOOTH_TOKEN and ACCESS_KEY from the dashboard —
-#      the agent on the Mac needs BOOTH_TOKEN
+# A persistent disk + always-on need a paid instance (Render's free web services sleep
+# and have no disk, which would drop the printer's connection and the saved queue).
 services:
   - type: web
     name: bff-photo-booth
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter          # free instances sleep, which drops the agent's poll
+    plan: starter            # smallest paid tier: stays awake and can mount a disk
     healthCheckPath: /api/health
-    disk:
-      name: booth-data
-      mountPath: /data
-      sizeGB: 1
+    autoDeploy: true         # redeploys when you push to the repo
     envVars:
       - key: MODE
         value: relay
       - key: BOOTH_NAME
         value: BFF Photo Booth
+      # The printer/host password. Render generates it; read it in the dashboard
+      # (Environment tab) to paste into the /print tab once.
       - key: BOOTH_TOKEN
-        generateValue: true   # host + agent password
+        generateValue: true
+      # Pins the guest key so a redeploy doesn't invalidate QR codes already printed.
       - key: ACCESS_KEY
-        generateValue: true   # pins the guest QR key across deploys
+        generateValue: true
+    disk:
+      name: booth-data       # holds the durable queue, gallery, and settings
+      mountPath: /data
+      sizeGB: 1

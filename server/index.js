@@ -340,17 +340,31 @@ function activePort() {
  * from anywhere. Keeping them apart matters — labelling a LAN address as the
  * guest link is a promise the booth cannot keep.
  */
-function addresses() {
+/** The public base URL inferred from the incoming request — how a cloud host (Render,
+ *  Fly, a reverse proxy) tells us the real address without any PUBLIC_URL config. */
+function requestBase(req) {
+  if (!req) return null;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  if (!host) return null;
+  const proto = req.headers['x-forwarded-proto'] || (req.socket && req.socket.encrypted ? 'https' : 'http');
+  return `${proto}://${host}`;
+}
+
+function addresses(req) {
   const lan = lanAddresses().map((entry) => `http://${entry.address}:${activePort()}`);
+  // A relay is reached through its public hostname, so when PUBLIC_URL isn't pinned we
+  // trust the request's forwarded host — the QR then points at the real address with
+  // no extra config on any platform.
+  const publicUrl = PUBLIC_URL || tunnel.url() || (MODE === 'relay' ? requestBase(req) : null);
   return {
-    public: PUBLIC_URL || tunnel.url() || null,
+    public: publicUrl,
     lan: lan.length ? lan : [`http://localhost:${activePort()}`],
   };
 }
 
 /** The address guests should use, best first. */
-function joinUrls() {
-  const { public: publicUrl, lan } = addresses();
+function joinUrls(req) {
+  const { public: publicUrl, lan } = addresses(req);
   return publicUrl ? [publicUrl, ...lan] : lan;
 }
 
@@ -818,7 +832,7 @@ async function handleApi(req, res, url) {
       keyRequired: guestKeyRequired(),
       agent: { online: agentOnline(), name: agent.name, printers: agent.printers },
       pinned: config.pinnedKeys(),
-      urls: joinUrls(),
+      urls: joinUrls(req),
     });
   }
 
