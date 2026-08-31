@@ -53,22 +53,38 @@ docker run -d -p 8080:8080 -v booth-data:/data \
   booth-relay
 ```
 
-## Then, on the MacBook
+## Then, on the printing computer
+
+Pick **one** of these — both just pull jobs from the relay and print them. Guests
+submit to the relay either way, so a print is safe on the server even if this
+computer is asleep or offline; it drains the queue when it comes back.
+
+**A. Just open a URL (no install, no tunnel).** On the computer with the printer,
+open **`https://your-booth.example.com/print`** in Chrome, paste the `BOOTH_TOKEN`
+once, and leave the tab open. For hands-free printing, launch Chrome with
+`--kiosk-printing` and set the photo printer as the default — prints then come out
+with no dialog. This is the simplest setup.
+
+**B. Run the agent (prints through CUPS/`lp`).** If you want driver-level control
+of media, borderless, and copies:
 
 ```bash
 RELAY_URL=https://your-booth.example.com BOOTH_TOKEN=… npm run agent
 ```
 
-Confirm the host screen shows **booth mac: connected** before the first guest
-arrives.
+Either way, confirm the host screen shows **booth mac: connected** (or the `/print`
+tab shows **Ready**) before the first guest arrives.
 
 ## Notes
 
 - **HTTPS is not optional in practice.** iOS will not treat a plain-http site as
   a trustworthy web app, and you are shipping photos over it. Every platform
   above terminates TLS for you.
-- **The volume is only for continuity** — the gallery of the night's strips and
-  host settings. Lose it and the booth still works; it just starts fresh.
+- **The volume holds the queue** — the relay persists every job to `queue.json`
+  beside the strip images, so a redeploy or crash doesn't drop prints that haven't
+  come out yet. Mount `/data` on a real disk (already set in `fly.toml`) and point
+  `PRINTS_DIR` at it. Lose the volume and only un-printed jobs and the gallery are
+  lost; the booth still works.
 - **Health check:** `GET /api/health` returns `{ ok, mode, agentOnline, … }`
   unauthenticated. `agentOnline` is the one worth alerting on — it means the Mac
   is connected and prints will actually come out.

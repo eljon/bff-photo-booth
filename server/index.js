@@ -126,6 +126,66 @@ const agentWaiters = new Set(); // long-poll resolvers waiting for work
 /** What the Mac-side agent last told us about itself. */
 const agent = { lastSeen: 0, printers: [], name: null, dryRun: false };
 
+// ---------------------------------------------------------------- persistence
+// In relay (cloud) mode the queue lives ON DISK, so a guest's print is safe on the
+// server through a restart or redeploy — not just in memory. The composed image is
+// already written to PRINTS_DIR; here we persist the job metadata beside it in
+// queue.json and reload it on boot. (Booth/LAN mode prints straight to CUPS and is
+// left in memory, so a restart never risks reprinting what already came out.)
+const QUEUE_FILE = path.join(PRINTS_DIR, 'queue.json');
+const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'copies', 'printer', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
+let persistTimer = null;
+
+/** Write the whole queue to disk atomically (temp file, then rename). Relay only. */
+async function saveQueue() {
+  if (MODE !== 'relay') return;
+  try {
+    const data = JSON.stringify([...jobs.values()].map((job) => {
+      const out = {};
+      for (const k of PERSIST_FIELDS) if (job[k] !== undefined) out[k] = job[k];
+      return out;
+    }));
+    const tmp = `${QUEUE_FILE}.${process.pid}.tmp`;
+    await fsp.writeFile(tmp, data);
+    await fsp.rename(tmp, QUEUE_FILE);
+  } catch (err) {
+    console.error('  ⚠ could not save the queue:', err.message);
+  }
+}
+
+/** Debounced save — a burst of changes collapses into one write. */
+function persist() {
+  if (MODE !== 'relay' || persistTimer) return;
+  persistTimer = setTimeout(() => { persistTimer = null; saveQueue(); }, 250);
+  if (persistTimer.unref) persistTimer.unref();
+}
+
+/** Reload the queue on boot (relay only). A job that was mid-print when we stopped
+ *  is re-queued — the restart interrupted it, so it prints again when the booth is
+ *  ready. Jobs whose image file is gone are dropped. */
+function loadQueue() {
+  if (MODE !== 'relay') return;
+  let list;
+  try { list = JSON.parse(fs.readFileSync(QUEUE_FILE, 'utf8')); } catch { return; }
+  if (!Array.isArray(list)) return;
+  let restored = 0, requeued = 0;
+  for (const entry of list.slice(-MAX_JOB_HISTORY)) {
+    if (!entry || !entry.id || !entry.file || !fs.existsSync(entry.file)) continue;
+    const job = { claimedAt: 0, printedAt: 0, doneAt: 0, cupsJobId: null, error: null, ...entry };
+    if (job.status === 'claimed' || job.status === 'printing') {
+      job.status = 'pending'; job.cupsJobId = null; job.claimedAt = 0; job.printedAt = 0; requeued++;
+    }
+    jobs.set(job.id, job);
+    restored++;
+  }
+  if (restored) {
+    const waiting = [...jobs.values()].filter((j) => j.status === 'pending' || j.status === 'awaiting-approval').length;
+    console.log(`  ↺ restored ${restored} job${restored === 1 ? '' : 's'} from disk — ${waiting} still to print${requeued ? `, ${requeued} re-queued` : ''}.`);
+  }
+}
+
+loadQueue();
+
 // ---------------------------------------------------------------- helpers
 
 const MIME = {
@@ -387,6 +447,7 @@ function completeJob(job) {
   job.status = 'done';
   job.doneAt = Date.now();
   recordDuration(job.doneAt - (jobStartedAt(job) || job.doneAt));
+  persist();
   console.log(`  ✓ finished job ${job.id.slice(0, 8)}${job.cupsJobId ? ` (CUPS ${job.cupsJobId})` : ''}`);
   // Fire-and-forget: releasing the next job must never crash the booth if it trips.
   pumpPrinter().catch((err) => console.error('  ⚠ could not release the next print:', err.message));
@@ -597,6 +658,7 @@ async function handleAgentApi(req, res, url) {
       if (!job) return null;
       job.status = 'claimed';
       job.claimedAt = Date.now();
+      persist();
       return {
         id: job.id,
         copies: job.copies,
@@ -644,6 +706,7 @@ async function handleAgentApi(req, res, url) {
     } else {
       job.status = 'failed';
       job.error = String(body.error || 'The booth printer refused the job.').slice(0, 300);
+      persist();
       notifyAgents(); // let the agent pick up the next one
     }
     return sendJson(res, 200, { ok: true, job: publicJob(job) });
@@ -822,6 +885,7 @@ async function handleApi(req, res, url) {
     };
     jobs.set(id, job);
     while (jobs.size > MAX_JOB_HISTORY) jobs.delete(jobs.keys().next().value);
+    await saveQueue(); // durable before we answer the guest — their print is on the server
 
     const online = MODE === 'relay' ? agentOnline() : true;
     if (MODE === 'relay' && !online && job.status !== 'awaiting-approval') {
@@ -845,6 +909,7 @@ async function handleApi(req, res, url) {
     }
     job.status = 'pending'; // release it into the queue
     job.error = null;
+    await saveQueue();
     await pumpPrinter();
     return sendJson(res, job.status === 'failed' ? 502 : 200, { ok: job.status !== 'failed', job: publicJob(job) });
   }
@@ -855,6 +920,7 @@ async function handleApi(req, res, url) {
     const job = jobs.get(id);
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
     job.status = 'rejected';
+    persist();
     return sendJson(res, 200, { ok: true, job: publicJob(job) });
   }
 
@@ -899,6 +965,7 @@ async function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === '/') rel = '/index.html';
   if (rel === '/host') rel = '/host.html';
+  if (rel === '/print') rel = '/print.html'; // the browser-based host printer
 
   // A guest-only booth has no host screen, and its prints live on the upstream
   // print host (proxied) rather than on this disk.

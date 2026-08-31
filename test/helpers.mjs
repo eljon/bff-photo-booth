@@ -68,36 +68,48 @@ export async function startServer(env = {}) {
   const port = await freePort();
 
   const extraArgs = (env.BOOTH_ARGS || '').split(' ').filter(Boolean);
-  const child = spawn(process.execPath, [path.join(root, 'server', 'index.js'), ...extraArgs], {
-    env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
-      DRY_RUN: '1',
-      PRINTS_DIR: path.join(sandbox, 'prints'),
-      PHOTOBOOTH_CONFIG: path.join(sandbox, 'config.json'),
-      ...env,
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const childEnv = {
+    ...process.env,
+    PORT: String(port),
+    HOST: '127.0.0.1',
+    DRY_RUN: '1',
+    PRINTS_DIR: path.join(sandbox, 'prints'),
+    PHOTOBOOTH_CONFIG: path.join(sandbox, 'config.json'),
+    ...env,
+  };
+  const base = `http://127.0.0.1:${port}`;
   const errors = [];
   const output = [];
-  child.stderr.on('data', (data) => errors.push(data.toString()));
-  child.stdout.on('data', (data) => output.push(data.toString()));
+  let child;
 
-  const base = `http://127.0.0.1:${port}`;
-  const deadline = Date.now() + 8000;
-  for (;;) {
-    if (child.exitCode !== null) throw new Error(`server exited: ${errors.join('')}`);
-    try {
-      const response = await fetch(`${base}/api/session`);
-      if (response.ok) break;
-    } catch {
-      /* not up yet */
+  async function spawnUp() {
+    child = spawn(process.execPath, [path.join(root, 'server', 'index.js'), ...extraArgs], {
+      env: childEnv,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    child.stderr.on('data', (data) => errors.push(data.toString()));
+    child.stdout.on('data', (data) => output.push(data.toString()));
+
+    const deadline = Date.now() + 8000;
+    for (;;) {
+      if (child.exitCode !== null) throw new Error(`server exited: ${errors.join('')}`);
+      try {
+        const response = await fetch(`${base}/api/session`);
+        if (response.ok) break;
+      } catch {
+        /* not up yet */
+      }
+      if (Date.now() > deadline) throw new Error(`server did not start: ${errors.join('')}`);
+      await new Promise((resolve) => setTimeout(resolve, 60));
     }
-    if (Date.now() > deadline) throw new Error(`server did not start: ${errors.join('')}`);
-    await new Promise((resolve) => setTimeout(resolve, 60));
   }
+
+  async function killChild() {
+    child.kill('SIGKILL');
+    await new Promise((resolve) => child.once('exit', resolve));
+  }
+
+  await spawnUp();
 
   const configPath = path.join(sandbox, 'config.json');
   return {
@@ -108,6 +120,11 @@ export async function startServer(env = {}) {
     stderr: () => errors.join(''),
     /** Everything the booth printed at startup — the banner guests are read from. */
     banner: () => output.join(''),
+    /** Stop and start the same server (same disk), to prove the queue survives. */
+    async restart() {
+      await killChild();
+      await spawnUp();
+    },
     /** The access key the booth generated for itself on first run. */
     accessKey() {
       try {
@@ -117,8 +134,7 @@ export async function startServer(env = {}) {
       }
     },
     async close() {
-      child.kill('SIGKILL');
-      await new Promise((resolve) => child.once('exit', resolve));
+      await killChild();
       fs.rmSync(sandbox, { recursive: true, force: true });
     },
   };

@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.70.0 — 2026-08-29
+
+**A durable server queue, and a printer that's just a URL.**
+
+- **The queue lives on the server now, not in memory.** In relay mode every submitted
+  print is written to disk (`queue.json` on the data volume) the moment it arrives, so a
+  relay restart, crash, or redeploy no longer loses queued prints — they're still there and
+  drain when the booth is ready. A job that was mid-print when the server stopped is
+  automatically re-queued.
+- **The printing computer can just open a URL — no npm, no tunnel.** Open
+  `https://your-booth/print` in Chrome, paste the booth token once, and leave the tab open;
+  it pulls jobs from the relay and prints them (silently with Chrome's `--kiosk-printing`).
+  The Node agent still works for driver-level control, but it's now optional.
+
+*(Relay/cloud mode; a plain LAN booth still prints straight to its own printer.)*
+
 ## 1.69.0 — 2026-08-29
 
 **Prints keep flowing even when the booth loses internet.**

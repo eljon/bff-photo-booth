@@ -95,6 +95,59 @@ test('a booth with no Mac connected queues the print for when it reconnects', as
   assert.equal(data.job.status, 'pending', 'it waits in the queue for the booth');
 });
 
+test('the queue is durable — a print survives a relay restart', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  const { status, data } = await printAsGuest(booth, { copies: 3 });
+  assert.equal(status, 200);
+  assert.equal(data.job.status, 'pending');
+
+  // The relay process stops and starts again (redeploy / crash) on the same disk.
+  await booth.restart();
+
+  const after = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
+  assert.equal(after.job.status, 'pending', 'the queued print is still there after the restart');
+  assert.equal(after.job.copies, 3, 'and its details survived');
+});
+
+test('a browser at /print can drain the queue with no Node agent — just the token', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  // The /print page is served.
+  assert.equal((await fetch(`${booth.base}/print`)).status, 200);
+
+  // A guest queues a print while nothing is connected.
+  const { data } = await printAsGuest(booth);
+  assert.equal(data.job.status, 'pending');
+
+  // Now act exactly as the browser page does: announce over the agent API with the
+  // booth token, claim the job, and report it printed. No agent process, no tunnel.
+  await fetch(`${booth.base}/api/agent/hello`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...host },
+    body: JSON.stringify({ name: 'Browser printer', printers: [{ name: 'This browser', ready: true }] }),
+  });
+
+  const claim = await (await fetch(`${booth.base}/api/agent/jobs?wait=0`, { headers: host })).json();
+  assert.equal(claim.job.id, data.job.id, 'the browser claims the waiting job');
+
+  // The browser can load the print image with the token it was handed.
+  const image = await fetch(`${booth.base}${claim.job.image}`);
+  assert.equal(image.status, 200);
+
+  await fetch(`${booth.base}/api/agent/result`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...host },
+    body: JSON.stringify({ id: data.job.id, ok: true, cupsJobId: 'browser-abc123', printer: 'This browser' }),
+  });
+
+  const done = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
+  assert.equal(done.job.status, 'done');
+  assert.equal(done.job.cupsJobId, 'browser-abc123');
+});
+
 test('a print submitted while the Mac is offline drains once it reconnects', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());
