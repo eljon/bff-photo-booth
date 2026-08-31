@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.70.2 — 2026-08-29
+
+**Full setup guide.**
+
+- Added `docs/SETUP.md`: a start-to-finish walkthrough — deploy the relay from the browser
+  on Render, connect the printer computer at `/print`, show the guest QR, and test it end
+  to end — including the branch/merge step, kiosk-printing, borderless, and costs.
+
 ## 1.70.1 — 2026-08-29
 
 **One-click browser deploy; the QR figures out its own address.**
