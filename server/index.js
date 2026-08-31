@@ -772,9 +772,10 @@ async function handleApi(req, res, url) {
     if (!guestAuthorised(req, url)) {
       return sendJson(res, 401, { ok: false, error: 'Scan the booth QR code to print.' });
     }
-    if (MODE === 'relay' && !agentOnline()) {
-      return sendJson(res, 503, { ok: false, error: 'The booth printer is offline right now. Save the photo and try again in a minute.' });
-    }
+    // NOTE: a relay does NOT reject a print just because the booth Mac is offline.
+    // The cloud relay owns the queue: the job is accepted and held here, and the
+    // agent drains it the moment it reconnects. So a guest can always submit even
+    // when the host's internet is down.
     if (rateLimited(req)) {
       return sendJson(res, 429, { ok: false, error: 'That is a lot of prints. Give the printer a minute.' });
     }
@@ -822,10 +823,16 @@ async function handleApi(req, res, url) {
     jobs.set(id, job);
     while (jobs.size > MAX_JOB_HISTORY) jobs.delete(jobs.keys().next().value);
 
+    const online = MODE === 'relay' ? agentOnline() : true;
+    if (MODE === 'relay' && !online && job.status !== 'awaiting-approval') {
+      const waiting = [...jobs.values()].filter((j) => j.status === 'pending').length;
+      console.log(`  ⏳ queued job ${id.slice(0, 8)} — the booth Mac is offline; ${waiting} waiting for it to reconnect`);
+    }
+
     if (!cfg.requireApproval) await pumpPrinter();
 
     const status = job.status === 'failed' ? 502 : 200;
-    return sendJson(res, status, { ok: job.status !== 'failed', job: publicJob(job) });
+    return sendJson(res, status, { ok: job.status !== 'failed', job: publicJob(job), agentOnline: online });
   }
 
   if (url.pathname === '/api/approve' && req.method === 'POST') {
@@ -868,7 +875,7 @@ async function handleApi(req, res, url) {
   if (url.pathname === '/api/job' && req.method === 'GET') {
     const job = jobs.get(url.searchParams.get('id'));
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
-    return sendJson(res, 200, { ok: true, job: publicJob(job) });
+    return sendJson(res, 200, { ok: true, job: publicJob(job), agentOnline: MODE === 'relay' ? agentOnline() : true });
   }
 
   return sendJson(res, 404, { ok: false, error: 'No such endpoint.' });

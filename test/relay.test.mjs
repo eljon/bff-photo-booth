@@ -34,11 +34,12 @@ test('a public booth prints for anyone with the link — no key in the way', asy
   assert.equal(session.keyRequired, false, 'guests should not need a key by default');
   assert.equal(session.remote, true);
 
-  // 503 is "no booth Mac connected yet", not "who are you" — the point is that
-  // it got past the door.
+  // No Mac connected yet, but the relay OWNS the queue — it takes the print and
+  // holds it until the booth reconnects, rather than turning the guest away.
   const anonymous = await printAsGuest(booth, { key: '' });
-  assert.equal(anonymous.status, 503);
-  assert.notEqual(anonymous.status, 401);
+  assert.equal(anonymous.status, 200);
+  assert.equal(anonymous.data.job.status, 'pending', 'the print waits in the queue');
+  assert.equal(anonymous.data.agentOnline, false, 'and we tell the guest the booth is offline');
 });
 
 test('the key restriction still works when a host turns it on', async (t) => {
@@ -53,7 +54,7 @@ test('the key restriction still works when a host turns it on', async (t) => {
 
   assert.equal((await printAsGuest(booth, { key: '' })).status, 401);
   assert.equal((await printAsGuest(booth, { key: 'not-the-key' })).status, 401);
-  assert.equal((await printAsGuest(booth)).status, 503, 'the real key gets through');
+  assert.equal((await printAsGuest(booth)).status, 200, 'the real key gets through and queues');
 });
 
 test('host controls are closed to strangers once the booth is public', async (t) => {
@@ -83,13 +84,35 @@ test('the agent API rejects a bad token', async (t) => {
   assert.equal(response.status, 401);
 });
 
-test('a booth with no Mac connected tells guests instead of swallowing the print', async (t) => {
+test('a booth with no Mac connected queues the print for when it reconnects', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());
 
   const { status, data } = await printAsGuest(booth);
-  assert.equal(status, 503);
-  assert.match(data.error, /offline/i);
+  assert.equal(status, 200, 'the relay accepts and holds the print');
+  assert.equal(data.ok, true);
+  assert.equal(data.agentOnline, false);
+  assert.equal(data.job.status, 'pending', 'it waits in the queue for the booth');
+});
+
+test('a print submitted while the Mac is offline drains once it reconnects', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  // No agent yet — the guest still submits, and the relay queues the job.
+  const { status, data } = await printAsGuest(booth, { copies: 1 });
+  assert.equal(status, 200);
+  assert.equal(data.job.status, 'pending');
+
+  // The Mac comes online; it should pick up the waiting job and print it.
+  const agent = await startAgent(booth.base, TOKEN);
+  t.after(() => agent.close());
+
+  const finished = await until(async () => {
+    const job = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
+    return job.job.status === 'done' ? job.job : null;
+  });
+  assert.match(finished.cupsJobId, /^dry-run-/);
 });
 
 test('end to end: guest prints, the Mac agent picks it up and reports the queue', async (t) => {
@@ -212,7 +235,7 @@ test('ACCESS_KEY pins the guest key so a redeploy keeps printed QR codes working
   // the pinned key is still what the QR would carry if the host turns the
   // restriction on — it just is not demanded by default
   const { status } = await printAsGuest(booth, { key: 'party-2026' });
-  assert.equal(status, 503, 'no agent yet, but nothing rejected the request');
+  assert.equal(status, 200, 'no agent yet, but the relay queues the print');
 
   // and the host cannot rotate or rename around the environment
   await fetch(`${booth.base}/api/config`, {

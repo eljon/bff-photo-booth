@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.69.0 — 2026-08-29
+
+**Prints keep flowing even when the booth loses internet.**
+
+- The cloud relay now owns the print queue. When you run the booth in relay mode
+  (`MODE=relay` on a public host, with the Mac running `npm run agent`), a guest can submit
+  a print even while the booth Mac is offline: the relay accepts it and holds it in the
+  queue, and the Mac drains everything waiting the moment it reconnects.
+- Guests get honest wording for this — "Saved to the print queue… it'll come out once the
+  booth's back online" — instead of being turned away with an error.
+
+*(This is relay/cloud mode only; a plain LAN booth still prints straight to its own printer
+as before.)*
+
 ## 1.68.3 — 2026-08-29
 
 **Solid-orange wordmark; no more title flash.**

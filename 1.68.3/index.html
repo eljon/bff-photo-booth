@@ -3403,6 +3403,15 @@ function stillWaiting(job) {
 /** "You're number X in the queue. Ready in about Y." — recomputed live from
  *  readyAt so the countdown ticks without hammering the booth. */
 function showQueue(job) {
+  if (job.agentOnline === false) {
+    showResult({
+      emoji: '🧾',
+      title: 'Saved to the print queue',
+      body: "The booth is offline right now — your print is safe in the queue and will come out the moment it's back online. Tap Done to keep browsing.",
+      image: job.image,
+    });
+    return;
+  }
   const q = job.queue;
   const seconds = Math.max(0, Math.round((q.readyAt - Date.now()) / 1000));
   showResult({
@@ -3424,10 +3433,15 @@ function compactEta(seconds) {
 function updateQueuePill(job) {
   let icon = '🧾', title = '', sub = '';
   if (stillWaiting(job)) {
-    const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
     icon = '🧾';
-    title = `#${job.queue.position} in line`;
-    sub = compactEta(seconds);
+    if (job.agentOnline === false) {
+      title = 'Queued';
+      sub = 'booth off';
+    } else {
+      const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
+      title = `#${job.queue.position} in line`;
+      sub = compactEta(seconds);
+    }
   } else if (isActiveJob(job)) {
     icon = '🖨️';
     title = 'Printing';
@@ -3478,10 +3492,15 @@ function renderJob(job) {
   if (sendRaf != null && stillWaiting(job)) {
     // Waiting behind other prints — same canvas, the print held in line.
     setAnimPhase('queue');
-    const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
-    setResultText('🧾',
-      job.queue.position <= 1 ? "You're next in line" : `You're number ${job.queue.position} in the queue`,
-      `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing — we'll keep your place.`);
+    if (job.agentOnline === false) {
+      setResultText('🧾', 'Saved to the print queue',
+        "The booth is offline right now — your print is queued and will come out the moment it's back online.");
+    } else {
+      const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
+      setResultText('🧾',
+        job.queue.position <= 1 ? "You're next in line" : `You're number ${job.queue.position} in the queue`,
+        `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing — we'll keep your place.`);
+    }
     $('resultDone').disabled = false;
     return;
   }
@@ -3541,7 +3560,9 @@ function trackQueue(job) {
     try {
       const response = await fetch(`/api/job?id=${encodeURIComponent(currentJob.id)}`);
       if (!response.ok) return;
-      next = (await response.json()).job;
+      const payload = await response.json();
+      next = payload.job;
+      next.agentOnline = payload.agentOnline; // keep the offline-queue wording accurate
     } catch {
       return; // a blip — keep the last standing on screen and try again
     }
@@ -3922,6 +3943,7 @@ async function doPrint() {
       return;
     }
 
+    data.job.agentOnline = data.agentOnline; // so the queue screen can be honest if offline
     trackQueue(data.job);
   } catch (err) {
     showResult({
@@ -4056,7 +4078,9 @@ async function refreshPrinter() {
   try {
     const data = await (await fetch('/api/printers')).json();
     if (data.remote && !data.agentOnline) {
-      showProblem('The booth printer is offline right now. You can still save to your phone.');
+      // The relay still takes the print and holds it — the booth drains the queue when
+      // it reconnects — so this is a heads-up, not a blocker.
+      showProblem("The booth is offline right now — prints still go in the queue and come out once it's back.");
       return;
     }
     if (!data.printers.length) {
