@@ -252,31 +252,39 @@ function tilingDesign(aspects, stickerAR, heroIndex) {
       }
       // Fallback pool: keep photos reasonably balanced (never a runaway hero) even when the
       // strict ≤2× rule can't be met for this photo mix.
-      if (maxA <= 2.5 * minA + 1 && (!bestAny || cov > bestAny.cov)) bestAny = { cov, bw, bh, cells, page };
+      if (maxA <= 2.5 * minA + 1 && (!bestAny || cov > bestAny.cov)) bestAny = { cov, bw, bh, tree, page };
 
       if (maxA > 2 * minA + 1) continue;                         // rule 4: ≤ 2× the smallest
       if (heroIndex != null && maxPhoto !== heroIndex) continue; // hero card features its photo
-      if (!best || cov > best.cov) best = { cov, bw, bh, cells, page };
+      if (!best || cov > best.cov) best = { cov, bw, bh, tree, page };
     }
   }
   best = best || bestAny;
 
-  const page = best.page;
-  const out = best.cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.node].photo, fit: 'contain' }));
+  const page = best.page, bw = best.bw, bh = best.bh;
+  const hasSticker = stickerAR != null;
 
-  if (stickerAR != null) {
-    // Put the badge in the leftover paper margin (never on a photo). The centred block fills
-    // one dimension of the sheet, leaving a margin on the other; drop the sticker into it.
-    const x0 = (page.w - best.bw) / 2, y0 = (page.h - best.bh) / 2;
+  // With a sticker, anchor the block so ALL the leftover forms ONE band (a footer, or a side
+  // column) big enough to hold a clearly-visible badge — instead of a thin centred margin the
+  // sticker gets lost in. Without a sticker, centre the block so the matting is even.
+  const sideMargin = bw < page.w - 2;            // block fills height → leftover on the right
+  const ox = hasSticker ? (sideMargin ? 0 : (page.w - bw) / 2) : (page.w - bw) / 2;
+  const oy = hasSticker ? (sideMargin ? (page.h - bh) / 2 : 0) : (page.h - bh) / 2;
+  const cells = [];
+  placeTree(best.tree, ox, oy, bw, bh, cells);
+  const out = cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.node].photo, fit: 'contain' }));
+
+  if (hasSticker) {
     const pad = Math.round(page.w * 0.02);
-    let strip;
-    if (best.bw < page.w - 2) strip = { x: x0 + best.bw, y: 0, w: page.w - (x0 + best.bw), h: page.h }; // right margin
-    else if (best.bh < page.h - 2) strip = { x: 0, y: y0 + best.bh, w: page.w, h: page.h - (y0 + best.bh) }; // bottom margin
-    else strip = { x: page.w * 0.75, y: page.h * 0.82, w: page.w * 0.25, h: page.h * 0.18 }; // block fills sheet: corner
-    let sw = Math.min(strip.w - pad * 2, page.w * 0.2);
+    const band = sideMargin
+      ? { x: ox + bw, y: 0, w: page.w - bw, h: page.h }       // right column
+      : { x: 0, y: oy + bh, w: page.w, h: page.h - bh };      // bottom footer
+    // Fill most of the band with the badge (a clear, visible size), capped so it never rivals
+    // a photo. Centre it in the band.
+    let sw = Math.min((band.w - pad * 2), (band.h - pad * 2) * stickerAR, Math.min(page.w, page.h) * 0.34);
     let sh = sw / stickerAR;
-    if (sh > strip.h - pad * 2) { sh = strip.h - pad * 2; sw = sh * stickerAR; }
-    out.push({ x: strip.x + (strip.w - sw) / 2, y: strip.y + (strip.h - sh) / 2, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
+    if (sh > band.h - pad * 2) { sh = band.h - pad * 2; sw = sh * stickerAR; }
+    out.push({ x: band.x + (band.w - sw) / 2, y: band.y + (band.h - sh) / 2, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
   }
   return { cells: out, page };
 }
@@ -389,19 +397,29 @@ export function resolveGrid(base, photos, heroIndex = null, sticker = null) {
 export function designVariants(base, photos, sticker = null) {
   const aspects = photos.map(photoAspect);
   const ar = sticker && sticker.aspect;
-  const out = photos.map((_, hero) => {
+  const cand = photos.map((_, hero) => {
     const d = heroDesign(aspects, hero, ar);
-    return {
-      key: `hero:${hero}`, kind: 'hero', heroIndex: hero, arrange: 'top',
-      title: `Big #${hero + 1}`, sub: 'featured', captions: [],
-      cells: d.cells, page: d.page, media: media(d.page), paper: paper(d.page),
-    };
+    return { key: `hero:${hero}`, kind: 'hero', heroIndex: hero, title: `Big #${hero + 1}`, sub: 'featured', cells: d.cells, page: d.page };
   });
   const e = evenDesign(aspects, ar);
-  out.push({
-    key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', captions: [],
-    cells: e.cells, page: e.page, media: media(e.page), paper: paper(e.page),
-  });
+  cand.push({ key: 'even', kind: 'even', title: 'Four equal', sub: 'no big one', cells: e.cells, page: e.page });
+
+  for (const c of cand) c.cov = photoCoverage(c);
+  const bestCov = Math.max(...cand.map((c) => c.cov));
+  cand.sort((a, b) => b.cov - a.cov);
+
+  // Only offer well-filled layouts: drop the sparse ones (a mismatched hero stacked into a
+  // narrow column with wide margins). Keep the best, plus any within ~12% of it, so guests
+  // never swipe onto a mostly-empty sheet. Dedupe near-identical coverage on the same sheet.
+  const out = [];
+  const seen = new Set();
+  for (const c of cand) {
+    if (out.length >= 1 && c.cov < bestCov - 0.12) break;
+    const sig = `${c.page.w > c.page.h ? 'L' : 'P'}:${Math.round(c.cov * 100)}`;
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push({ key: c.key, kind: c.kind, heroIndex: c.heroIndex, arrange: 'top', title: c.title, sub: c.sub, captions: [], cells: c.cells, page: c.page, media: media(c.page), paper: paper(c.page) });
+  }
   return out;
 }
 

@@ -220,17 +220,17 @@ test('a different hero can be chosen by passing its index', () => {
   assert.equal(cells[0].photo, 2, 'the chosen index leads as the hero');
 });
 
-test('the coverflow offers each photo as the hero plus an even grid, all distinct', () => {
+test('the coverflow only offers well-filled designs, all distinct', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   const variants = designVariants(LAYOUTS.grid, photos);
 
-  // Every photo can be the hero (both placements) and there is a no-hero option.
-  for (let h = 0; h < 4; h++) {
-    assert.ok(variants.some((v) => v.kind === 'hero' && v.heroIndex === h), `photo ${h} is offered as a hero`);
-  }
-  assert.ok(variants.some((v) => v.kind === 'even'), 'an even grid is offered');
-  assert.ok(variants.length >= 5, 'there are several designs to swipe through');
+  assert.ok(variants.length >= 1, 'at least one design to offer');
+  // Sparse layouts (a mismatched hero stacked into a narrow column) are dropped, so guests
+  // never swipe onto a mostly-empty sheet: every offered design fills close to the best one.
+  const covs = variants.map((v) => v.cells.filter((c) => c.photo != null).reduce((s, c) => s + c.w * c.h, 0) / (v.page.w * v.page.h));
+  const best = Math.max(...covs);
+  for (const cov of covs) assert.ok(cov >= best - 0.12 - 1e-6, `an offered design is too sparse (${cov.toFixed(2)} vs best ${best.toFixed(2)})`);
 
   // No two cards are the same design, and each has a stable key and a label.
   const keys = new Set(variants.map((v) => v.key));

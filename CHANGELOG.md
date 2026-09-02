@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.21 — 2026-09-02
+
+**Drop the sparse layouts and enlarge the sticker.** The coverflow no longer offers
+the poorly-filled arrangements (a mismatched hero stacked into a narrow column with
+wide margins) — it keeps only designs that fill close to the fullest, so guests never
+swipe onto a mostly-empty sheet. And when a sticker is present the photo block is
+anchored to leave ONE clean band (a side column or footer) for the badge, sized to
+fill most of it — so the sticker is clearly visible instead of a speck in a thin
+margin. Verified by rendering the coverflow for a portrait+landscape mix.
+
+---
+
 ## 1.73.20 — 2026-09-02
 
 **Default pick fills the most paper.** The booth was defaulting to photo 0 as the
