@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.29 — 2026-09-02
+
+**Check button off the photo, version by the title, taller coverflow cap.** The action block's
+upward pull eases from -64px to -34px, so the check button sits below the card (still grounded on
+the reflection) instead of touching the photo. The version stamp moves from the foot of the page
+to a small tag beside the title; the wordmark shrinks to fit (clamp) so both stay on one line.
+And the coverflow's max-height cap rises from 680px to 900px, so the deck can grow taller where
+the screen allows. Verified with a phone-width screenshot of the swipe step.
+
+---
+
 ## 1.73.28 — 2026-09-02
 
 **Push the coverflow lower and overlap the reflection with the check.** The cards drop lower

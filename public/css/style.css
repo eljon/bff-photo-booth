@@ -50,8 +50,10 @@ body {
 .topbar { text-align: center; padding: 6px 0 8px; }
 .brand {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
+  flex-wrap: nowrap;
+  gap: 8px;
 }
 /* Chunky, rounded, playful wordmark echoing the "Building Forever Families" logo:
    a friendly rounded face in the logo's solid bright orange, with a slight extruded
@@ -59,7 +61,9 @@ body {
 .topbar h1 {
   margin: 0;
   font-family: "Baloo 2", "Fredoka", system-ui, sans-serif;
-  font-size: 32px;
+  /* Shrink to keep the wordmark and the version tag beside it on one line. */
+  font-size: clamp(24px, 8vw, 32px);
+  white-space: nowrap;
   line-height: 1.05;
   letter-spacing: 0.005em;
   font-weight: 800;
@@ -101,7 +105,7 @@ body {
      tall screens yet still fit short ones. */
   flex: 1 1 auto;
   min-height: 220px;
-  max-height: 680px;
+  max-height: 900px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -233,8 +237,8 @@ body {
   /* A NEGATIVE top margin overlaps the controls into the coverflow's bottom: the flex
      stage above grows to fill the pulled-up space (so the coverflow gets taller), and
      the check button (z-index below) rides up over the faint tail of the reflection —
-     the reflection grounds into the button. */
-  margin-top: -64px;
+     the reflection grounds into the button, while staying clear of the card itself. */
+  margin-top: -34px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -618,14 +622,13 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 .version { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.08em; margin: 0; }
 
-/* A quiet version stamp at the foot of the guest page. */
+/* A quiet version stamp inline beside the title (baseline-aligned), shrinking with it. */
 .app-version {
-  margin: 10px 0 0;
-  text-align: center;
+  flex: none;
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--ink-dim);
-  opacity: 0.55;
+  opacity: 0.6;
 }
 .app-version:empty { display: none; }
 .spacer { height: calc(env(safe-area-inset-bottom) + 14px); }
