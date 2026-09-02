@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.72.1 — 2026-09-02
+
+**Fixed "all done!" showing the instant a print started (relay/cloud mode).**
+
+- On a cloud relay, the printer reports back the moment it *starts* a sheet, and the booth
+  was treating that as finished — so guests saw "All done!" while the print was just
+  beginning. Now the relay keeps it as "Printing now" for the real print time and only flips
+  to done afterward. (LAN booths already tracked real completion via CUPS.)
+
 ## 1.72.0 — 2026-09-02
 
 **New: a live queue board at `/view` for a TV or spare screen.**

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { startServer, startAgent, until, makePng } from './helpers.mjs';
 
 const TOKEN = 'test-booth-token-123';
-const relayEnv = { MODE: 'relay', BOOTH_TOKEN: TOKEN, DRY_RUN: '' };
+// A short print time so "printing → done" (now timed on the relay, not instant) resolves
+// quickly in tests while still exercising the real not-done-yet gap.
+const relayEnv = { MODE: 'relay', BOOTH_TOKEN: TOKEN, DRY_RUN: '', PRINT_MS: '300' };
 const host = { 'x-booth-token': TOKEN };
 
 async function startRelay(extra = {}) {
@@ -143,9 +145,16 @@ test('a browser at /print can drain the queue with no Node agent — just the to
     body: JSON.stringify({ id: data.job.id, ok: true, cupsJobId: 'browser-abc123', printer: 'This browser' }),
   });
 
-  const done = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
-  assert.equal(done.job.status, 'done');
-  assert.equal(done.job.cupsJobId, 'browser-abc123');
+  // The relay now reports the sheet as printing first, then done once the print time
+  // elapses — so it's never "done" the instant it starts.
+  const printing = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
+  assert.equal(printing.job.status, 'printing', 'it prints first, not instantly done');
+
+  const done = await until(async () => {
+    const j = await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json();
+    return j.job.status === 'done' ? j.job : null;
+  });
+  assert.equal(done.cupsJobId, 'browser-abc123');
 });
 
 test('a print submitted while the Mac is offline drains once it reconnects', async (t) => {

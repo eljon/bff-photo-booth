@@ -117,7 +117,7 @@ try {
 /** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
 const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
-const PRINT_MS = 30 * 1000; // seed estimate of one print's time; refined from real runs
+const PRINT_MS = Number(process.env.PRINT_MS) || 30 * 1000; // seed estimate of one print's time; refined from real runs
 const MAX_PRINT_MS = 5 * 60 * 1000; // a print stuck longer than this is treated as done
 const DRY_PRINT_MS = Number(process.env.DRY_PRINT_MS) || PRINT_MS; // simulated print time (dry run)
 const hits = new Map(); // ip -> print timestamps
@@ -724,7 +724,19 @@ async function handleAgentApi(req, res, url) {
       job.cupsJobId = body.cupsJobId ? String(body.cupsJobId).slice(0, 120) : null;
       job.printer = body.printer ? String(body.printer).slice(0, 128) : job.printer;
       job.error = null;
-      completeJob(job); // marks done, learns the duration, and releases the next job
+      // The agent's "ok" means the sheet has STARTED printing (it was handed to CUPS /
+      // dispatched by the browser), not that it's already in the tray. Marking it done here
+      // told the guest "All done!" the instant it began. Instead show it as printing and
+      // finish it after the learned print time, so "Printing now" lasts the real duration.
+      if (ON_PRINTER.has(job.status)) {
+        job.status = 'printing';
+        job.printedAt = Date.now();
+        persist();
+        const done = job.id;
+        const timer = setTimeout(() => { const j = jobs.get(done); if (j) completeJob(j); }, avgPrintMs);
+        if (timer.unref) timer.unref();
+      }
+      notifyAgents(); // let the agent pull the next job now (it prints while this one finishes)
     } else {
       job.status = 'failed';
       job.error = String(body.error || 'The booth printer refused the job.').slice(0, 300);
