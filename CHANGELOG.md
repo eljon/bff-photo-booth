@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.17 — 2026-09-02
+
+**No photo swims in white any more (minimax fill).** The layout already fills the
+whole sheet, but on a wide-vs-tall photo mix it could leave one cell showing a tiny
+photo in a big cream frame. The optimiser now maximises the WORST cell's fill first
+(then total), so every cell takes a shape close to its photo and the unavoidable
+no-crop slack is spread thinly instead of dumped into one cell. On the tested
+portrait+landscape mix the worst cell went from ~20% filled to ~56%.
+
+---
+
 ## 1.73.16 — 2026-09-02
 
 **Layouts now fill the whole sheet — no more empty regions.** The previous version

@@ -228,14 +228,22 @@ function tilingDesign(aspects, stickerAR, heroIndex) {
     for (const tree of slicingTrees(idxs, items, memo)) {
       const cells = [];
       placeTree(tree, 0, 0, page.w, page.h, cells);
-      // Score = photo area actually shown (contain). A cell of aspect ar showing a photo of
-      // aspect ap reveals cell·min(ar,ap)/max(ar,ap); matching shapes reveal all of it.
-      let shown = 0;
+      // How full each cell is once its photo is shown "contain": a cell of aspect ar holding
+      // a photo of aspect ap reveals fraction min(ar,ap)/max(ar,ap) (1 when the shapes match).
+      // Score MINIMAX-first: maximise the WORST cell's fill, so no single cell becomes a tiny
+      // photo swimming in white (the thing that looks broken); then break ties on the total
+      // shown, so overall letterbox stays minimal. Every cell then takes a shape close to its
+      // photo, spreading the unavoidable slack thinly instead of dumping it in one cell.
+      let worst = Infinity, shown = 0;
       for (const c of cells) {
         const ap = items[c.node].aspect, ar = c.w / c.h;
-        shown += c.w * c.h * (Math.min(ar, ap) / Math.max(ar, ap));
+        const fill = Math.min(ar, ap) / Math.max(ar, ap);
+        if (fill < worst) worst = fill;
+        shown += c.w * c.h * fill;
       }
-      if (!best || shown > best.shown) best = { shown, cells, page };
+      if (!best || worst > best.worst + 1e-6 || (Math.abs(worst - best.worst) <= 1e-6 && shown > best.shown)) {
+        best = { worst, shown, cells, page };
+      }
     }
   }
 
