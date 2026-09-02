@@ -134,7 +134,7 @@ body {
      landscape one, but both rest on this line, so their reflections line up.
      Set low so the swipe surface sits in the lower half, within easy thumb reach,
      with a shorter reflection below. */
-  top: 76%;
+  top: 84%;
   left: 50%;
   border-radius: 6px;
   /* Scale and rotate pivot about the bottom-centre, so shrinking a side card or
@@ -230,15 +230,15 @@ body {
 /* ---------------------------------------------------------------- slots */
 
 .pick {
-  margin-top: 2px;
+  /* A NEGATIVE top margin overlaps the controls into the coverflow's bottom: the flex
+     stage above grows to fill the pulled-up space (so the coverflow gets taller), and
+     the check button (z-index below) rides up over the faint tail of the reflection —
+     the reflection grounds into the button. */
+  margin-top: -64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  /* Sit the controls low, near the bottom of the screen, so the coverflow and its
-     reflection above own more of the vertical space. A transform (not a margin) so
-     the flex stage above just grows to fill the room this frees. */
-  transform: translateY(6px);
   position: relative;
   z-index: 5;
 }

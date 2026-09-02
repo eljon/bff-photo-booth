@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.28 — 2026-09-02
+
+**Push the coverflow lower and overlap the reflection with the check.** The cards drop lower
+in the deck (the glass baseline moves from 76% to 84% of the coverflow), so the cards render
+larger and their reflection extends further down. The action block below now uses a negative
+top margin (-64px) instead of a downward nudge, which both lets the coverflow grow taller and
+rides the check button up over the faded tail of the reflection — the reflection grounds into
+the button. Verified with a phone-width screenshot of the swipe step.
+
+---
+
 ## 1.73.27 — 2026-09-02
 
 **More room for the coverflow.** The design cards and their reflection now get more vertical
