@@ -990,6 +990,7 @@ async function serveStatic(req, res, url) {
   if (rel === '/') rel = '/index.html';
   if (rel === '/host') rel = '/host.html';
   if (rel === '/print') rel = '/print.html'; // the browser-based host printer
+  if (rel === '/view') rel = '/view.html';   // the big-screen queue board
 
   // A guest-only booth has no host screen, and its prints live on the upstream
   // print host (proxied) rather than on this disk.

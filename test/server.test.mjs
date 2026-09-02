@@ -17,6 +17,17 @@ test('serves the guest app and its session settings', async (t) => {
   assert.ok(session.maxCopies >= 1);
 });
 
+test('serves the viewer board at /view', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+
+  const page = await fetch(`${booth.base}/view`);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /Now printing/i);
+  assert.match(html, /Up next/i);
+});
+
 test('the sticker can be switched from the host, and only to a real one', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

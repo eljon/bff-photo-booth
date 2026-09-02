@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Booth Board</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --grad: linear-gradient(115deg, #6a5cff 0%, #a24bff 32%, #ff4d97 64%, #ff7a4d 100%);
+    --ink: #f7f2ef; --dim: #cdbfd6; --line: #ffffff24;
+    --card: #17141dcc; --card2: #1f1b28cc;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; color: var(--ink);
+    font-family: "Baloo 2", system-ui, -apple-system, sans-serif;
+    background: #0c0c0f;
+    overflow: hidden;
+  }
+  /* The themed watercolor ground + the chosen sticker, set from JS. */
+  #bg { position: fixed; inset: 0; background-size: cover; background-position: center; filter: saturate(1.05); transform: scale(1.04); }
+  #scrim { position: fixed; inset: 0; background: radial-gradient(120% 90% at 50% -10%, #0b0a0fcc, #0b0a0fee 70%), #0b0a0f88; backdrop-filter: blur(2px); }
+  .wrap { position: relative; height: 100dvh; display: flex; flex-direction: column; padding: clamp(14px, 2.2vw, 34px); gap: clamp(12px, 1.6vw, 22px); }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1 1 auto; }
+  .sticker-badge { height: clamp(52px, 6vw, 92px); width: auto; filter: drop-shadow(0 6px 14px #0009); flex: none; }
+  .title { font-weight: 800; font-size: clamp(26px, 3.6vw, 60px); line-height: 1;
+    color: #ff8a1e; text-shadow: 0 2px 0 #d1670c, 0 4px 14px #0008; letter-spacing: .005em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title small { display: block; font-size: .34em; font-weight: 700; color: var(--dim); text-shadow: none; margin-top: 4px; letter-spacing: .12em; text-transform: uppercase; }
+  .hstats { margin-left: auto; display: flex; align-items: center; gap: clamp(10px, 1.4vw, 22px); }
+  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 10px 16px; text-align: center; line-height: 1.05; }
+  .chip b { display: block; font-size: clamp(20px, 2.4vw, 40px); font-weight: 800; }
+  .chip span { font-size: clamp(10px, .8vw, 13px); color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #5ad1a5; box-shadow: 0 0 0 0 #5ad1a555; animation: pulse 2s infinite; }
+  .dot.off { background: #ff5c7a; animation: none; }
+  @keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 #5ad1a555 } 50%{ box-shadow: 0 0 0 9px #5ad1a500 } }
+  .iconbtn { background: var(--card); border: 1px solid var(--line); color: var(--ink); border-radius: 14px; width: 46px; height: 46px; font-size: 20px; cursor: pointer; }
+
+  .offline { background: #ffb02022; border: 1px solid #ffb02066; color: #ffd79a; border-radius: 14px; padding: 8px 16px; font-size: clamp(13px,1.1vw,17px); text-align: center; }
+
+  /* ---------- main grid ---------- */
+  main { flex: 1; display: grid; grid-template-columns: 1.35fr 1fr; gap: clamp(12px, 1.6vw, 22px); min-height: 0; }
+  @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: clamp(14px, 1.6vw, 26px); min-height: 0; display: flex; flex-direction: column; }
+  .panel h2 { margin: 0 0 12px; font-size: clamp(15px, 1.3vw, 22px); letter-spacing: .04em; text-transform: uppercase; color: var(--dim); font-weight: 700; }
+
+  /* now printing */
+  .now { position: relative; }
+  .now.idle .now-body { opacity: .5; }
+  .now-body { flex: 1; display: flex; gap: clamp(14px, 1.8vw, 30px); align-items: center; min-height: 0; }
+  .now-strip { flex: 0 1 auto; height: 100%; max-height: 46vh; max-width: 52%; aspect-ratio: 3/2; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px -18px #000; display: grid; place-items: center; }
+  .now-strip img { width: 100%; height: 100%; object-fit: contain; }
+  .now-info { min-width: 0; flex: 1 1 auto; }
+  .now-who { font-size: clamp(28px, 3.4vw, 60px); font-weight: 800; line-height: 1.02; overflow-wrap: anywhere; }
+  .now-sub { font-size: clamp(16px, 1.8vw, 30px); color: var(--dim); margin-top: 6px; }
+  .now-tag { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; font-size: clamp(16px,1.6vw,26px); font-weight: 700;
+    background: var(--grad); background-size: 200% 200%; animation: slide 8s ease infinite; padding: 10px 20px; border-radius: 999px; }
+  @keyframes slide { 0%,100%{background-position:0 50%} 50%{background-position:100% 50%} }
+  .bar { margin-top: 20px; height: 14px; border-radius: 999px; background: #ffffff1c; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--grad); background-size: 200% 200%; animation: slide 8s ease infinite; transition: width .8s ease; }
+  .big-eta { font-size: clamp(22px, 2.4vw, 40px); font-weight: 800; margin-top: 8px; }
+
+  /* up next list */
+  .up { overflow: hidden; }
+  .up-list { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+  .row { display: flex; align-items: center; gap: 14px; background: var(--card2); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; }
+  .pos { flex: none; width: clamp(38px,3vw,52px); height: clamp(38px,3vw,52px); border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: clamp(16px,1.6vw,26px); background: #ffffff14; }
+  .row.next .pos { background: var(--grad); }
+  .thumb { flex: none; width: clamp(58px,5vw,86px); aspect-ratio: 3/2; background: #fff; border-radius: 8px; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: contain; }
+  .who { flex: 1; min-width: 0; font-size: clamp(18px,1.7vw,28px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .eta { flex: none; text-align: right; }
+  .eta b { display: block; font-size: clamp(16px,1.5vw,24px); font-weight: 800; }
+  .eta span { font-size: clamp(10px,.8vw,12px); color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+  .empty { flex: 1; display: grid; place-items: center; text-align: center; color: var(--dim); font-size: clamp(18px,1.8vw,28px); }
+
+  /* bottom strip: recent + join */
+  .foot { display: grid; grid-template-columns: 1fr auto; gap: clamp(12px,1.6vw,22px); align-items: stretch; }
+  .recent { display: flex; gap: 10px; overflow: hidden; align-items: center; }
+  .recent .thumb { height: clamp(56px, 8vh, 96px); width: auto; aspect-ratio: 3/2; }
+  .join { display: flex; align-items: center; gap: 14px; }
+  .join canvas { background: #fff; border-radius: 12px; padding: 8px; width: clamp(84px,9vw,124px); height: auto; }
+  .join .jt { font-family: "Caveat", cursive; font-size: clamp(22px,2.2vw,34px); line-height: 1.05; color: var(--ink); }
+  .join .jt small { display:block; font-family: "Baloo 2", sans-serif; font-size: .5em; color: var(--dim); letter-spacing:.06em; }
+
+  /* gate */
+  #gate { position: fixed; inset: 0; display: grid; place-items: center; background: #0b0a0f; z-index: 10; padding: 24px; }
+  #gate .box { max-width: 420px; width: 100%; background: #17141d; border: 1px solid var(--line); border-radius: 20px; padding: 26px; text-align: center; }
+  #gate h1 { color: #ff8a1e; font-weight: 800; margin: 0 0 8px; }
+  #gate p { color: var(--dim); margin: 0 0 16px; }
+  #gate input { width: 100%; background: #0f0e13; border: 1px solid #3a3745; color: var(--ink); border-radius: 12px; padding: 12px 14px; font: inherit; }
+  #gate button { margin-top: 12px; width: 100%; border: 0; border-radius: 12px; padding: 12px; font: inherit; font-weight: 800; color: #fff; background: var(--grad); cursor: pointer; }
+  #gate .err { color: #ff9db0; font-size: 14px; min-height: 18px; margin-top: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="bg"></div>
+  <div id="scrim"></div>
+
+  <div class="wrap" id="board" hidden>
+    <header>
+      <div class="brand">
+        <img class="sticker-badge" id="sticker" alt="" hidden>
+        <div class="title" id="title">Photo Booth<small id="tagline">Live print queue</small></div>
+      </div>
+      <div class="hstats">
+        <div class="chip"><b id="inLine">0</b><span>in line</span></div>
+        <div class="chip"><b id="clearEta">—</b><span>to clear</span></div>
+        <div class="chip"><b id="doneCount">0</b><span>printed</span></div>
+        <div class="dot" id="dot" title="Live"></div>
+        <button class="iconbtn" id="fs" title="Fullscreen" aria-label="Fullscreen">⛶</button>
+      </div>
+    </header>
+
+    <div class="offline" id="offline" hidden>The booth is offline right now — prints are queued and will come out once it reconnects.</div>
+
+    <main>
+      <section class="panel now" id="now">
+        <h2>Now printing</h2>
+        <div class="now-body" id="nowBody">
+          <div class="now-strip"><img id="nowImg" alt=""></div>
+          <div class="now-info">
+            <div class="now-who" id="nowWho">—</div>
+            <div class="now-sub" id="nowSub"></div>
+            <div class="now-tag" id="nowTag">🖨️ Printing now</div>
+            <div class="bar"><i id="nowBar"></i></div>
+            <div class="big-eta" id="nowEta"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel up">
+        <h2>Up next</h2>
+        <div class="up-list" id="upList"></div>
+      </section>
+    </main>
+
+    <div class="foot">
+      <section class="panel">
+        <h2>Just printed</h2>
+        <div class="recent" id="recent"><span class="empty" style="font-size:16px">Nothing yet — be the first!</span></div>
+      </section>
+      <section class="panel join">
+        <canvas id="qr" width="120" height="120"></canvas>
+        <div class="jt">Scan to join!<small id="joinUrl"></small></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- token gate -->
+  <div id="gate">
+    <div class="box">
+      <h1>Booth Board</h1>
+      <p>Show the live print queue on this screen. Paste the booth token once.</p>
+      <input id="token" type="password" placeholder="Booth token" autocomplete="off" spellcheck="false">
+      <button id="connect">Show the board</button>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { qrMatrix, drawQr } from '/js/qr.mjs';
+    const $ = (id) => document.getElementById(id);
+    const KEY = 'booth.token';
+
+    const fromUrl = new URLSearchParams(location.search).get('token');
+    if (fromUrl) { try { localStorage.setItem(KEY, fromUrl); } catch {} history.replaceState(null, '', location.pathname); }
+    let token = (() => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } })();
+
+    const api = (path) => fetch(path, { headers: { 'x-booth-token': token }, cache: 'no-store' });
+    const fmtEta = (s) => s <= 5 ? 'now' : s < 60 ? '<1 min' : `${Math.round(s / 60)} min`;
+    const firstName = (g) => (g || 'Guest').trim().split(/\s+/)[0] || 'Guest';
+
+    let paper = 'backgrounds/paper-land-1.jpg';
+    let sticker = 'backgrounds/sticker.png';
+    let joinLink = location.origin;
+    let isRelay = false; // only a relay has a separate printer to be "offline"
+    let seenMax = new Map();   // job id -> the largest ETA we've seen (for the progress bar)
+    let live = [];             // latest active jobs with readyAt, for the 1s ticker
+
+    async function theme() {
+      try {
+        const s = await (await fetch('/api/session', { cache: 'no-store' })).json();
+        if (s.boothName) { $('title').childNodes[0].nodeValue = s.boothName; document.title = s.boothName + ' · Board'; }
+        if (s.sticker) sticker = s.sticker;
+        isRelay = Boolean(s.remote);
+      } catch {}
+      // paper background rotates a little for life; pick one deterministically per load
+      const papers = ['backgrounds/paper-land-1.jpg', 'backgrounds/paper-land-2.jpg', 'backgrounds/paper-land-3.jpg'];
+      paper = papers[Math.floor(Math.random() * papers.length)];
+      $('bg').style.backgroundImage = `url('/${encodeURI(paper)}')`;
+      const st = $('sticker'); st.src = '/' + encodeURI(sticker); st.hidden = false;
+    }
+
+    async function joinQr() {
+      try {
+        const c = await (await api('/api/config')).json();
+        const base = (c.urls && c.urls[0]) || location.origin;
+        joinLink = c.keyRequired ? `${base}/?k=${encodeURIComponent(c.config.accessKey)}` : base;
+      } catch { joinLink = location.origin; }
+      $('joinUrl').textContent = joinLink.replace(/^https?:\/\//, '');
+      drawQr($('qr'), qrMatrix(joinLink, { ecc: 'M' }), { moduleSize: 6, quiet: 2, dark: '#15111b' });
+    }
+
+    function render(data) {
+      const jobs = data.jobs || [];
+      const now = Date.now();
+      const printing = jobs.find((j) => j.status === 'printing' || j.status === 'claimed');
+      const pending = jobs
+        .filter((j) => j.status === 'pending' || j.status === 'awaiting-approval')
+        .sort((a, b) => (a.queue?.position || 99) - (b.queue?.position || 99) || a.createdAt - b.createdAt);
+      const done = jobs.filter((j) => j.status === 'done').slice(0, 8);
+      const active = [printing, ...pending].filter(Boolean);
+
+      // header stats
+      $('inLine').textContent = String(active.length);
+      $('doneCount').textContent = String(jobs.filter((j) => j.status === 'done').length);
+      const clearAt = Math.max(0, ...active.map((j) => j.queue?.readyAt || 0));
+      $('clearEta').textContent = clearAt ? fmtEta(Math.round((clearAt - now) / 1000)) : '—';
+
+      // agent/offline — only meaningful on a relay (a LAN booth prints locally)
+      const off = isRelay && data.agent && data.agent.online === false;
+      $('offline').hidden = !off;
+      $('dot').className = 'dot' + (off ? ' off' : '');
+
+      // now printing
+      const nowEl = $('now');
+      if (printing) {
+        nowEl.classList.remove('idle');
+        $('nowImg').src = printing.image;
+        $('nowWho').textContent = firstName(printing.guest);
+        $('nowSub').textContent = printing.copies > 1 ? `${printing.copies} copies` : 'One copy';
+        $('nowTag').textContent = '🖨️ Printing now';
+      } else if (pending.length) {
+        nowEl.classList.add('idle');
+        $('nowImg').src = pending[0].image;
+        $('nowWho').textContent = firstName(pending[0].guest);
+        $('nowSub').textContent = 'Warming up…';
+        $('nowTag').textContent = '⏳ Starting soon';
+      } else {
+        nowEl.classList.add('idle');
+        $('nowImg').removeAttribute('src');
+        $('nowWho').textContent = 'Ready';
+        $('nowSub').textContent = 'Scan the code to send the first print!';
+        $('nowTag').textContent = '✨ Waiting for photos';
+      }
+
+      // up next
+      const list = $('upList');
+      list.innerHTML = '';
+      if (!pending.length) {
+        list.innerHTML = '<div class="empty">No one waiting — the queue is clear! 🎉</div>';
+      } else {
+        pending.forEach((j, i) => {
+          const row = document.createElement('div');
+          row.className = 'row' + (i === 0 && !printing ? ' next' : '');
+          row.innerHTML = `<div class="pos">${j.queue?.position ?? i + 2}</div>
+            <div class="thumb"><img src="${j.image}" alt=""></div>
+            <div class="who">${escapeHtml(firstName(j.guest))}</div>
+            <div class="eta"><b data-eta="${j.id}">${fmtEta(j.queue?.etaSeconds || 0)}</b><span>wait</span></div>`;
+          list.appendChild(row);
+        });
+      }
+
+      // recent gallery
+      const rc = $('recent');
+      if (done.length) {
+        rc.innerHTML = '';
+        for (const j of done) {
+          const t = document.createElement('div'); t.className = 'thumb';
+          t.innerHTML = `<img src="${j.image}" alt="">`;
+          rc.appendChild(t);
+        }
+      }
+
+      // remember timings for the 1s ticker + progress bar
+      live = active.map((j) => ({ id: j.id, readyAt: j.queue?.readyAt || 0, printing: j.queue?.printing }));
+      if (printing) {
+        const rem = Math.max(0, Math.round(((printing.queue?.readyAt || now) - now) / 1000));
+        seenMax.set(printing.id, Math.max(seenMax.get(printing.id) || 0, rem, 1));
+      }
+      tick();
+    }
+
+    // Smooth per-second countdowns between polls.
+    function tick() {
+      const now = Date.now();
+      for (const j of live) {
+        const rem = Math.max(0, Math.round((j.readyAt - now) / 1000));
+        if (j.printing) {
+          $('nowEta').textContent = rem <= 5 ? 'Any second now…' : `Ready in about ${fmtEta(rem)}`;
+          const max = seenMax.get(j.id) || rem || 1;
+          $('nowBar').style.width = Math.min(100, Math.max(4, (1 - rem / max) * 100)) + '%';
+        }
+        const el = document.querySelector(`[data-eta="${j.id}"]`);
+        if (el) el.textContent = fmtEta(rem);
+      }
+      const clearAt = Math.max(0, ...live.map((j) => j.readyAt));
+      if (clearAt) $('clearEta').textContent = fmtEta(Math.round((clearAt - now) / 1000));
+    }
+
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    let pollTimer = null, tickTimer = null;
+    async function loop() {
+      try {
+        const res = await api('/api/queue');
+        if (res.status === 401) { showGate('That booth token was rejected.'); return; }
+        if (res.ok) { render(await res.json()); $('dot').classList.remove('off'); }
+      } catch { $('dot').classList.add('off'); }
+    }
+
+    function start() {
+      $('gate').hidden = true; $('board').hidden = false;
+      theme(); joinQr(); loop();
+      clearInterval(pollTimer); clearInterval(tickTimer);
+      pollTimer = setInterval(loop, 2500);
+      tickTimer = setInterval(tick, 1000);
+    }
+
+    function showGate(msg) {
+      $('board').hidden = true; $('gate').hidden = false;
+      $('err').textContent = msg || '';
+    }
+
+    async function connect() {
+      if (!token) { $('err').textContent = 'Enter the booth token first.'; return; }
+      let res;
+      try { res = await api('/api/queue'); } catch { $('err').textContent = 'Could not reach the booth.'; return; }
+      if (res.status === 401) { $('err').textContent = 'That booth token was rejected.'; return; }
+      try { localStorage.setItem(KEY, token); } catch {}
+      start();
+    }
+
+    $('connect').addEventListener('click', () => { token = $('token').value.trim(); connect(); });
+    $('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') { token = $('token').value.trim(); connect(); } });
+    $('fs').addEventListener('click', () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    });
+
+    // A LAN booth needs no token; a relay does. Probe once and decide.
+    async function boot() {
+      try {
+        const res = await api('/api/queue');
+        if (res.ok) { start(); return; }
+      } catch { /* fall through to the gate */ }
+      showGate('');
+    }
+    boot();
+  </script>
+</body>
+</html>

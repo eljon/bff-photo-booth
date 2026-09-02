@@ -38,6 +38,10 @@ body.host { padding: 0 0 40px; }
 .switch { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-size: 14px; }
 .switch input { width: 20px; height: 20px; accent-color: var(--accent); }
 
+.screens { margin-top: 10px; text-align: center; }
+.screens a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.screens a:hover { text-decoration: underline; }
+
 /* Tap a sticker to make it the badge on every strip. */
 .sticker-grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .sticker-thumb {

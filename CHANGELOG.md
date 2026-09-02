@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.72.0 — 2026-09-02
+
+**New: a live queue board at `/view` for a TV or spare screen.**
+
+- Shows what's **printing now** (with a countdown and progress bar), the **up-next** line
+  with a per-photo ETA each, an **overall "time to clear"**, a **just-printed** gallery, and
+  a **"scan to join" QR** so onlookers can jump in.
+- Themed with the booth's chosen sticker and watercolor paper, and built for a big screen
+  (auto-scaling text, a fullscreen button, live updates) — it also stacks nicely on a phone.
+- Opens straight up on a LAN booth; a cloud relay asks for the booth token once (and honours
+  a token already saved from the host screen). Links to it (and the printer page) are on the
+  host screen under "Guests join here".
+
 ## 1.71.2 — 2026-09-02
 
 **Gallery photos from Samsung/iPhone (HEIC) now work.**
