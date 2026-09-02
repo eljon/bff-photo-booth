@@ -29,7 +29,7 @@ function stripLayout() {
   return {
     id: 'strip',
     name: 'Classic strip',
-    blurb: 'Two 2×6 strips on one 4×6 — keep one, give one away',
+    blurb: 'Two 2×6 strips on one 4×6: keep one, give one away',
     paper: '4×6 portrait',
     media: 'Custom.4x6in',
     page,
@@ -50,7 +50,7 @@ function gridLayout() {
   return {
     id: 'grid',
     name: 'Auto grid',
-    blurb: 'One big hero photo with three beside it — nothing cropped',
+    blurb: 'One big hero photo with three beside it, nothing cropped',
     paper: '4×6 portrait',
     media: 'Custom.4x6in',
     page,

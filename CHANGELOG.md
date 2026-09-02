@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.12 — 2026-09-02
+
+**Remove em dashes from all user-facing text.** Every em dash in text guests,
+hosts, and viewers actually see is gone, restructured into separate sentences or
+other punctuation (periods, commas, colons). Covers the guest app, host screen,
+queue viewer, and the server error messages that surface in the browser.
+Standalone "—" placeholders now show "…". Code comments are left as they were.
+
+---
+
 ## 1.73.11 — 2026-09-02
 
 **Only send guests to the tray once the print is actually done.** While a job

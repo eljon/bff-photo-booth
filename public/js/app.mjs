@@ -170,7 +170,7 @@ async function loadPhoto(file) {
   }
   if (!source || !source.width) {
     throw new Error(looksHeic(file)
-      ? 'That looks like a HEIC photo this phone can’t open here — tap “Take photo”, or pick a JPEG.'
+      ? 'That looks like a HEIC photo this phone can’t open here. Tap “Take photo”, or pick a JPEG.'
       : 'Could not open that photo. Try another one, or tap “Take photo”.');
   }
   return downscale(source, MAX_SOURCE_DIM);
@@ -1210,7 +1210,7 @@ async function acceptFiles(files, startIndex = null) {
   const tooMany = chosen.length > 4;
   // Only speak up when there's real news (more than four picked); the photos
   // appear on their own, so no "Loading…" chatter.
-  if (tooMany) toast('A print holds 4 — using the first four you picked.', 3200);
+  if (tooMany) toast('A print holds 4, so we used the first four you picked.', 3200);
 
   let cursor = startIndex;
   for (const file of list) {
@@ -1364,7 +1364,7 @@ function showJob(job) {
     return showResult({
       emoji: '👀',
       title: 'Waiting for the host',
-      body: 'Your print is in the queue — the booth host taps print. Stay close to the tray.',
+      body: 'Your print is in the queue. The booth host taps print. Stay close to the tray.',
       image: job.image,
       busy: true,
     });
@@ -1373,7 +1373,7 @@ function showJob(job) {
     return showResult({
       emoji: '⏳',
       title: 'In the queue',
-      body: 'Your print is lined up — hang tight.',
+      body: 'Your print is lined up. Hang tight.',
       image: job.image,
       busy: true,
     });
@@ -1383,8 +1383,8 @@ function showJob(job) {
       emoji: '🖨️',
       title: session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       body: session.dryRun
-        ? 'Dry-run mode — nothing is sent to a real printer.'
-        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} printing now — hang tight, we'll tell you the moment it's ready.`,
+        ? 'Dry-run mode. Nothing is sent to a real printer.'
+        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} printing now. Hang tight, we'll tell you the moment it's ready.`,
       image: job.image,
       busy: true,
     });
@@ -1411,7 +1411,7 @@ function showJob(job) {
     title: session.dryRun ? 'Saved (dry run)' : 'All done!',
     body: session.dryRun
       ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
-      : `Your ${job.copies === 1 ? 'print is' : 'prints are'} ready — ${session.remote ? 'collect it from the booth.' : 'grab it from the tray.'}`,
+      : `Your ${job.copies === 1 ? 'print is' : 'prints are'} ready. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
     image: job.image,
   });
 }
@@ -1447,7 +1447,7 @@ function showQueue(job) {
     showResult({
       emoji: '🧾',
       title: 'Saved to the print queue',
-      body: "The booth is offline right now — your print is safe in the queue and will come out the moment it's back online. Tap Done to keep browsing.",
+      body: "The booth is offline right now. Your print is safe in the queue and will come out the moment it's back online. Tap Done to keep browsing.",
       image: job.image,
     });
     return;
@@ -1457,7 +1457,7 @@ function showQueue(job) {
   showResult({
     emoji: '🧾',
     title: q.position <= 1 ? "You're next in line" : `You're number ${q.position} in the queue`,
-    body: `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing — we'll keep your place.`,
+    body: `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing. We'll keep your place.`,
     image: job.image,
   });
 }
@@ -1513,8 +1513,8 @@ function renderJob(job) {
     setAnimPhase('printing');
     setResultText('🖨️', session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       session.dryRun
-        ? 'Dry-run mode — nothing goes to a real printer.'
-        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} printing now — hang tight, we'll tell you the moment it's ready.`);
+        ? 'Dry-run mode. Nothing goes to a real printer.'
+        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} printing now. Hang tight, we'll tell you the moment it's ready.`);
     $('resultDone').disabled = false;
     return;
   }
@@ -1523,7 +1523,7 @@ function renderJob(job) {
     setResultText('🎉', session.dryRun ? 'Saved (dry run)' : 'All done!',
       session.dryRun
         ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
-        : `${copies(['Your print is', 'Your prints are'])} ready — ${session.remote ? 'collect it from the booth.' : 'grab it from the tray.'}`);
+        : `${copies(['Your print is', 'Your prints are'])} ready. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`);
     $('resultDone').disabled = false;
     return;
   }
@@ -1532,12 +1532,12 @@ function renderJob(job) {
     setAnimPhase('queue');
     if (job.agentOnline === false) {
       setResultText('🧾', 'Saved to the print queue',
-        "The booth is offline right now — your print is queued and will come out the moment it's back online.");
+        "The booth is offline right now. Your print is queued and will come out the moment it's back online.");
     } else {
       const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
       setResultText('🧾',
         job.queue.position <= 1 ? "You're next in line" : `You're number ${job.queue.position} in the queue`,
-        `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing — we'll keep your place.`);
+        `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing. We'll keep your place.`);
     }
     $('resultDone').disabled = false;
     return;
@@ -1958,7 +1958,7 @@ async function doPrint() {
   try {
     const { status, data } = await uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
       // Update just the progress line so the animation keeps running underneath.
-      $('resultBody').textContent = `Beaming your photo over — ${Math.round(fraction * 100)}%`;
+      $('resultBody').textContent = `Beaming your photo over… ${Math.round(fraction * 100)}%`;
     });
 
     if (status === 401) {
@@ -1971,7 +1971,7 @@ async function doPrint() {
       showResult({
         emoji: '🔑',
         title: 'Scan the booth QR code',
-        body: 'This booth only prints for guests who came in through its QR code. Scan it and try again — your photos stay put.',
+        body: 'This booth only prints for guests who came in through its QR code. Scan it and try again, and your photos stay put.',
       });
       return;
     }
@@ -1991,7 +1991,7 @@ async function doPrint() {
     showResult({
       emoji: '📶',
       title: err.message === 'network' ? 'Lost the connection' : 'Something went wrong',
-      body: 'Check your signal and try again — or save the photo to your phone.',
+      body: 'Check your signal and try again, or save the photo to your phone.',
     });
   }
 }
@@ -2098,7 +2098,7 @@ async function loadSession() {
   if (!session.online) {
     showProblem('Reconnecting to the booth… you can still save the photo to your phone.');
   } else if (session.keyRequired && !accessKey) {
-    showProblem('Scan the booth QR code to unlock printing — you can still save to your phone.');
+    showProblem('Scan the booth QR code to unlock printing. You can still save to your phone.');
   } else {
     showProblem('');
   }
@@ -2125,7 +2125,7 @@ async function refreshPrinter() {
     if (data.remote && !data.agentOnline) {
       // The relay still takes the print and holds it — the booth drains the queue when
       // it reconnects — so this is a heads-up, not a blocker.
-      showProblem("The booth is offline right now — prints still go in the queue and come out once it's back.");
+      showProblem("The booth is offline right now. Prints still go in the queue and come out once it's back.");
       return;
     }
     if (!data.printers.length) {

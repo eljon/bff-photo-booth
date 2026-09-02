@@ -110,7 +110,7 @@ async function print(file, { printer, copies = 1, media, options = {} } = {}) {
   const res = await run('lp', args, PRINT_TIMEOUT_MS);
   if (!res.ok) {
     const error = res.killed
-      ? `The printer did not respond within ${Math.round(PRINT_TIMEOUT_MS / 1000)}s. It may still print — check the tray.`
+      ? `The printer did not respond within ${Math.round(PRINT_TIMEOUT_MS / 1000)}s. It may still print, so check the tray.`
       : (res.stderr || res.error || 'lp failed').trim();
     return { ok: false, jobId: null, error, killed: res.killed, args };
   }

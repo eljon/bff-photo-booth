@@ -247,7 +247,7 @@ function proxyToPrintHost(req, res, url) {
   proxyReq.setTimeout(30_000, () => proxyReq.destroy(new Error('the booth host did not answer in time')));
   proxyReq.on('error', (err) => {
     if (!res.headersSent) {
-      sendJson(res, 502, { ok: false, error: `Cannot reach the booth printer right now — save to your phone instead. (${err.message})` });
+      sendJson(res, 502, { ok: false, error: `Cannot reach the booth printer right now. Save to your phone instead. (${err.message})` });
     } else {
       res.destroy();
     }
@@ -766,7 +766,7 @@ async function handleApi(req, res, url) {
 
   if (GUEST_ONLY) {
     if (GUEST_ONLY_BLOCKED.has(url.pathname)) {
-      return sendJson(res, 404, { ok: false, error: 'This is a guest-only booth — host controls live on the printing Mac.' });
+      return sendJson(res, 404, { ok: false, error: 'This is a guest-only booth. Host controls live on the printing Mac.' });
     }
     if (PRINT_HOST && PROXIED_API.has(url.pathname)) {
       return proxyToPrintHost(req, res, url);
@@ -876,7 +876,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === '/api/print' && req.method === 'POST') {
     if (!printingEnabledEffective(cfg)) {
-      return sendJson(res, 503, { ok: false, error: 'Printing is switched off for this booth — save the photo to your phone instead.' });
+      return sendJson(res, 503, { ok: false, error: 'Printing is switched off for this booth. Save the photo to your phone instead.' });
     }
     if (!guestAuthorised(req, url)) {
       return sendJson(res, 401, { ok: false, error: 'Scan the booth QR code to print.' });
@@ -980,7 +980,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { ok: false, error: 'Bad job id.' });
     }
     if (MODE === 'relay') {
-      return sendJson(res, 409, { ok: false, error: 'Cancel this one on the booth Mac — the queue lives there.' });
+      return sendJson(res, 409, { ok: false, error: 'Cancel this one on the booth Mac. The queue lives there.' });
     }
     if (DRY_RUN) return sendJson(res, 200, { ok: true, dryRun: true });
     const result = await cups.cancel(cupsJobId);

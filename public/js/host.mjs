@@ -79,7 +79,7 @@ async function loadConfig() {
     Object.assign(document.createElement('code'), { textContent: 'git pull' }),
     document.createTextNode(' and '),
     Object.assign(document.createElement('code'), { textContent: 'caffeinate -dims npm start' }),
-    document.createTextNode(' — the pull alone does not restart it.'),
+    document.createTextNode('. The pull alone does not restart it.'),
   );
   const mode = data.mode === 'relay' ? 'relay' : data.exposed ? 'public' : 'local Wi-Fi';
   $('modePill').textContent = data.dryRun ? 'dry run' : config.printingEnabled ? mode : 'printing off';
@@ -93,7 +93,7 @@ async function loadConfig() {
   }
 
   $('joinHint').textContent = data.exposed
-    ? 'Works from anywhere — cellular, another Wi-Fi, wherever. The link includes the booth key, so guests just scan and print.'
+    ? 'Works from anywhere: cellular, another Wi-Fi, wherever. The link includes the booth key, so guests just scan and print.'
     : 'Guests must be on the same Wi-Fi as this Mac. Start with --tunnel to let them join from anywhere.';
   $('rotateKey').classList.toggle('hidden', !data.keyRequired);
 
@@ -179,12 +179,12 @@ async function loadPrinters() {
   for (const printer of data.printers) {
     const option = document.createElement('option');
     option.value = printer.name;
-    option.textContent = `${printer.name} — ${printer.state}`;
+    option.textContent = `${printer.name} (${printer.state})`;
     select.appendChild(option);
   }
   select.value = config.printer || data.default || data.printers[0].name;
   $('printerHint').textContent = data.dryRun
-    ? 'Dry run — strips are saved but never handed to a printer.'
+    ? 'Dry run: strips are saved but never handed to a printer.'
     : data.remote
       ? `Printing on ${data.printers.length} printer${data.printers.length === 1 ? '' : 's'} reported by the booth Mac.`
       : `Default destination: ${data.default || 'none'}.`;
@@ -209,7 +209,7 @@ async function loadMedia() {
   for (const option of options) {
     const el = document.createElement('option');
     el.value = option.id;
-    el.textContent = option.id + (option.borderless ? ' — borderless' : '') + (option.isDefault ? ' (default)' : '');
+    el.textContent = option.id + (option.borderless ? ' · borderless' : '') + (option.isDefault ? ' (default)' : '');
     sel.appendChild(el);
   }
   if ([...sel.options].some((o) => o.value === want)) {
@@ -311,7 +311,7 @@ async function refreshQueue() {
     ));
   }
   for (const job of failed) {
-    queueBox.appendChild(jobCard({ image: job.image, title: `${pno(job)} — failed`, subtitle: job.error || 'Unknown error' }, []));
+    queueBox.appendChild(jobCard({ image: job.image, title: `${pno(job)} · failed`, subtitle: job.error || 'Unknown error' }, []));
   }
 
   const gallery = $('recent');
@@ -356,7 +356,7 @@ function bind() {
     if (!confirm('Retire the current guest link? Anyone holding the old QR code will have to scan again.')) return;
     await post('/api/config', { rotateKey: true });
     await loadConfig();
-    toast('New guest link — show the fresh QR code.');
+    toast('New guest link. Show the fresh QR code.');
   });
 
   $('saveConfig').addEventListener('click', async () => {

@@ -121,14 +121,14 @@
       </div>
       <div class="hstats">
         <div class="chip"><b id="inLine">0</b><span>in line</span></div>
-        <div class="chip"><b id="clearEta">—</b><span>to clear</span></div>
+        <div class="chip"><b id="clearEta">…</b><span>to clear</span></div>
         <div class="chip"><b id="doneCount">0</b><span>printed</span></div>
         <div class="dot" id="dot" title="Live"></div>
         <button class="iconbtn" id="fs" title="Fullscreen" aria-label="Fullscreen">⛶</button>
       </div>
     </header>
 
-    <div class="offline" id="offline" hidden>The booth is offline right now — prints are queued and will come out once it reconnects.</div>
+    <div class="offline" id="offline" hidden>The booth is offline right now. Prints are queued and will come out once it reconnects.</div>
 
     <main>
       <section class="panel now" id="now">
@@ -136,7 +136,7 @@
         <div class="now-body" id="nowBody">
           <div class="now-strip"><img id="nowImg" alt=""></div>
           <div class="now-info">
-            <div class="now-who" id="nowWho">—</div>
+            <div class="now-who" id="nowWho">…</div>
             <div class="now-sub" id="nowSub"></div>
             <div class="now-tag" id="nowTag">🖨️ Printing now</div>
             <div class="bar"><i id="nowBar"></i></div>
@@ -154,7 +154,7 @@
     <div class="foot">
       <section class="panel">
         <h2>Just printed</h2>
-        <div class="recent" id="recent"><span class="empty" style="font-size:16px">Nothing yet — be the first!</span></div>
+        <div class="recent" id="recent"><span class="empty" style="font-size:16px">Nothing yet. Be the first!</span></div>
       </section>
       <section class="panel join">
         <canvas id="qr" width="120" height="120"></canvas>
@@ -232,7 +232,7 @@
       $('inLine').textContent = String(active.length);
       $('doneCount').textContent = String(jobs.filter((j) => j.status === 'done').length);
       const clearAt = Math.max(0, ...active.map((j) => j.queue?.readyAt || 0));
-      $('clearEta').textContent = clearAt ? fmtEta(Math.round((clearAt - now) / 1000)) : '—';
+      $('clearEta').textContent = clearAt ? fmtEta(Math.round((clearAt - now) / 1000)) : '…';
 
       // agent/offline — only meaningful on a relay (a LAN booth prints locally)
       const off = isRelay && data.agent && data.agent.online === false;
@@ -269,7 +269,7 @@
       const list = $('upList');
       list.innerHTML = '';
       if (!pending.length) {
-        list.innerHTML = '<div class="empty">No one waiting — the queue is clear! 🎉</div>';
+        list.innerHTML = '<div class="empty">No one waiting. The queue is clear! 🎉</div>';
       } else {
         pending.forEach((j, i) => {
           const row = document.createElement('div');
