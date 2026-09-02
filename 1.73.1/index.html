@@ -3547,11 +3547,17 @@ function compactEta(seconds) {
 
 /** Fill the collapsed round queue widget (icon + place + ETA). */
 function updateQueuePill(job) {
-  // The print number is the guest's ticket, so it leads; the sub line carries status.
+  // Print number leads (the guest's ticket); the sub line carries place in line + ETA.
   let icon = '🧾', title = printTag(job) || 'Print', sub = '';
   if (stillWaiting(job)) {
     icon = '🧾';
-    sub = job.agentOnline === false ? 'queued' : (job.queue.position <= 1 ? 'next' : `#${job.queue.position}`);
+    if (job.agentOnline === false) {
+      sub = 'queued';
+    } else {
+      const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
+      const place = job.queue.position <= 1 ? 'next' : `#${job.queue.position}`;
+      sub = `${place} · ${compactEta(seconds)}`;
+    }
   } else if (isActiveJob(job)) {
     icon = '🖨️';
     sub = 'printing';

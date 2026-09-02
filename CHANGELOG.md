@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.2 — 2026-09-02
+
+**The status widget shows the ETA again.**
+
+- When the print number was added to the little status widget it accidentally dropped the
+  ETA. The waiting widget now shows all three: the print number (P5), place in line, and the
+  ETA (e.g. `P5` · `#2 · 2 min`).
+
 ## 1.73.1 — 2026-09-02
 
 **The version is shown on the guest page again.**
