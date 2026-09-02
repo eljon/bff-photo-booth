@@ -17,6 +17,28 @@ test('serves the guest app and its session settings', async (t) => {
   assert.ok(session.maxCopies >= 1);
 });
 
+test('each print gets a running number (P1, P2, …) shown everywhere and in the filename', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+
+  const send = async () => (await fetch(`${booth.base}/api/print?layout=grid&copies=1`, {
+    method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng(8, 12),
+  })).json();
+
+  const first = await send();
+  const second = await send();
+
+  assert.equal(first.job.printNo, 1, 'numbering starts at 1');
+  assert.equal(second.job.printNo, 2, 'and increments');
+  // the number is baked into the saved file (so the image URL carries it too)
+  assert.match(first.job.image, /\/prints\/P1_/);
+  assert.match(second.job.image, /\/prints\/P2_/);
+
+  // and it survives on the host queue view
+  const q = await (await fetch(`${booth.base}/api/queue`)).json();
+  assert.ok(q.jobs.every((j) => typeof j.printNo === 'number'), 'every queued job carries its number');
+});
+
 test('serves the viewer board at /view', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

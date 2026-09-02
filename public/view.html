@@ -180,7 +180,7 @@
 
     const api = (path) => fetch(path, { headers: { 'x-booth-token': token }, cache: 'no-store' });
     const fmtEta = (s) => s <= 5 ? 'now' : s < 60 ? '<1 min' : `${Math.round(s / 60)} min`;
-    const firstName = (g) => (g || 'Guest').trim().split(/\s+/)[0] || 'Guest';
+    const pno = (j) => (j && j.printNo) ? `P${j.printNo}` : 'Print';
 
     let paper = 'backgrounds/paper-land-1.jpg';
     let sticker = 'backgrounds/sticker.png';
@@ -239,13 +239,13 @@
       if (printing) {
         nowEl.classList.remove('idle');
         $('nowImg').src = printing.image;
-        $('nowWho').textContent = firstName(printing.guest);
+        $('nowWho').textContent = pno(printing);
         $('nowSub').textContent = printing.copies > 1 ? `${printing.copies} copies` : 'One copy';
         $('nowTag').textContent = '🖨️ Printing now';
       } else if (pending.length) {
         nowEl.classList.add('idle');
         $('nowImg').src = pending[0].image;
-        $('nowWho').textContent = firstName(pending[0].guest);
+        $('nowWho').textContent = pno(pending[0]);
         $('nowSub').textContent = 'Warming up…';
         $('nowTag').textContent = '⏳ Starting soon';
       } else {
@@ -267,7 +267,7 @@
           row.className = 'row' + (i === 0 && !printing ? ' next' : '');
           row.innerHTML = `<div class="pos">${j.queue?.position ?? i + 2}</div>
             <div class="thumb"><img src="${j.image}" alt=""></div>
-            <div class="who">${escapeHtml(firstName(j.guest))}</div>
+            <div class="who">${escapeHtml(pno(j))}</div>
             <div class="eta"><b data-eta="${j.id}">${fmtEta(j.queue?.etaSeconds || 0)}</b><span>wait</span></div>`;
           list.appendChild(row);
         });

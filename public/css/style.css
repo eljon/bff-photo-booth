@@ -988,6 +988,20 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   max-width: 420px;
   width: 100%;
 }
+/* The guest's print number — their ticket to match against the queue board/tray. */
+.result-tag {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--grad);
+  background-size: 200% 200%;
+  box-shadow: 0 6px 16px -6px #a24bffcc;
+}
 .result-emoji { font-size: 44px; }
 .result-card h2 { margin: 10px 0 6px; font-size: 21px; }
 .result-card p { margin: 0; color: var(--ink-dim); font-size: 15px; line-height: 1.5; }

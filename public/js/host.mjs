@@ -50,6 +50,11 @@ function askForToken(message = '') {
   $('tokenInput').focus();
 }
 
+/** Each print's running number (P1, P2, …) — the identifier shown in place of a name. */
+function pno(job) {
+  return job && job.printNo ? `P${job.printNo}` : 'Print';
+}
+
 /** The guest link carries the access key when the booth is public. */
 function guestUrl(base) {
   return info && info.keyRequired ? `${base}/?k=${encodeURIComponent(config.accessKey)}` : base;
@@ -276,7 +281,7 @@ async function refreshQueue() {
       pendingBox.appendChild(jobCard(
         {
           image: job.image,
-          title: job.guest || 'A guest',
+          title: pno(job),
           subtitle: `${job.layout} · ${job.copies} ${job.copies === 1 ? 'copy' : 'copies'}`,
         },
         [
@@ -296,7 +301,8 @@ async function refreshQueue() {
     queueBox.innerHTML = '<p class="hint">Queue is empty.</p>';
   }
   for (const job of inFlight) {
-    queueBox.appendChild(jobCard({ image: job.image, title: 'On its way to the printer', subtitle: `${job.guest || 'a guest'} · ${job.layout}` }, []));
+    const state = job.status === 'printing' || job.status === 'claimed' ? 'Printing' : 'On its way to the printer';
+    queueBox.appendChild(jobCard({ image: job.image, title: pno(job), subtitle: `${state} · ${job.layout}` }, []));
   }
   for (const job of data.cupsJobs) {
     queueBox.appendChild(jobCard(
@@ -305,7 +311,7 @@ async function refreshQueue() {
     ));
   }
   for (const job of failed) {
-    queueBox.appendChild(jobCard({ image: job.image, title: 'Failed', subtitle: job.error || 'Unknown error' }, []));
+    queueBox.appendChild(jobCard({ image: job.image, title: `${pno(job)} — failed`, subtitle: job.error || 'Unknown error' }, []));
   }
 
   const gallery = $('recent');

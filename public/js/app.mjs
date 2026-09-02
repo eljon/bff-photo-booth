@@ -5,6 +5,16 @@ import { composePage, exportPrint, drawSinglePhoto, clampTransform, resolveLayou
 const $ = (id) => document.getElementById(id);
 const MAX_SOURCE_DIM = 3600; // fills a full-page cell at the 600 DPI print scale, still gentle on memory
 
+/** Each print gets a running number from the server (P1, P2, …) — the guest's ticket. */
+const printTag = (job) => (job && job.printNo) ? `P${job.printNo}` : '';
+function setResultTag(job) {
+  const el = $('resultTag');
+  if (!el) return;
+  const t = printTag(job);
+  el.textContent = t;
+  el.classList.toggle('hidden', !t);
+}
+
 // One layout, one look, one paper. The guest picks photos and prints — that is
 // the whole app.
 const state = {
@@ -1461,29 +1471,20 @@ function compactEta(seconds) {
 
 /** Fill the collapsed round queue widget (icon + place + ETA). */
 function updateQueuePill(job) {
-  let icon = '🧾', title = '', sub = '';
+  // The print number is the guest's ticket, so it leads; the sub line carries status.
+  let icon = '🧾', title = printTag(job) || 'Print', sub = '';
   if (stillWaiting(job)) {
     icon = '🧾';
-    if (job.agentOnline === false) {
-      title = 'Queued';
-      sub = 'booth off';
-    } else {
-      const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
-      title = `#${job.queue.position} in line`;
-      sub = compactEta(seconds);
-    }
+    sub = job.agentOnline === false ? 'queued' : (job.queue.position <= 1 ? 'next' : `#${job.queue.position}`);
   } else if (isActiveJob(job)) {
     icon = '🖨️';
-    title = 'Printing';
-    sub = 'now';
+    sub = 'printing';
   } else if (job && (job.status === 'failed' || job.status === 'rejected')) {
     icon = '⚠️';
-    title = 'Issue';
-    sub = 'tap';
+    sub = 'issue';
   } else {
     icon = '🎉';
-    title = 'Printed';
-    sub = 'tap';
+    sub = 'ready';
   }
   $('qwIcon').textContent = icon;
   $('qwTitle').textContent = title;
@@ -1493,6 +1494,7 @@ function updateQueuePill(job) {
 /** Render the current job either as the full modal or, if collapsed, the pill. */
 function renderJob(job) {
   currentJob = job;
+  setResultTag(job); // show the print number (P5) on whatever screen we render
   if (queueMinimized) {
     updateQueuePill(job);
     return;
@@ -1563,6 +1565,7 @@ function closeResult() {
   stopSendAnim();
   queueMinimized = false;
   currentJob = null;
+  setResultTag(null);
   $('result').classList.add('hidden');
   $('queuePill').classList.add('hidden');
 }
@@ -1918,6 +1921,7 @@ async function doPrint() {
   clearQueueTimers();
   currentJob = null;
   queueMinimized = false;
+  setResultTag(null); // clear any previous print's number until the server assigns this one's
   $('queuePill').classList.add('hidden');
   showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 600 DPI.', busy: true });
 

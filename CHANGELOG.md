@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.0 — 2026-09-02
+
+**Every print gets a number — P1, P2, P3…**
+
+- Each print is stamped with a running number as it's submitted. It shows in the host queue
+  and the `/view` board (in place of a guest name), on the guest's own screen (a badge in
+  the print modal and the little status widget), and it's baked into the saved filename
+  (`P7_…png`) so a print is easy to match to its ticket. The counter continues across a
+  relay restart.
+
 ## 1.72.2 — 2026-09-02
 
 **The Mac now reports real print completion — no more guessing.**

@@ -116,6 +116,7 @@ try {
 
 /** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
+let printSeq = 0; // hands each print a running number: P1, P2, P3… (survives restarts)
 const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
 const PRINT_MS = Number(process.env.PRINT_MS) || 30 * 1000; // seed estimate of one print's time; refined from real runs
 const MAX_PRINT_MS = 5 * 60 * 1000; // a print stuck longer than this is treated as done
@@ -133,7 +134,7 @@ const agent = { lastSeen: 0, printers: [], name: null, dryRun: false };
 // queue.json and reload it on boot. (Booth/LAN mode prints straight to CUPS and is
 // left in memory, so a restart never risks reprinting what already came out.)
 const QUEUE_FILE = path.join(PRINTS_DIR, 'queue.json');
-const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'copies', 'printer', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
+const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'copies', 'printer', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
 let persistTimer = null;
 
 /** Write the whole queue to disk atomically (temp file, then rename). Relay only. */
@@ -176,6 +177,7 @@ function loadQueue() {
       job.status = 'pending'; job.cupsJobId = null; job.claimedAt = 0; job.printedAt = 0; requeued++;
     }
     jobs.set(job.id, job);
+    if (job.printNo > printSeq) printSeq = job.printNo; // continue numbering where we left off
     restored++;
   }
   if (restored) {
@@ -619,6 +621,7 @@ function publicJob(job) {
     id: job.id,
     status: job.status,
     layout: job.layout,
+    printNo: job.printNo || null,
     copies: job.copies,
     printer: job.printer || null,
     cupsJobId: job.cupsJobId || null,
@@ -905,8 +908,9 @@ async function handleApi(req, res, url) {
       : null;
 
     const id = crypto.randomUUID();
+    const printNo = ++printSeq; // P1, P2, P3…
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const file = path.join(PRINTS_DIR, `${stamp}_${layout}_${id.slice(0, 8)}.${kind}`);
+    const file = path.join(PRINTS_DIR, `P${printNo}_${stamp}_${layout}_${id.slice(0, 8)}.${kind}`);
     await fsp.writeFile(file, body);
 
     const job = {
@@ -915,6 +919,7 @@ async function handleApi(req, res, url) {
       file,
       layout,
       guest,
+      printNo,
       copies,
       printer: requestedPrinter,
       media: jobMedia,
