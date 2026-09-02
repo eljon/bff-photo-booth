@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid, designVariants, stickerSpec } from '../public/js/layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid, designVariants } from '../public/js/layouts.mjs';
 
 // Four stand-in photos of mixed orientation, so the dynamic grid is exercised
 // on the case that matters — not just placeholders.
@@ -91,44 +91,24 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('every photo cell is a clean 4:3 or 3:4, cover-filled, matching its orientation', () => {
+test('nothing is cropped: each photo cell is shaped to its own photo', () => {
   const mixes = [
-    [[1000, 1500], [1200, 1300], [1100, 1400], [1000, 1500]],   // all portrait
-    [[1600, 1000], [1500, 1000], [1600, 900], [1400, 1000]],    // all landscape
-    [[1000, 1500], [1600, 1000], [1000, 1500], [1600, 1000]],   // mixed
+    [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
+    [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
+    [[1000, 1500], [1600, 1000], [1000, 1500], [1200, 1200]],   // mixed
   ];
   for (const mix of mixes) {
     const photos = mix.map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
     const { cells, page } = resolveGrid(LAYOUTS.grid, photos);
     assert.equal(cells.length, 4);
+
     for (const c of cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
-      // Per the tight-layout guide: a landscape photo gets a 4:3 cell, a portrait a 3:4 cell,
-      // and the photo is shown cover-fit to fill it.
-      assert.equal(c.fit, 'cover', 'photo fills its cell (cover) — clean 4:3/3:4 geometry');
+      // The cell has the SAME aspect as its photo, so the whole photo shows — nothing is
+      // cropped and there are no letterbox bars. The paper around it is the matting.
       const p = photos[c.photo].bitmap;
-      const want = p.width >= p.height ? 4 / 3 : 3 / 4;
-      assert.ok(Math.abs(want - c.w / c.h) / want < 0.02, 'cell is exact 4:3 (landscape) or 3:4 (portrait)');
-    }
-    for (let i = 0; i < cells.length; i++) {
-      for (let j = i + 1; j < cells.length; j++) {
-        assert.ok(!overlaps(cells[i], cells[j]), `cells ${i} and ${j} overlap`);
-      }
-    }
-  }
-});
-
-test('the sticker sits in the margin and is never stamped on a photo', () => {
-  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
-  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
-  const sticker = stickerSpec(FRAMES.watercolor);
-  for (const v of designVariants(LAYOUTS.grid, photos, sticker)) {
-    const stick = v.cells.filter((c) => c.extra === 'sticker');
-    const photoCells = v.cells.filter((c) => c.photo !== undefined);
-    assert.equal(stick.length, 1, `${v.key}: exactly one sticker`);
-    assert.equal(photoCells.length, 4, `${v.key}: four photo cells`);
-    for (const p of photoCells) {
-      assert.ok(!overlaps(stick[0], p), `${v.key}: sticker overlaps a photo`);
+      const photoAspect = p.width / p.height;
+      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, 'cell is shaped to its photo — no crop, no bars');
     }
   }
 });
@@ -206,11 +186,12 @@ test('the hero photo leads and is among the largest, within the cap', () => {
   const photos = [mk(900, 1300), mk(950, 1300), mk(900, 1350), mk(920, 1280)];
   const { cells } = resolveGrid(LAYOUTS.grid, photos);
 
-  // The booth picks the fullest-filling hero design, so the hero may be any photo — but a
-  // hero LEADS the cells and is the largest (or tied), within the 2× cap. Never a thumbnail.
+  assert.equal(cells[0].photo, 0, 'photo 0 leads as the hero');
   const heroArea = cells[0].w * cells[0].h;
   const areas = cells.map((c) => c.w * c.h);
-  assert.ok(heroArea >= Math.max(...areas) - 1, 'the hero leads and is the largest cell (or tied)');
+  // Space is the priority, so with equal-ish photos the hero is the biggest cell or ties
+  // for it — never a shrunken thumbnail — and stays within the 2× cap.
+  assert.ok(heroArea >= Math.max(...areas) - 1, 'the hero is the largest cell (or tied)');
   assert.ok(heroArea <= Math.min(...areas) * 2 + 1, 'the hero stays within 2× the smallest');
 });
 
@@ -221,17 +202,17 @@ test('a different hero can be chosen by passing its index', () => {
   assert.equal(cells[0].photo, 2, 'the chosen index leads as the hero');
 });
 
-test('the coverflow only offers well-filled designs, all distinct', () => {
+test('the coverflow offers each photo as the hero plus an even grid, all distinct', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   const variants = designVariants(LAYOUTS.grid, photos);
 
-  assert.ok(variants.length >= 1, 'at least one design to offer');
-  // Sparse layouts (a mismatched hero stacked into a narrow column) are dropped, so guests
-  // never swipe onto a mostly-empty sheet: every offered design fills close to the best one.
-  const covs = variants.map((v) => v.cells.filter((c) => c.photo != null).reduce((s, c) => s + c.w * c.h, 0) / (v.page.w * v.page.h));
-  const best = Math.max(...covs);
-  for (const cov of covs) assert.ok(cov >= best - 0.12 - 1e-6, `an offered design is too sparse (${cov.toFixed(2)} vs best ${best.toFixed(2)})`);
+  // Every photo can be the hero (both placements) and there is a no-hero option.
+  for (let h = 0; h < 4; h++) {
+    assert.ok(variants.some((v) => v.kind === 'hero' && v.heroIndex === h), `photo ${h} is offered as a hero`);
+  }
+  assert.ok(variants.some((v) => v.kind === 'even'), 'an even grid is offered');
+  assert.ok(variants.length >= 5, 'there are several designs to swipe through');
 
   // No two cards are the same design, and each has a stable key and a label.
   const keys = new Set(variants.map((v) => v.key));
@@ -242,36 +223,22 @@ test('the coverflow only offers well-filled designs, all distinct', () => {
   }
 });
 
-test('every coverflow design uses clean 4:3/3:4 cells, cover-filled, and never overlaps', () => {
+test('every coverflow design crops nothing and never overlaps', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
-    const photoCells = [];
     for (const c of v.cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
       if (c.photo !== undefined) {
-        // Per the tight-layout guide: each cell is exact 4:3 (landscape) or 3:4 (portrait) for
-        // its photo's orientation, and the photo is shown cover-fit to fill it.
-        assert.equal(c.fit, 'cover', `${v.key}: photo fills its cell (cover)`);
         const p = photos[c.photo].bitmap;
-        const want = p.width >= p.height ? 4 / 3 : 3 / 4;
-        assert.ok(Math.abs(want - c.w / c.h) / want < 0.02, `${v.key}: clean 4:3/3:4 cell`);
-        photoCells.push(c);
+        const photoAspect = p.width / p.height;
+        assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, `${v.key}: photo cell shaped to its photo — no crop`);
       }
     }
-    // Photos never overlap each other, and the sticker (its own lower-right cell) never sits
-    // on top of a photo.
-    const stick = v.cells.filter((c) => c.extra === 'sticker');
-    for (let i = 0; i < photoCells.length; i++) {
-      for (let j = i + 1; j < photoCells.length; j++) {
-        assert.ok(!overlaps(photoCells[i], photoCells[j]), `${v.key}: photo cells ${i} and ${j} overlap`);
+    for (let i = 0; i < v.cells.length; i++) {
+      for (let j = i + 1; j < v.cells.length; j++) {
+        assert.ok(!overlaps(v.cells[i], v.cells[j]), `${v.key}: cells ${i} and ${j} overlap`);
       }
-      for (const s of stick) assert.ok(!overlaps(photoCells[i], s), `${v.key}: sticker overlaps a photo`);
-    }
-    // The sticker is the smallest thing on the page (rule 5), never the hero.
-    for (const s of stick) {
-      const smallestPhoto = Math.min(...photoCells.map((c) => c.w * c.h));
-      assert.ok(s.w * s.h < smallestPhoto, `${v.key}: sticker is not the smallest element`);
     }
   }
 });
@@ -281,8 +248,7 @@ test('the first coverflow design is what the booth would pick on its own', () =>
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   const auto = resolveGrid(LAYOUTS.grid, photos);
   const first = designVariants(LAYOUTS.grid, photos)[0];
-  // The booth's auto pick is the fullest-filling design, which is exactly the lead card — so a
-  // guest who never swipes prints the same sheet the coverflow shows first.
+  assert.equal(first.heroIndex, 0, 'the lead card heroes photo 1');
   assert.equal(first.page.w, auto.page.w, 'the lead card matches the auto sheet');
   assert.equal(first.page.h, auto.page.h);
   assert.deepEqual(first.cells.map((c) => c.photo), auto.cells.map((c) => c.photo), 'same cell order as auto');

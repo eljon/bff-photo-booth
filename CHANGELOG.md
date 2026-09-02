@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.23 — 2026-09-02
+
+**Revert the layout to the 1.73.14 version.** The 1.73.15–1.73.22 layout rework made the
+picker grid worse, so `public/js/layouts.mjs` and its tests are restored exactly to the
+1.73.14 state: whole photos (no crop), each cell shaped to its own photo, one hero within
+2× the smallest, and the sticker as a small badge in the margin. All the non-layout fixes
+since then (/view rotation, print serialization, tray-timing copy, em-dash removal, sRGB
+print tagging) are untouched.
+
+---
+
 ## 1.73.22 — 2026-09-02
 
 **Tight layout, matching the guide.** Every photo is now snapped to a clean 4:3 (landscape)
