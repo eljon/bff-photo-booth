@@ -555,18 +555,19 @@ function startPrinterWatch() {
   printerWatch = setInterval(async () => {
     const job = [...jobs.values()].find((j) => j.status === 'printing');
     if (!job) { clearInterval(printerWatch); printerWatch = null; return; }
-    if (Date.now() - (job.printedAt || 0) > MAX_PRINT_MS) { completeJob(job); return; } // never wait forever
+    const elapsed = Date.now() - (job.printedAt || 0);
+    if (elapsed > MAX_PRINT_MS) { completeJob(job); return; } // never wait forever
     try {
       const active = await cups.listJobs(); // lpstat -o — jobs not yet finished
       const present = Boolean(job.cupsJobId) && active.some((j) => j.id === job.cupsJobId);
-      if (present) {
-        job.seenActive = true;
-      } else if (job.seenActive || Date.now() - (job.printedAt || 0) > 8000) {
-        // Gone from the active list → CUPS finished it. Only trust the absence
-        // once we've seen it there, or after a grace period, so a just-submitted
-        // job is never called "done" before CUPS registers it.
-        completeJob(job);
-      }
+      if (present) job.seenActive = true;
+      // CUPS drops a job from its queue the moment the backend finishes SENDING it to
+      // the printer — which on any printer with a page buffer is well before the sheet
+      // is physically out. Releasing the next print then just fills the printer's own
+      // hardware queue. So hold the printer busy until the job has BOTH cleared CUPS
+      // and been printing for at least one physical interval (PRINT_MS, env-tunable).
+      const clearedCups = !present && (job.seenActive || elapsed > 8000);
+      if (clearedCups && elapsed >= PRINT_MS) completeJob(job);
     } catch { /* transient lpstat hiccup — try again next tick */ }
   }, 2000);
   if (printerWatch.unref) printerWatch.unref();

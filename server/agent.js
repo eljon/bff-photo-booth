@@ -30,6 +30,11 @@ const PRINTS_DIR = process.env.PRINTS_DIR || path.join(__dirname, '..', 'prints'
 const AGENT_NAME = process.env.AGENT_NAME || `${os.hostname()} booth`;
 const POLL_SECONDS = 25;
 const HELLO_EVERY_MS = 60_000;
+// Minimum time one sheet holds the printer before the agent pulls the next job.
+// CUPS reports a job done when it finishes SENDING to the printer, which on buffered
+// printers is before the page is out — so without this floor the agent hands `lp`
+// the next job too soon and the printer's own queue fills up. Tune to your printer.
+const PRINT_MS = Number(process.env.PRINT_MS) || 30 * 1000;
 
 if (!RELAY_URL || !BOOTH_TOKEN) {
   console.error('The agent needs RELAY_URL and BOOTH_TOKEN.');
@@ -133,19 +138,21 @@ async function report(job, outcome) {
 /** Wait until CUPS says the job has actually left the print queue — so the relay
  *  (and the guest) learn the print is DONE for real, not on a time estimate. Gives
  *  up after a long ceiling so a stuck job never wedges the agent forever. */
-async function waitForCupsDone(cupsJobId) {
-  if (!cupsJobId) return;
+async function waitForCupsDone(cupsJobId, startedAt = Date.now()) {
   const started = Date.now();
   const MAX = 6 * 60 * 1000; // never wait longer than this for one sheet
   let seen = false;
   for (;;) {
     let active = [];
     try { active = await cups.listJobs(); } catch { /* transient lpstat hiccup — retry */ }
-    const present = active.some((j) => j.id === cupsJobId);
+    const present = Boolean(cupsJobId) && active.some((j) => j.id === cupsJobId);
     if (present) seen = true;
-    // Gone from the active list once we've seen it there (or after a short grace, in
-    // case it finished before our first check) → CUPS is done with it.
-    else if (seen || Date.now() - started > 8000) return;
+    // Done only when the job has cleared CUPS (seen there then gone, or a short grace
+    // if it finished before our first check) AND has held the printer for at least one
+    // physical print interval — otherwise a buffered printer accepts the next sheet
+    // immediately and its queue piles up.
+    const clearedCups = !present && (seen || Date.now() - started > 8000);
+    if (clearedCups && Date.now() - startedAt >= PRINT_MS) return;
     if (Date.now() - started > MAX) return;
     await wait(1500);
   }
@@ -178,9 +185,10 @@ async function tick() {
     // Two phases: tell the relay it STARTED (so the guest sees "Printing now"), then
     // watch CUPS and report DONE only once the sheet has really left the queue. This
     // also serialises prints on one printer and teaches the relay the true duration.
+    const startedAt = Date.now();
     await report(job, { ...outcome, started: true });
     log(`  → printing (CUPS ${outcome.cupsJobId || 'accepted'})`);
-    await waitForCupsDone(outcome.cupsJobId);
+    await waitForCupsDone(outcome.cupsJobId, startedAt);
     await report(job, { ...outcome, done: true });
     log('  → done');
   } catch (err) {

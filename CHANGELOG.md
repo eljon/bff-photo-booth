@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.10 — 2026-09-02
+
+**Stop flooding the printer's own queue — send one sheet at a time for real.**
+Regression from 1.72.2: completion switched to "CUPS says done", but CUPS reports
+a job done the moment it finishes *sending* it to the printer, which on any
+printer with a page buffer is well before the sheet is out. The booth then
+released the next `lp` too early and pages piled up in the printer's hardware
+queue. Now a print holds the printer until it has BOTH cleared CUPS **and** been
+printing for at least one physical interval (`PRINT_MS`, env-tunable, default
+30s) — so at most one sheet is ever in front of the printer. Same floor applied
+to the relay agent's completion wait. Set `PRINT_MS` to your printer's real
+per-sheet time (in ms) for tight pacing. Verified with a simulated buffered
+printer: max one concurrent print, one sheet released per interval.
+
+---
+
 ## 1.73.9 — 2026-09-02
 
 **Actually fix landscape prints shown sideways in /view.** The 1.73.5 viewer
