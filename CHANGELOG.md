@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.27 — 2026-09-02
+
+**More room for the coverflow.** The design cards and their reflection now get more vertical
+space: the action buttons below (the check, Save/Print, Replace) sit lower on the screen —
+their upward lift changed from -34px to +6px — and the margins above the coverflow are tighter
+(the header padding and the step-guide gap were trimmed). A small bottom safe-area pad keeps
+the lowered buttons clear of the screen edge. Verified with a phone-width screenshot of the
+swipe step.
+
+---
+
 ## 1.73.26 — 2026-09-02
 
 **Make the sticker pop.** The badge now gets a tight dark outline hugging its silhouette (an
