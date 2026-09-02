@@ -15,7 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.35 — 2026-09-02
+## 1.73.36 — 2026-09-02
+
+**Collapse the printer list.** The settings screen no longer lists every printer on the machine
+by default — it shows only the printers you've chosen (with their names/numbers) and a "Choose
+printers" button. Tap it to open the full list, tick and name the printers to run, then close it
+again (it also collapses after Save). A fresh booth starts with none chosen, printing to the
+default printer until you pick.
 
 **Printer list readability + clearer approval box.** Each printer in "Printers to use" is now
 its own card with the full name on top (long CUPS names like "CANON_G4010_series" wrap instead

@@ -47,8 +47,10 @@
   <section class="panel">
     <h2>Printer <span class="pill quiet" id="agentState">…</span></h2>
     <div class="field"><span>Printers to use</span>
-      <div id="printerList" class="printer-list"></div>
-      <p class="hint">Tick every printer to run. Prints are shared out to whichever printer is free first. The name you type is what guests and the queue board see.</p>
+      <div id="printerSummary" class="printer-summary"></div>
+      <button class="btn btn-ghost" id="choosePrinters" type="button">Choose printers</button>
+      <div id="printerList" class="printer-list" hidden></div>
+      <p class="hint">Prints are shared out to whichever selected printer is free first. The name you type is what guests and the queue board see.</p>
     </div>
     <label class="field"><span>Paper</span>
       <select id="mediaPick" class="text-input">

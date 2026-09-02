@@ -11,6 +11,7 @@ let timer = null;
 let chosenSticker = null; // the sticker the host has picked (committed on Save)
 let availablePrinters = []; // every printer across the connected computers
 let selection = new Map();   // "agentId|name" -> host-set label (the printers to run)
+let lastPrinterData = null;  // the most recent /api/printers payload, for re-rendering
 
 function readToken() {
   try {
@@ -182,7 +183,9 @@ async function loadPrinters() {
     state.className = 'pill quiet';
   }
 
-  // Seed the selection: the saved printers, else the legacy single printer, else all found.
+  // Seed the selection from what's saved: the chosen printers, else the legacy single
+  // printer. Nothing saved => nothing pre-ticked (the booth still prints to the default),
+  // so the host deliberately picks which printers to run.
   selection = new Map();
   const saved = Array.isArray(config.printers) ? config.printers : [];
   if (saved.length) {
@@ -190,10 +193,33 @@ async function loadPrinters() {
   } else if (config.printer && availablePrinters.some((p) => p.name === config.printer)) {
     const p = availablePrinters.find((x) => x.name === config.printer);
     selection.set(slotKey(p.agentId, p.name), p.name);
-  } else {
-    for (const p of availablePrinters) selection.set(slotKey(p.agentId, p.name), p.name);
   }
+  lastPrinterData = data;
+  renderPrinterSummary();
   renderPrinterList(data);
+}
+
+/** The compact default view: just the printers currently chosen (with their names/numbers),
+ *  so the settings stay short. The full picker opens on demand. */
+function renderPrinterSummary() {
+  const box = $('printerSummary');
+  if (!box) return;
+  const sel = selectedPrinters();
+  box.innerHTML = '';
+  if (!sel.length) {
+    box.innerHTML = '<p class="hint">No printers chosen — the booth uses whatever printer is available. Tap “Choose printers” to pick and name them.</p>';
+    return;
+  }
+  for (const p of sel) {
+    const chip = document.createElement('div');
+    chip.className = 'printer-chip';
+    const label = document.createElement('b');
+    label.textContent = p.label || p.name;
+    const sub = document.createElement('span');
+    sub.textContent = p.label && p.label !== p.name ? p.name : '';
+    chip.append(label, sub);
+    box.appendChild(chip);
+  }
 }
 
 /** Draw the printer checklist: a row per printer (grouped by computer in relay mode),
@@ -240,8 +266,9 @@ function renderPrinterList(data) {
     cb.addEventListener('change', () => {
       if (cb.checked) { selection.set(key, label.value.trim() || p.name); label.disabled = false; label.focus(); }
       else { selection.delete(key); label.disabled = true; }
+      renderPrinterSummary();
     });
-    label.addEventListener('input', () => { if (cb.checked) selection.set(key, label.value.trim() || p.name); });
+    label.addEventListener('input', () => { if (cb.checked) { selection.set(key, label.value.trim() || p.name); renderPrinterSummary(); } });
     row.append(head, label);
     box.appendChild(row);
   }
@@ -400,6 +427,13 @@ async function refreshQueue() {
 function bind() {
   $('urlPick').addEventListener('change', (event) => paintQr(event.target.value));
 
+  $('choosePrinters').addEventListener('click', () => {
+    const list = $('printerList');
+    const open = list.hidden;
+    list.hidden = !open;
+    $('choosePrinters').textContent = open ? 'Done choosing' : 'Choose printers';
+  });
+
   $('tokenSave').addEventListener('click', async () => {
     token = $('tokenInput').value.trim();
     try {
@@ -445,6 +479,8 @@ function bind() {
     await loadConfig();
     await loadPrinters();
     await loadMedia();
+    $('printerList').hidden = true; // collapse the picker back to the compact summary
+    $('choosePrinters').textContent = 'Choose printers';
     toast('Saved.');
   });
 }
