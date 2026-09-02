@@ -105,36 +105,24 @@ function isInAppBrowser() {
 }
 const isAndroidUA = () => /Android/i.test(navigator.userAgent || '');
 
-/** Reopen the current URL outside the in-app browser. On Android we can hand the WebView an
- *  intent that launches Chrome; on iOS we can't redirect out, so copy the link to paste. */
-function openInExternalBrowser() {
+/** Reading the phone's gallery on the web is only possible through the file picker, and the
+ *  picker cannot work inside an in-app WebView that denies media access — no web code can grant
+ *  that OS permission. So when the guest reaches for their photos here, relaunch the booth in a
+ *  real browser (same URL, so they land back on this page) where the picker works. Returns true
+ *  if it handled the tap. Android: an intent launches Chrome. iOS: Chrome's URL scheme, with a
+ *  copied link + note so they can paste into Safari if Chrome isn't installed. */
+function escapeInAppBrowser() {
+  if (!isInAppBrowser()) return false;
   const href = location.href;
   if (isAndroidUA()) {
     const noScheme = href.replace(/^https?:\/\//, '');
-    // Launch Chrome specifically; if it isn't installed the intent falls through and the
-    // banner's written "use the ⋮ menu" instructions still stand.
     window.location.href = `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`;
-    return;
+    return true;
   }
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(href).then(
-      () => toast('Link copied — paste it into Safari or Chrome', 3600),
-      () => {},
-    );
-  }
-}
-
-/** Show the escape-hatch banner only inside an in-app browser. */
-function setupInAppBrowserNotice() {
-  if (!isInAppBrowser()) return;
-  const el = $('extBrowser');
-  if (!el) return;
-  if (!isAndroidUA()) {
-    const how = $('extBrowserHow');
-    if (how) how.textContent = 'Tap to copy this link, then open it in Safari';
-  }
-  el.classList.remove('hidden');
-  el.addEventListener('click', openInExternalBrowser);
+  if (navigator.clipboard) navigator.clipboard.writeText(href).catch(() => {});
+  window.location.href = href.replace(/^https:/, 'googlechromes:').replace(/^http:/, 'googlechrome:');
+  toast('Open this booth in Safari to add your photos — link copied.', 4200);
+  return true;
 }
 
 /** iPhone/Samsung gallery photos are frequently HEIC/HEIF, which Android Chrome can't
@@ -1234,6 +1222,7 @@ function onSlotTap(index) {
 }
 
 function pickInto(index) {
+  if (escapeInAppBrowser()) return;
   pendingSlot = index;
   $('fileOne').value = '';
   $('fileOne').click();
@@ -1243,7 +1232,6 @@ async function acceptFiles(files, startIndex = null) {
   const chosen = [...files];
   const list = chosen.slice(0, 4);
   if (!list.length) return;
-  $('extBrowser')?.classList.add('hidden'); // the picker returned files, so it works here
 
   if (startIndex === null && replaceAllNext) {
     state.photos = [null, null, null, null];
@@ -2185,13 +2173,15 @@ async function refreshPrinter() {
 // ---------------------------------------------------------------- wiring
 
 function openPicker(replaceAll) {
+  // Inside an in-app browser the picker just throws "allow media"; send the guest to a real
+  // browser instead of opening a picker that can't work.
+  if (escapeInAppBrowser()) return;
   replaceAllNext = replaceAll;
   $('filePicker').value = '';
   $('filePicker').click();
 }
 
 function bind() {
-  setupInAppBrowserNotice();
   $('addAll').addEventListener('click', () => openPicker(filledCount() === 4));
   $('swapAll').addEventListener('click', () => openPicker(true)); // starts a fresh set of 4
   $('filePicker').addEventListener('change', (event) => acceptFiles(event.target.files));
