@@ -15,6 +15,24 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.15 — 2026-09-02
+
+**Fill the sheet: a guillotine-slicing layout optimiser.** The layout used to fix
+each photo's area and then scale the block to fit, which left wide borders. It now
+searches every possible recursive split of the sheet (both orientations) and
+chooses split ratios so each photo's rectangle exactly matches its aspect ratio —
+a zero-gap tiling, computed from the identity that a slice's aspect combines as a
+sum (side-by-side) or a reciprocal sum (stacked). It keeps the arrangement that
+covers the most paper while obeying the rules (no cropping; one hero, never more
+than 2× the smallest; the sticker a small corner badge, never the hero). Typical
+prints now fill ~85–90% of the sheet edge to edge instead of sitting in a wide
+margin. When no balanced gap-free tiling exists for a given photo mix, it falls
+back to the previous layout (a residual border is then forced by "no crop + ≤2×").
+Verified across many photo-aspect mixes: rules hold, no overlaps, and by rendering
+real prints.
+
+---
+
 ## 1.73.14 — 2026-09-02
 
 **Tag prints as sRGB so they colour-manage like a real photo.** Prints from the
