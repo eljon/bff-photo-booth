@@ -217,19 +217,24 @@ function renderPrinterList(data) {
       box.appendChild(head);
     }
     const key = slotKey(p.agentId, p.name);
-    const row = document.createElement('label');
+    const row = document.createElement('div');
     row.className = 'printer-row';
+    // Checkbox + full printer name on the top line (the name wraps, so long CUPS names
+    // like "CANON_G4010_series" show in full); the name/number field sits below it.
+    const head = document.createElement('label');
+    head.className = 'printer-head';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = selection.has(key);
     const name = document.createElement('span');
     name.className = 'printer-name';
-    name.textContent = p.state ? `${p.name} (${p.state})` : p.name;
+    name.textContent = p.state ? `${p.name} · ${p.state}` : p.name;
+    head.append(cb, name);
     const label = document.createElement('input');
     label.type = 'text';
     label.className = 'text-input printer-label';
     label.maxLength = 40;
-    label.placeholder = 'Name or number (e.g. #1)';
+    label.placeholder = 'Name or number guests see (e.g. #1)';
     label.value = selection.get(key) || '';
     label.disabled = !cb.checked;
     cb.addEventListener('change', () => {
@@ -237,7 +242,7 @@ function renderPrinterList(data) {
       else { selection.delete(key); label.disabled = true; }
     });
     label.addEventListener('input', () => { if (cb.checked) selection.set(key, label.value.trim() || p.name); });
-    row.append(cb, name, label);
+    row.append(head, label);
     box.appendChild(row);
   }
   $('printerHint').textContent = data.dryRun
@@ -330,7 +335,11 @@ async function refreshQueue() {
   $('pendingCount').textContent = String(pending.length);
   pendingBox.innerHTML = '';
   if (!pending.length) {
-    pendingBox.innerHTML = '<p class="hint">Nothing waiting.</p>';
+    // This box is the manual-approval hold: with "Ask me before each print" on, every print
+    // waits here for the host to tap Print. With it off, prints go straight to the printer.
+    pendingBox.innerHTML = config && config.requireApproval
+      ? '<p class="hint">Nothing waiting for your OK right now.</p>'
+      : '<p class="hint">Prints go straight to the printer. Turn on “Ask me before each print” above to hold each one here for your approval first.</p>';
   } else {
     for (const job of pending) {
       pendingBox.appendChild(jobCard(

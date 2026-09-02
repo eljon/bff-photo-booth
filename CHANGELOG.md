@@ -15,7 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.34 — 2026-09-02
+## 1.73.35 — 2026-09-02
+
+**Printer list readability + clearer approval box.** Each printer in "Printers to use" is now
+its own card with the full name on top (long CUPS names like "CANON_G4010_series" wrap instead
+of being cut off), and its name/number field below. And the host's approval box is renamed
+"Waiting for your OK" and now explains itself: with "Ask me before each print" off it says
+prints go straight to the printer; with it on, prints wait there for approval.
 
 **Multiple printers, and multiple computers, on one booth.** The host can now run several
 printers at once and the server shares prints across them, sending each new print to whichever

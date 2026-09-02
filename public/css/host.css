@@ -43,13 +43,14 @@ body.host { padding: 0 0 40px; }
 .screens a:hover { text-decoration: underline; }
 
 /* The printers to run: tick each, name each. Prints go to whichever is free first. */
-.printer-list { display: flex; flex-direction: column; gap: 8px; }
+.printer-list { display: flex; flex-direction: column; gap: 10px; }
 .printer-computer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-dim); margin: 6px 0 2px; }
-.printer-row { display: flex; align-items: center; gap: 10px; }
-.printer-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
-.printer-name { flex: 1 1 40%; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.printer-label { flex: 1 1 55%; min-width: 0; }
-.printer-label:disabled { opacity: 0.5; }
+.printer-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px; }
+.printer-head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.printer-head input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.printer-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; word-break: break-word; }
+.printer-label { width: 100%; }
+.printer-label:disabled { opacity: 0.45; }
 
 /* Tap a sticker to make it the badge on every strip. */
 .sticker-grid { display: flex; flex-wrap: wrap; gap: 10px; }
