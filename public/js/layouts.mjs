@@ -71,6 +71,15 @@ function photoAspect(photo) {
   return w / h || 3 / 4;
 }
 
+// The layout works in EXACT 4:3 / 3:4 geometry (per the tight-layout guide): every photo is
+// snapped to 4:3 if it is landscape or 3:4 if it is portrait, and shown "cover" so it fills
+// that standard shape. Uniform shapes tile the sheet cleanly and tightly — which is what
+// keeps the paper margin small. A little is trimmed off a photo to make it a clean 4:3/3:4.
+const LAND = 4 / 3, PORT = 3 / 4;
+function layoutAspect(photo) {
+  return photoAspect(photo) >= 1 ? LAND : PORT;
+}
+
 const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
@@ -265,26 +274,32 @@ function tilingDesign(aspects, stickerAR, heroIndex) {
   const hasSticker = stickerAR != null;
 
   // With a sticker, anchor the block so ALL the leftover forms ONE band (a footer, or a side
-  // column) big enough to hold a clearly-visible badge — instead of a thin centred margin the
-  // sticker gets lost in. Without a sticker, centre the block so the matting is even.
+  // column) — and drop the sticker into the LOWER-RIGHT corner of that band as a small badge,
+  // clearly the smallest thing on the page (the tight-layout guide). Without a sticker, centre
+  // the block so the matting is even.
   const sideMargin = bw < page.w - 2;            // block fills height → leftover on the right
   const ox = hasSticker ? (sideMargin ? 0 : (page.w - bw) / 2) : (page.w - bw) / 2;
   const oy = hasSticker ? (sideMargin ? (page.h - bh) / 2 : 0) : (page.h - bh) / 2;
   const cells = [];
   placeTree(best.tree, ox, oy, bw, bh, cells);
-  const out = cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.node].photo, fit: 'contain' }));
+  const out = cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.node].photo, fit: 'cover' }));
 
   if (hasSticker) {
     const pad = Math.round(page.w * 0.02);
     const band = sideMargin
       ? { x: ox + bw, y: 0, w: page.w - bw, h: page.h }       // right column
       : { x: 0, y: oy + bh, w: page.w, h: page.h - bh };      // bottom footer
-    // Fill most of the band with the badge (a clear, visible size), capped so it never rivals
-    // a photo. Centre it in the band.
-    let sw = Math.min((band.w - pad * 2), (band.h - pad * 2) * stickerAR, Math.min(page.w, page.h) * 0.34);
+    // Size the badge to sit UNDER the smallest photo cell — it is always the smallest element
+    // (rule 5) — while still filling the band enough to read. Then pin it to the lower-right
+    // corner of the sheet, inside the band, so it never overlaps a photo.
+    const smallestPhoto = Math.min(...out.map((c) => c.w * c.h));
+    const targetArea = STICKER_RATIO * smallestPhoto;                 // clearly smaller than any photo
+    let sw = Math.sqrt(targetArea * stickerAR);
     let sh = sw / stickerAR;
-    if (sh > band.h - pad * 2) { sh = band.h - pad * 2; sw = sh * stickerAR; }
-    out.push({ x: band.x + (band.w - sw) / 2, y: band.y + (band.h - sh) / 2, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
+    const maxW = band.w - pad * 2, maxH = band.h - pad * 2;
+    if (sw > maxW) { sw = maxW; sh = sw / stickerAR; }
+    if (sh > maxH) { sh = maxH; sw = sh * stickerAR; }
+    out.push({ x: page.w - pad - sw, y: page.h - pad - sh, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
   }
   return { cells: out, page };
 }
@@ -378,13 +393,14 @@ function photoCoverage(d) {
  * narrow column with wide margins.
  */
 export function resolveGrid(base, photos, heroIndex = null, sticker = null) {
-  const aspects = photos.map(photoAspect);
+  const aspects = photos.map(layoutAspect);
   const ar = sticker && sticker.aspect;
-  // Keep one hero (rule 3), but of the four possible heroes pick the one that fills the most
-  // paper — so a mixed set never defaults to a narrow column with wide margins.
+  // Keep one hero (rule 3), but of the four possible heroes (plus the no-hero even layout) pick
+  // the one that fills the most paper — so a mixed set never defaults to a narrow column with
+  // wide margins. This is the same pool designVariants ranks, so the auto pick is the lead card.
   const designs = heroIndex != null
     ? [heroDesign(aspects, heroIndex, ar)]
-    : photos.map((_, h) => heroDesign(aspects, h, ar));
+    : [...photos.map((_, h) => heroDesign(aspects, h, ar)), evenDesign(aspects, ar)];
   const d = designs.reduce((bestD, cur) => (photoCoverage(cur) > photoCoverage(bestD) ? cur : bestD));
   return { cells: d.cells, captions: [], page: d.page, media: media(d.page), paper: paper(d.page) };
 }
@@ -395,7 +411,7 @@ export function resolveGrid(base, photos, heroIndex = null, sticker = null) {
  * whole photos (no crop), and carries the sticker as a real 5th cell that is never the hero.
  */
 export function designVariants(base, photos, sticker = null) {
-  const aspects = photos.map(photoAspect);
+  const aspects = photos.map(layoutAspect);
   const ar = sticker && sticker.aspect;
   const cand = photos.map((_, hero) => {
     const d = heroDesign(aspects, hero, ar);

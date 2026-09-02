@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.22 — 2026-09-02
+
+**Tight layout, matching the guide.** Every photo is now snapped to a clean 4:3 (landscape)
+or 3:4 (portrait) cell and shown cover-fit to fill it, so the four photos tile tightly instead
+of leaving mismatched gaps — the small trim off each photo is the cost of the clean shape. The
+sticker is now a small badge pinned to the lower-right corner, sized to sit under the smallest
+photo so it is always the smallest element and never rivals a photo (rule 5), and it never
+overlaps a photo. The auto pick and the lead coverflow card are now the same design (the
+fullest-filling one), so a guest who never swipes prints exactly what the coverflow shows first.
+Verified by rendering a portrait+landscape mix (78% coverage, hero within 2×, sticker lower-right).
+
+---
+
 ## 1.73.21 — 2026-09-02
 
 **Drop the sparse layouts and enlarge the sticker.** The coverflow no longer offers

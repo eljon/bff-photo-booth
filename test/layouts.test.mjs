@@ -91,11 +91,11 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('nothing is cropped: each photo cell is shaped to its own photo', () => {
+test('every photo cell is a clean 4:3 or 3:4, cover-filled, matching its orientation', () => {
   const mixes = [
-    [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
-    [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
-    [[1000, 1500], [1600, 1000], [1000, 1500], [1200, 1200]],   // mixed
+    [[1000, 1500], [1200, 1300], [1100, 1400], [1000, 1500]],   // all portrait
+    [[1600, 1000], [1500, 1000], [1600, 900], [1400, 1000]],    // all landscape
+    [[1000, 1500], [1600, 1000], [1000, 1500], [1600, 1000]],   // mixed
   ];
   for (const mix of mixes) {
     const photos = mix.map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
@@ -103,11 +103,12 @@ test('nothing is cropped: each photo cell is shaped to its own photo', () => {
     assert.equal(cells.length, 4);
     for (const c of cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
-      // The cell has the SAME aspect as its photo, so the whole photo shows — nothing cropped,
-      // no bars. The paper around the block is the matting.
+      // Per the tight-layout guide: a landscape photo gets a 4:3 cell, a portrait a 3:4 cell,
+      // and the photo is shown cover-fit to fill it.
+      assert.equal(c.fit, 'cover', 'photo fills its cell (cover) — clean 4:3/3:4 geometry');
       const p = photos[c.photo].bitmap;
-      const photoAspect = p.width / p.height;
-      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, 'cell is shaped to its photo — no crop');
+      const want = p.width >= p.height ? 4 / 3 : 3 / 4;
+      assert.ok(Math.abs(want - c.w / c.h) / want < 0.02, 'cell is exact 4:3 (landscape) or 3:4 (portrait)');
     }
     for (let i = 0; i < cells.length; i++) {
       for (let j = i + 1; j < cells.length; j++) {
@@ -241,7 +242,7 @@ test('the coverflow only offers well-filled designs, all distinct', () => {
   }
 });
 
-test('every coverflow design crops nothing and never overlaps', () => {
+test('every coverflow design uses clean 4:3/3:4 cells, cover-filled, and never overlaps', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
@@ -249,18 +250,28 @@ test('every coverflow design crops nothing and never overlaps', () => {
     for (const c of v.cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
       if (c.photo !== undefined) {
+        // Per the tight-layout guide: each cell is exact 4:3 (landscape) or 3:4 (portrait) for
+        // its photo's orientation, and the photo is shown cover-fit to fill it.
+        assert.equal(c.fit, 'cover', `${v.key}: photo fills its cell (cover)`);
         const p = photos[c.photo].bitmap;
-        const photoAspect = p.width / p.height;
-        assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, `${v.key}: photo cell shaped to its photo — no crop`);
+        const want = p.width >= p.height ? 4 / 3 : 3 / 4;
+        assert.ok(Math.abs(want - c.w / c.h) / want < 0.02, `${v.key}: clean 4:3/3:4 cell`);
         photoCells.push(c);
       }
     }
-    // Photos never overlap each other (the sticker is a badge drawn on top, so it is
-    // allowed to sit over a photo corner — it is not a photo cell).
+    // Photos never overlap each other, and the sticker (its own lower-right cell) never sits
+    // on top of a photo.
+    const stick = v.cells.filter((c) => c.extra === 'sticker');
     for (let i = 0; i < photoCells.length; i++) {
       for (let j = i + 1; j < photoCells.length; j++) {
         assert.ok(!overlaps(photoCells[i], photoCells[j]), `${v.key}: photo cells ${i} and ${j} overlap`);
       }
+      for (const s of stick) assert.ok(!overlaps(photoCells[i], s), `${v.key}: sticker overlaps a photo`);
+    }
+    // The sticker is the smallest thing on the page (rule 5), never the hero.
+    for (const s of stick) {
+      const smallestPhoto = Math.min(...photoCells.map((c) => c.w * c.h));
+      assert.ok(s.w * s.h < smallestPhoto, `${v.key}: sticker is not the smallest element`);
     }
   }
 });
@@ -270,7 +281,8 @@ test('the first coverflow design is what the booth would pick on its own', () =>
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   const auto = resolveGrid(LAYOUTS.grid, photos);
   const first = designVariants(LAYOUTS.grid, photos)[0];
-  assert.equal(first.heroIndex, 0, 'the lead card heroes photo 1');
+  // The booth's auto pick is the fullest-filling design, which is exactly the lead card — so a
+  // guest who never swipes prints the same sheet the coverflow shows first.
   assert.equal(first.page.w, auto.page.w, 'the lead card matches the auto sheet');
   assert.equal(first.page.h, auto.page.h);
   assert.deepEqual(first.cells.map((c) => c.photo), auto.cells.map((c) => c.photo), 'same cell order as auto');
