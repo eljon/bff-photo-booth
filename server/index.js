@@ -1112,34 +1112,23 @@ async function handleApi(req, res, url) {
       return sendJson(res, 429, { ok: false, error: 'That is a lot of prints. Give the printer a minute.' });
     }
 
-    // Single-use print code (voucher). Check it up front — before uploading the image — so a
-    // wrong code is refused fast and repeated wrong guesses trip the brute-force cool-off.
-    const suppliedCode = cfg.requireVoucher ? (url.searchParams.get('code') || req.headers['x-print-code'] || '') : null;
-    if (cfg.requireVoucher) {
-      if (codeLockedOut(req)) {
-        return sendJson(res, 429, { ok: false, codeError: true, error: 'Too many wrong codes. Wait a minute, then try again.' });
-      }
-      const check = vouchers.peek(suppliedCode);
-      if (!check.ok) {
-        noteWrongCode(req);
-        return sendJson(res, 402, {
-          ok: false, codeError: true, reason: check.reason,
-          error: check.reason === 'used' ? 'That print code has already been used.' : 'That print code is not valid.',
-        });
-      }
-    }
-
+    // Read the whole upload BEFORE we answer — replying mid-upload (e.g. to reject a bad code)
+    // resets the connection, which the guest sees as "lost connection" instead of the real error.
     const body = await readBody(req);
     const kind = imageKind(body);
     if (!kind) {
       return sendJson(res, 400, { ok: false, error: 'Expected a PNG or JPEG image body.' });
     }
 
-    // Spend the code now (a failed or skipped print refunds it). Re-checked here in case the
-    // same code was spent by another guest between the fast check above and now.
+    // Single-use print code (voucher). Spend it now; a failed or skipped print refunds it.
+    // Repeated wrong guesses from one address trip the brute-force cool-off.
     let voucherCode = null;
     if (cfg.requireVoucher) {
-      const r = vouchers.redeem(suppliedCode);
+      if (codeLockedOut(req)) {
+        return sendJson(res, 429, { ok: false, codeError: true, error: 'Too many wrong codes. Wait a minute, then try again.' });
+      }
+      const supplied = url.searchParams.get('code') || req.headers['x-print-code'] || '';
+      const r = vouchers.redeem(supplied);
       if (!r.ok) {
         noteWrongCode(req);
         return sendJson(res, 402, {

@@ -415,7 +415,13 @@ async function refreshQueue() {
   for (const job of data.cupsJobs) {
     queueBox.appendChild(jobCard(
       { title: job.id, subtitle: `${job.owner} · ${job.submitted}` },
-      [{ label: 'Cancel', run: async () => { await post('/api/cancel', { cupsJobId: job.id }); refreshQueue(); } }],
+      [{ label: 'Cancel', run: async () => {
+        try {
+          const r = await post('/api/cancel', { cupsJobId: job.id });
+          toast(r && r.ok ? 'Cancelling that job…' : (r && r.error) || 'Could not cancel that job.');
+        } catch { toast('Could not cancel that job.'); }
+        refreshQueue();
+      } }],
     ));
   }
   for (const job of failed) {

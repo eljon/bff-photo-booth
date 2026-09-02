@@ -15,7 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.38 — 2026-09-02
+## 1.73.39 — 2026-09-02
+
+**Print-code polish.** Several fixes to the voucher flow:
+
+- **Wrong code now says so.** It was reporting "lost connection" because the server rejected the
+  code mid-upload, resetting the connection. The server now reads the whole upload first, so a
+  bad code comes back as a clean "That print code is not valid" and the guest can retry.
+- **Keyboard opens automatically.** When the code prompt appears, the field is focused right
+  away (inside the tap), so the phone keyboard pops up with no extra tap.
+- **No placeholder text** cluttering the code field.
+- **No offensive codes.** Generation now skips any code that spells something rude in English,
+  Tagalog, Bisaya or Ilocano (checked as a substring), and a batch made before this filter has
+  its unused offensive codes retired automatically on the next start. Verified across 3,000
+  generated codes.
+- **Host queue Cancel** now shows what happened when tapped, instead of appearing to do nothing.
 
 **Fix the wrong-code prompt, and harden guessing.** A rejected print code was being drawn
 *behind* the "Sending…" screen, so a guest who typed a wrong code saw no error. The code prompt

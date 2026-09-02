@@ -148,6 +148,22 @@ test('a booth can gate printing behind single-use print codes (vouchers)', async
   assert.equal(stats.unused, 4);
 });
 
+test('generated codes never spell something offensive', async (t) => {
+  const { isClean, BADWORDS } = await import('../server/vouchers.js');
+  const booth = await startServer();
+  t.after(() => booth.close());
+  const H = { 'content-type': 'application/json' };
+  const gen = await (await fetch(`${booth.base}/api/vouchers`, { method: 'POST', headers: H, body: JSON.stringify({ action: 'generate', count: 3000 }) })).json();
+  assert.equal(gen.added, 3000);
+  for (const code of gen.codes) {
+    assert.ok(isClean(code), `generated a code with a bad word: ${code}`);
+    assert.ok(!BADWORDS.some((w) => code.includes(w)), `code contains a blocked word: ${code}`);
+  }
+  // sanity: the filter actually flags something
+  assert.equal(isClean('7FUCK9'), false);
+  assert.equal(isClean('ABC234'), true);
+});
+
 test('too many wrong codes trip a brute-force cool-off', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

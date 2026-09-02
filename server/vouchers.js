@@ -21,12 +21,36 @@ const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 chars — no I, L, O, 
 const LEN = 6;
 const MAX_CODES = 100_000; // a sane ceiling so a fat-fingered count can't exhaust memory
 
-/** One unguessable 6-char code. */
+// Never hand a guest a code that spells something offensive. Only substrings that CAN form
+// from the alphabet above matter (no I/L/O), across English, Tagalog, Bisaya and Ilocano.
+// Matched as a substring of the code, so e.g. "7FUCK9" is rejected. Kept deliberately broad.
+const BADWORDS = [
+  // English
+  'FUCK', 'FUK', 'FCUK', 'PHUK', 'CUNT', 'KUNT', 'TWAT', 'PUSSY', 'PUSY', 'ASS', 'ARSE',
+  'SEX', 'CUM', 'SCUM', 'WANK', 'RAPE', 'FAG', 'FAGS', 'DYKE', 'SKANK', 'KKK',
+  // Tagalog
+  'PUTA', 'PUTANG', 'PUKE', 'PEKPEK', 'PEPE', 'TANGA', 'BAYAG', 'BURAT', 'KUPAL', 'PUNYETA',
+  'TAE', 'BWISET', 'BWESET',
+  // Bisaya / Cebuano
+  'YAWA', 'BUANG', 'PAKYU', 'PAKSHET', 'KAYAT', 'YUDAS',
+  // Ilocano
+  'UBET', 'UNGAW',
+].map((w) => w.toUpperCase());
+
+/** True when the code spells nothing on the block list (checked as a substring). */
+function isClean(code) {
+  const up = String(code).toUpperCase();
+  return !BADWORDS.some((w) => up.includes(w));
+}
+
+/** One unguessable, clean 6-char code. */
 function makeCode() {
-  const bytes = crypto.randomBytes(LEN);
-  let out = '';
-  for (let i = 0; i < LEN; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
-  return out;
+  for (;;) {
+    const bytes = crypto.randomBytes(LEN);
+    let out = '';
+    for (let i = 0; i < LEN; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
+    if (isClean(out)) return out;
+  }
 }
 
 /** Normalise what a guest typed to how codes are stored: upper-case, letters/digits only. */
@@ -48,6 +72,16 @@ class VoucherStore {
         this.codes.set(code, { used: Boolean(v.used), usedAt: v.usedAt || 0, printNo: v.printNo || null });
       }
     } catch { /* first run, or nothing stored yet */ }
+    // Retire any UNUSED code that spells something offensive (e.g. from a batch made before
+    // the word filter existed). Used codes are already spent, so they are left as history.
+    let removed = 0;
+    for (const [code, v] of this.codes) {
+      if (!v.used && !isClean(code)) { this.codes.delete(code); removed += 1; }
+    }
+    if (removed) {
+      console.log(`  ⚠ removed ${removed} print code${removed === 1 ? '' : 's'} that spelled something off; regenerate to top up.`);
+      this._save();
+    }
   }
 
   async _save() {
@@ -123,4 +157,4 @@ class VoucherStore {
   }
 }
 
-module.exports = { VoucherStore, LEN, ALPHABET };
+module.exports = { VoucherStore, LEN, ALPHABET, isClean, BADWORDS };

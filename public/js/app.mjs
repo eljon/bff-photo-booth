@@ -1962,7 +1962,11 @@ function askForCode(errorMsg = '', prefill = '') {
       input.classList.remove('bad');
     }
     sheet.classList.remove('hidden');
-    setTimeout(() => { input.focus(); input.select(); }, 60);
+    // Focus synchronously (we are still inside the Print tap), so mobile pops the keyboard up
+    // with the field ready — no extra tap. A rAF fallback covers the retry prompt.
+    input.focus();
+    input.select();
+    requestAnimationFrame(() => { input.focus(); input.select(); });
     input.addEventListener('input', () => input.classList.remove('bad'), { once: true });
 
     const cleanup = () => {
