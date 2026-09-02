@@ -781,12 +781,15 @@ function rebuildCoverflow(playIntro = false) {
   // the top edge and get clipped (overflow:hidden). Cap the height to the space that
   // actually sits above that line (minus a small top gap), so a short screen shrinks
   // the cards instead of slicing their tops — tall screens keep the window-based size.
-  const CF_BASELINE = 0.76;
+  // Matches the CSS glass line (.cf-card top), so the height budget above the glass is
+  // computed against the real baseline — cards fill up toward the swipe cue instead of
+  // leaving a big empty band above them.
+  const CF_BASELINE = 0.84;
   const cfH = $('coverflow').clientHeight || window.innerHeight * 0.5;
   const aboveGlass = cfH * CF_BASELINE - 12;
-  const boxH = Math.min(window.innerHeight * 0.37, aboveGlass, 350);
+  const boxH = Math.min(window.innerHeight * 0.5, aboveGlass, 460);
   // boxW caps a landscape card's width — keep it tighter so its side photos show.
-  const boxW = Math.min(window.innerWidth * 0.55, 300);
+  const boxW = Math.min(window.innerWidth * 0.62, 320);
 
   cfDesigns.forEach((design) => {
     const card = document.createElement('div');

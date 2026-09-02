@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.30 — 2026-09-02
+
+**Bring the coverflow deck up to the swipe cue.** The max-height cap rises to 1000px, but on a
+phone the deck's size is bound by the card fit, not the cap — so the cards themselves are now
+larger: the height budget above the glass line uses the real 84% baseline (the JS constant was
+still 0.76), and the card fit box grows (height up to 50% of the viewport, width to 62%). The
+deck's bottom still rests on the glass with the check button below it, while the top rises to
+sit just under the swipe animation, closing most of the empty band. Verified with a phone-width
+screenshot.
+
+---
+
 ## 1.73.29 — 2026-09-02
 
 **Check button off the photo, version by the title, taller coverflow cap.** The action block's
