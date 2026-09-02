@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.19 — 2026-09-02
+
+**Revert the cropping — whole photos again.** 1.73.18 filled the sheet by trimming
+each photo's edges; that violated the "no cropping" rule and was the wrong call.
+Photos are shown whole again (each cell shaped to its photo, no crop, no letterbox
+bars), the block is centred, and the sticker sits in the paper margin, never on a
+photo. The unavoidable consequence of no-crop for mixed-shape photos is that the
+decorative paper shows as matting around the block — that is the trade the no-crop
+rule chooses.
+
+---
+
 ## 1.73.18 — 2026-09-02
 
 **No white background, and the sticker gets its own cell.** Photos now fill their

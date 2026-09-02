@@ -169,24 +169,30 @@ function bipartitions(idxs) {
   return out;
 }
 
+// A subtree's effective aspect (w/h) when every leaf is shaped to its own photo: side by
+// side the aspects add; stacked, the reciprocals add (parallel resistors). This lets each
+// photo keep its exact shape — WHOLE PHOTO, no crop and no letterbox bar.
+function combineAspect(op, a, b) {
+  return op === 'V' ? a + b : 1 / (1 / a + 1 / b);
+}
+
 /** All slicing trees over a set of items, memoised by subset. A node is a leaf
- *  ({ leaf, sum }) or a split ({ op:'V'|'H', a, b, sum }); `sum` is the total target
- *  area of its leaves, used to divide each cut so cells fill the sheet by area. */
+ *  ({ leaf, aspect }) or a split ({ op:'V'|'H', a, b, aspect }). */
 function slicingTrees(idxs, items, memo) {
   const key = idxs.join(',');
   const hit = memo.get(key);
   if (hit) return hit;
   let res;
   if (idxs.length === 1) {
-    res = [{ leaf: idxs[0], sum: items[idxs[0]].target }];
+    res = [{ leaf: idxs[0], aspect: items[idxs[0]].aspect }];
   } else {
     res = [];
     for (const [A, B] of bipartitions(idxs)) {
       const ta = slicingTrees(A, items, memo);
       const tb = slicingTrees(B, items, memo);
       for (const a of ta) for (const b of tb) {
-        res.push({ op: 'V', a, b, sum: a.sum + b.sum });
-        res.push({ op: 'H', a, b, sum: a.sum + b.sum });
+        res.push({ op: 'V', a, b, aspect: combineAspect('V', a.aspect, b.aspect) });
+        res.push({ op: 'H', a, b, aspect: combineAspect('H', a.aspect, b.aspect) });
       }
     }
   }
@@ -194,18 +200,17 @@ function slicingTrees(idxs, items, memo) {
   return res;
 }
 
-/** Slice a rectangle to fill it completely: each cut splits in proportion to the target
- *  areas on each side, so every leaf cell gets its share of the sheet with no gaps and no
- *  leftover. Pushes leaf rects into `out`. */
+/** Lay a tree into a rectangle whose aspect equals the node's — the split lands exactly, so
+ *  every leaf gets a rectangle matching its photo (WHOLE photo, no crop, no bars), the cells
+ *  butting together with no gaps. Pushes leaf rects into `out`. */
 function placeTree(node, x, y, w, h, out) {
   if (node.leaf != null) { out.push({ node: node.leaf, x, y, w, h }); return; }
-  const fa = node.a.sum / (node.a.sum + node.b.sum);
-  if (node.op === 'V') { // side by side, full height, width split by area
-    const wa = w * fa;
+  if (node.op === 'V') { // side by side, full height
+    const wa = w * (node.a.aspect / (node.a.aspect + node.b.aspect));
     placeTree(node.a, x, y, wa, h, out);
     placeTree(node.b, x + wa, y, w - wa, h, out);
-  } else { // stacked, full width, height split by area
-    const ha = h * fa;
+  } else { // stacked, full width
+    const ha = h * ((1 / node.a.aspect) / (1 / node.a.aspect + 1 / node.b.aspect));
     placeTree(node.a, x, y, w, ha, out);
     placeTree(node.b, x, y + ha, w, h - ha, out);
   }
@@ -222,42 +227,57 @@ function placeTree(node, x, y, w, h, out) {
  * cell shapes hug the photos and the trim on each is as small as the sheet allows.
  */
 function tilingDesign(aspects, stickerAR, heroIndex) {
-  const items = aspects.map((a, i) => ({ aspect: a, photo: i, target: i === heroIndex ? 2 : 1 }));
-  const stickerIdx = stickerAR != null ? items.length : -1;
-  if (stickerAR != null) items.push({ aspect: stickerAR, sticker: true, target: 0.5 }); // its own small cell
+  const items = aspects.map((a, i) => ({ aspect: a, photo: i }));
   const idxs = items.map((_, i) => i);
   const memo = new Map();
-  let best = null;
+  let best = null, bestAny = null;
 
   for (const page of SHEETS) {
+    const sAR = page.w / page.h;
     for (const tree of slicingTrees(idxs, items, memo)) {
+      const A = tree.aspect;
+      let bw, bh; // largest rect of the block's aspect that fits the sheet
+      if (A >= sAR) { bw = page.w; bh = page.w / A; } else { bh = page.h; bw = page.h * A; }
+      const cov = (bw * bh) / (page.w * page.h);
+      if (bestAny && best && cov <= bestAny.cov && cov <= best.cov) continue;
+
       const cells = [];
-      placeTree(tree, 0, 0, page.w, page.h, cells);
-      // Each cell is filled edge-to-edge (cover). match = how close the cell's shape is to its
-      // photo's: min(ar,ap)/max(ar,ap) is 1 when they match and drops as more must be trimmed.
-      // Score MINIMAX-first: make the WORST-matched cell as good as possible, so no single photo
-      // is heavily cropped; then break ties on the total match, keeping every trim minimal.
-      let worst = Infinity, total = 0;
+      placeTree(tree, (page.w - bw) / 2, (page.h - bh) / 2, bw, bh, cells); // centred block
+
+      let minA = Infinity, maxA = -Infinity, maxPhoto = -1;
       for (const c of cells) {
-        const ap = items[c.node].aspect, ar = c.w / c.h;
-        const match = Math.min(ar, ap) / Math.max(ar, ap);
-        if (match < worst) worst = match;
-        total += c.w * c.h * match;
+        const a = c.w * c.h;
+        if (a < minA) minA = a;
+        if (a > maxA) { maxA = a; maxPhoto = items[c.node].photo; }
       }
-      if (!best || worst > best.worst + 1e-6 || (Math.abs(worst - best.worst) <= 1e-6 && total > best.total)) {
-        best = { worst, total, cells, page };
-      }
+      // Fallback pool: keep photos reasonably balanced (never a runaway hero) even when the
+      // strict ≤2× rule can't be met for this photo mix.
+      if (maxA <= 2.5 * minA + 1 && (!bestAny || cov > bestAny.cov)) bestAny = { cov, bw, bh, cells, page };
+
+      if (maxA > 2 * minA + 1) continue;                         // rule 4: ≤ 2× the smallest
+      if (heroIndex != null && maxPhoto !== heroIndex) continue; // hero card features its photo
+      if (!best || cov > best.cov) best = { cov, bw, bh, cells, page };
     }
   }
+  best = best || bestAny;
 
   const page = best.page;
-  const out = best.cells.map((c) => {
-    const it = items[c.node];
-    // The sticker is shown whole (contain) in its own cell; photos fill their cell (cover).
-    return it.sticker
-      ? { x: c.x, y: c.y, w: c.w, h: c.h, extra: 'sticker', fit: 'contain' }
-      : { x: c.x, y: c.y, w: c.w, h: c.h, photo: it.photo, fit: 'cover' };
-  });
+  const out = best.cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.node].photo, fit: 'contain' }));
+
+  if (stickerAR != null) {
+    // Put the badge in the leftover paper margin (never on a photo). The centred block fills
+    // one dimension of the sheet, leaving a margin on the other; drop the sticker into it.
+    const x0 = (page.w - best.bw) / 2, y0 = (page.h - best.bh) / 2;
+    const pad = Math.round(page.w * 0.02);
+    let strip;
+    if (best.bw < page.w - 2) strip = { x: x0 + best.bw, y: 0, w: page.w - (x0 + best.bw), h: page.h }; // right margin
+    else if (best.bh < page.h - 2) strip = { x: 0, y: y0 + best.bh, w: page.w, h: page.h - (y0 + best.bh) }; // bottom margin
+    else strip = { x: page.w * 0.75, y: page.h * 0.82, w: page.w * 0.25, h: page.h * 0.18 }; // block fills sheet: corner
+    let sw = Math.min(strip.w - pad * 2, page.w * 0.2);
+    let sh = sw / stickerAR;
+    if (sh > strip.h - pad * 2) { sh = strip.h - pad * 2; sw = sh * stickerAR; }
+    out.push({ x: strip.x + (strip.w - sw) / 2, y: strip.y + (strip.h - sh) / 2, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
+  }
   return { cells: out, page };
 }
 

@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('photos fill the whole sheet edge to edge: cover-fit, no white, no empty margin', () => {
+test('nothing is cropped: each photo cell is shaped to its own photo', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -101,17 +101,14 @@ test('photos fill the whole sheet edge to edge: cover-fit, no white, no empty ma
     const photos = mix.map(([w, h]) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } }));
     const { cells, page } = resolveGrid(LAYOUTS.grid, photos);
     assert.equal(cells.length, 4);
-
-    let covered = 0;
     for (const c of cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
-      // Each photo fills its cell edge to edge (cover), so there is no white bar — the small
-      // overflow is trimmed. The optimiser keeps that trim minimal.
-      assert.equal(c.fit, 'cover', 'photo fills its cell (cover) — no white bars');
-      covered += c.w * c.h;
+      // The cell has the SAME aspect as its photo, so the whole photo shows — nothing cropped,
+      // no bars. The paper around the block is the matting.
+      const p = photos[c.photo].bitmap;
+      const photoAspect = p.width / p.height;
+      assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, 'cell is shaped to its photo — no crop');
     }
-    // The four photos tile the WHOLE sheet — no empty margin at all.
-    assert.ok(covered / (page.w * page.h) > 0.98, 'the four photos fill the sheet — no empty margin');
     for (let i = 0; i < cells.length; i++) {
       for (let j = i + 1; j < cells.length; j++) {
         assert.ok(!overlaps(cells[i], cells[j]), `cells ${i} and ${j} overlap`);
@@ -120,22 +117,18 @@ test('photos fill the whole sheet edge to edge: cover-fit, no white, no empty ma
   }
 });
 
-test('the sticker gets its own cell and is never stamped on a photo', () => {
+test('the sticker sits in the margin and is never stamped on a photo', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   const sticker = stickerSpec(FRAMES.watercolor);
   for (const v of designVariants(LAYOUTS.grid, photos, sticker)) {
     const stick = v.cells.filter((c) => c.extra === 'sticker');
     const photoCells = v.cells.filter((c) => c.photo !== undefined);
-    assert.equal(stick.length, 1, `${v.key}: exactly one sticker cell`);
+    assert.equal(stick.length, 1, `${v.key}: exactly one sticker`);
     assert.equal(photoCells.length, 4, `${v.key}: four photo cells`);
-    // The sticker occupies its own region and never overlaps a photo.
     for (const p of photoCells) {
       assert.ok(!overlaps(stick[0], p), `${v.key}: sticker overlaps a photo`);
     }
-    // The five cells tile the whole sheet — no empty background.
-    const covered = v.cells.reduce((s, c) => s + c.w * c.h, 0);
-    assert.ok(covered / (v.page.w * v.page.h) > 0.98, `${v.key}: cells fill the sheet`);
   }
 });
 
@@ -249,22 +242,20 @@ test('the coverflow offers each photo as the hero plus an even grid, all distinc
   }
 });
 
-test('every coverflow design fills the sheet edge to edge and never overlaps', () => {
+test('every coverflow design crops nothing and never overlaps', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
     const photoCells = [];
-    let covered = 0;
     for (const c of v.cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
       if (c.photo !== undefined) {
-        assert.equal(c.fit, 'cover', `${v.key}: photo fills its cell (cover) — no white bars`);
+        const p = photos[c.photo].bitmap;
+        const photoAspect = p.width / p.height;
+        assert.ok(Math.abs(photoAspect - c.w / c.h) / photoAspect < 0.02, `${v.key}: photo cell shaped to its photo — no crop`);
         photoCells.push(c);
-        covered += c.w * c.h;
       }
     }
-    // The four photos fill the whole sheet — no empty margin.
-    assert.ok(covered / (v.page.w * v.page.h) > 0.98, `${v.key}: photos fill the sheet`);
     // Photos never overlap each other (the sticker is a badge drawn on top, so it is
     // allowed to sit over a photo corner — it is not a photo cell).
     for (let i = 0; i < photoCells.length; i++) {
