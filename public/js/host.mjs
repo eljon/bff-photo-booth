@@ -8,6 +8,7 @@ let info = null;
 let urls = [];
 let token = readToken();
 let timer = null;
+let chosenSticker = null; // the sticker the host has picked (committed on Save)
 
 function readToken() {
   try {
@@ -110,6 +111,39 @@ async function loadConfig() {
   $('maxCopies').value = String(config.maxCopies);
   $('boothNameInput').value = config.boothName;
   $('messageInput').value = config.message;
+  renderStickers(info.stickers || [], config.sticker);
+}
+
+/** Draw the sticker chooser: a thumbnail per available sticker, the current one marked. */
+function renderStickers(stickers, current) {
+  chosenSticker = current || (stickers[0] && stickers[0].path) || null;
+  const grid = $('stickerGrid');
+  grid.innerHTML = '';
+  if (!stickers.length) {
+    grid.innerHTML = '<p class="hint">No stickers found in public/backgrounds/.</p>';
+    return;
+  }
+  for (const sticker of stickers) {
+    const thumb = document.createElement('button');
+    thumb.type = 'button';
+    thumb.className = 'sticker-thumb' + (sticker.path === chosenSticker ? ' sel' : '');
+    thumb.title = sticker.name;
+    thumb.setAttribute('role', 'radio');
+    thumb.setAttribute('aria-checked', sticker.path === chosenSticker ? 'true' : 'false');
+    const img = document.createElement('img');
+    img.src = '/' + sticker.path;
+    img.alt = sticker.name;
+    thumb.appendChild(img);
+    thumb.addEventListener('click', () => {
+      chosenSticker = sticker.path;
+      for (const el of grid.children) {
+        const on = el === thumb;
+        el.classList.toggle('sel', on);
+        el.setAttribute('aria-checked', on ? 'true' : 'false');
+      }
+    });
+    grid.appendChild(thumb);
+  }
 }
 
 async function loadPrinters() {
@@ -330,6 +364,7 @@ function bind() {
       maxCopies: Number($('maxCopies').value) || 3,
       boothName: $('boothNameInput').value.trim() || 'Photo Booth',
       message: $('messageInput').value.trim(),
+      ...(chosenSticker ? { sticker: chosenSticker } : {}),
     });
     await loadConfig();
     await loadPrinters();

@@ -412,6 +412,14 @@ function agentAuthorised(req) {
 
 const agentOnline = () => Date.now() - agent.lastSeen < AGENT_ONLINE_MS;
 
+/** The sticker to actually stamp: the configured one if it's still on disk, else the
+ *  first available, so a renamed/removed file never leaves the badge blank. */
+function effectiveSticker(cfg) {
+  const stickers = config.listStickers();
+  if (stickers.some((s) => s.path === cfg.sticker)) return cfg.sticker;
+  return stickers.length ? stickers[0].path : cfg.sticker;
+}
+
 // ---------------------------------------------------------------- printing
 
 async function resolvePrinter(requested) {
@@ -771,6 +779,7 @@ async function handleApi(req, res, url) {
       keyRequired: guestKeyRequired(),
       remote: MODE === 'relay' || Boolean(PRINT_HOST),
       dryRun: DRY_RUN,
+      sticker: effectiveSticker(cfg),
     });
   }
 
@@ -833,6 +842,7 @@ async function handleApi(req, res, url) {
       agent: { online: agentOnline(), name: agent.name, printers: agent.printers },
       pinned: config.pinnedKeys(),
       urls: joinUrls(req),
+      stickers: config.listStickers(),
     });
   }
 

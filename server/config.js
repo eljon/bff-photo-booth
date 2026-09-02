@@ -25,7 +25,35 @@ const DEFAULTS = {
   // so starting the booth is the same command every time.
   tunnel: '',
   accessKey: '',            // generated on first run, carried in the QR link
+  // The corner badge stamped on every strip. Any .png dropped into
+  // public/backgrounds/ shows up as a choice on the host screen.
+  sticker: 'backgrounds/sticker.png',
 };
+
+const BACKGROUNDS_DIR = path.join(__dirname, '..', 'public', 'backgrounds');
+
+/** Pretty a filename into a label: "temple-sticker.png" -> "Temple". */
+function stickerLabel(file) {
+  return file
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[-_]?sticker[-_]?/i, ' ')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase()) || 'Sticker';
+}
+
+/** Every sticker the booth can stamp — the .png files in public/backgrounds
+ *  (the papers are .jpg, so this cleanly separates stickers from backgrounds). */
+function listStickers() {
+  let files = [];
+  try {
+    files = fs.readdirSync(BACKGROUNDS_DIR).filter((f) => /\.png$/i.test(f));
+  } catch {
+    files = [];
+  }
+  files.sort();
+  return files.map((file) => ({ id: file, name: stickerLabel(file), path: `backgrounds/${file}` }));
+}
 
 let cache = null;
 
@@ -94,6 +122,12 @@ function save(patch) {
       continue;
     }
     if (key === 'accessKey') continue; // rotated deliberately, never set by hand
+    if (key === 'sticker') {
+      // Only accept a sticker the booth actually has, so this can't be pointed
+      // at an arbitrary path.
+      if (listStickers().some((s) => s.path === value)) next[key] = String(value);
+      continue;
+    }
 
     if (typeof def === 'boolean') value = Boolean(value);
     else if (typeof def === 'number') value = Number(value) || def;
@@ -110,4 +144,4 @@ function save(patch) {
   return cache;
 }
 
-module.exports = { load, save, pinnedKeys, DEFAULTS, CONFIG_PATH };
+module.exports = { load, save, pinnedKeys, listStickers, DEFAULTS, CONFIG_PATH };

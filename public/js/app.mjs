@@ -154,6 +154,27 @@ function scheduleRender() {
 // flash of blank paper; each one re-renders as it arrives.
 preloadArt([...FRAMES.watercolor.art.portrait, ...FRAMES.watercolor.art.land, FRAMES.watercolor.sticker], scheduleRender);
 
+/** Switch the corner sticker the host chose. Loads it for drawing, and measures its
+ *  aspect so the badge cell is shaped to THIS sticker (no distortion, no crop), then
+ *  reshapes the layout once the size is known. */
+function applySticker(src) {
+  const frame = FRAMES.watercolor;
+  const changed = frame.sticker !== src;
+  frame.sticker = src;
+  preloadArt([src], scheduleRender); // warm it into the draw cache
+  const probe = new Image();
+  probe.onload = () => {
+    const ar = probe.naturalWidth / probe.naturalHeight;
+    if (!ar) return;
+    const reshape = changed || Math.abs(ar - (frame.stickerAR || 0)) > 0.01;
+    frame.stickerAR = ar;
+    if (!reshape) return;
+    if (filledCount() === 4 && !cfBusy) rebuildCoverflow();
+    else scheduleRender();
+  };
+  probe.src = src;
+}
+
 function previewScale(layout) {
   const dpr = Math.min(3, window.devicePixelRatio || 1);
   const cssWidth = Math.min(300, window.innerWidth * 0.78);
@@ -1990,6 +2011,7 @@ async function loadSession() {
   document.title = session.boothName;
   const msgEl = $('boothMessage');
   if (msgEl && session.message) msgEl.textContent = session.message;
+  if (session.sticker) applySticker(session.sticker);
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
   // Print vs save-only — toggled BOTH ways, so when the booth comes back after a

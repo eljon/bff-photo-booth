@@ -44,7 +44,7 @@ const __PREVIEW_SESSION = {
   message: 'Pick 4 photos. Take it home.',
   maxCopies: 3, defaultCopies: 1, shareHashtag: '#bff2026',
   printingEnabled: true, previewNoPrint: true, requireApproval: false, keyRequired: false,
-  remote: false, dryRun: false,
+  remote: false, dryRun: false, sticker: 'backgrounds/sticker.png',
 };
 const __origFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {

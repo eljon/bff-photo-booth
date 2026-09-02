@@ -38,6 +38,27 @@ body.host { padding: 0 0 40px; }
 .switch { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-size: 14px; }
 .switch input { width: 20px; height: 20px; accent-color: var(--accent); }
 
+/* Tap a sticker to make it the badge on every strip. */
+.sticker-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.sticker-thumb {
+  width: 84px; height: 84px; padding: 8px; cursor: pointer;
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px;
+  display: grid; place-items: center;
+  /* a light checker so a transparent PNG reads clearly */
+  background-image:
+    linear-gradient(45deg, #ffffff10 25%, transparent 25%, transparent 75%, #ffffff10 75%),
+    linear-gradient(45deg, #ffffff10 25%, transparent 25%, transparent 75%, #ffffff10 75%);
+  background-size: 14px 14px; background-position: 0 0, 7px 7px;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.sticker-thumb img { max-width: 100%; max-height: 100%; display: block; }
+.sticker-thumb:hover { border-color: var(--ink-dim); }
+.sticker-thumb.sel { border-color: transparent; box-shadow: 0 0 0 3px var(--accent); }
+.sticker-thumb .tick {
+  position: absolute; margin: -74px 0 0 60px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 13px; display: grid; place-items: center;
+}
+
 .job-list { display: flex; flex-direction: column; gap: 10px; }
 
 .job {

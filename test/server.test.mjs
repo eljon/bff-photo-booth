@@ -17,6 +17,39 @@ test('serves the guest app and its session settings', async (t) => {
   assert.ok(session.maxCopies >= 1);
 });
 
+test('the sticker can be switched from the host, and only to a real one', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+
+  // The guest session carries the chosen sticker; the host config lists the choices.
+  const session = await (await fetch(`${booth.base}/api/session`)).json();
+  assert.equal(session.sticker, 'backgrounds/sticker.png', 'defaults to the bundled sticker');
+
+  const cfg = await (await fetch(`${booth.base}/api/config`)).json();
+  assert.ok(Array.isArray(cfg.stickers), 'the host gets the list of stickers');
+  assert.ok(cfg.stickers.some((s) => s.path === 'backgrounds/sticker.png'), 'including the bundled one');
+  assert.ok(cfg.stickers.every((s) => /^backgrounds\/.+\.png$/i.test(s.path)), 'stickers are the .png files in backgrounds');
+
+  // A bogus sticker path is ignored — it can't point the badge anywhere it likes.
+  await fetch(`${booth.base}/api/config`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sticker: '../secret.png' }),
+  });
+  const afterBad = await (await fetch(`${booth.base}/api/session`)).json();
+  assert.equal(afterBad.sticker, 'backgrounds/sticker.png', 'a path not in the list is refused');
+
+  // A real one from the list sticks.
+  const pick = cfg.stickers[cfg.stickers.length - 1].path;
+  await fetch(`${booth.base}/api/config`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sticker: pick }),
+  });
+  const afterGood = await (await fetch(`${booth.base}/api/session`)).json();
+  assert.equal(afterGood.sticker, pick, 'a sticker from the list is saved');
+});
+
 test('accepts a composed print and writes it to the prints folder', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

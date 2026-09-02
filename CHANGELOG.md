@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.71.0 — 2026-09-02
+
+**Switch the strip's sticker from the host screen.**
+
+- Any `.png` you drop into `public/backgrounds/` now shows up as a sticker choice on the
+  host screen (**Settings ▸ Sticker on every strip**). Pick one, Save, and every new strip
+  stamps that badge. (The papers are `.jpg`, so backgrounds and stickers stay separate.)
+- The picker shows a thumbnail of each sticker with the current one highlighted; the guest
+  app shapes the badge cell to whatever sticker you choose, so a taller or wider sticker
+  isn't stretched or cropped.
+
 ## 1.70.2 — 2026-08-29
 
 **Full setup guide.**
