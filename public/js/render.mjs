@@ -270,12 +270,23 @@ export function composePage(canvas, state, scale = 1, layoutOverride = null, saf
     if (cell.extra === 'sticker') {
       const st = artImage(frame.sticker);
       if (st) {
+        // The badge is a transparent PNG, so a shadow follows its silhouette. To make it pop
+        // off the busy paper, build a tight dark outline hugging the shape (offset-0 shadow,
+        // two passes so it deepens into a halo), then a stronger drop shadow for lift, then
+        // the crisp badge on top with no shadow.
         ctx.save();
-        ctx.shadowColor = 'rgba(40,30,20,0.3)';
-        ctx.shadowBlur = Math.min(cell.w * 0.03, 8);
-        ctx.shadowOffsetY = 3;
+        ctx.shadowColor = 'rgba(30,20,10,0.6)';
+        ctx.shadowBlur = Math.min(cell.w * 0.05, 12);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        drawContain(ctx, st, cell.x, cell.y, cell.w, cell.h);
+        drawContain(ctx, st, cell.x, cell.y, cell.w, cell.h);
+        ctx.shadowColor = 'rgba(40,30,20,0.5)';
+        ctx.shadowBlur = Math.min(cell.w * 0.09, 20);
+        ctx.shadowOffsetY = Math.min(cell.h * 0.06, 11);
         drawContain(ctx, st, cell.x, cell.y, cell.w, cell.h);
         ctx.restore();
+        drawContain(ctx, st, cell.x, cell.y, cell.w, cell.h); // crisp badge, no shadow
       }
       return;
     }

@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.26 — 2026-09-02
+
+**Make the sticker pop.** The badge now gets a tight dark outline hugging its silhouette (an
+offset-0 shadow built up over two passes) plus a stronger, softer drop shadow for lift, then
+the crisp badge on top. It reads clearly against the busy watercolor paper instead of blending
+into it. Verified by rendering the default layout.
+
+---
+
 ## 1.73.25 — 2026-09-02
 
 **Revert the 1.73.24 rewrite; just shrink the paper margin.** The 1.73.24 change rewrote the
