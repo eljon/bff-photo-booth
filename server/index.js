@@ -134,7 +134,7 @@ const agent = { lastSeen: 0, printers: [], name: null, dryRun: false };
 // queue.json and reload it on boot. (Booth/LAN mode prints straight to CUPS and is
 // left in memory, so a restart never risks reprinting what already came out.)
 const QUEUE_FILE = path.join(PRINTS_DIR, 'queue.json');
-const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'copies', 'printer', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
+const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'orient', 'copies', 'printer', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
 let persistTimer = null;
 
 /** Write the whole queue to disk atomically (temp file, then rename). Relay only. */
@@ -622,6 +622,7 @@ function publicJob(job) {
     status: job.status,
     layout: job.layout,
     printNo: job.printNo || null,
+    orient: job.orient || 'portrait',
     copies: job.copies,
     printer: job.printer || null,
     cupsJobId: job.cupsJobId || null,
@@ -921,6 +922,7 @@ async function handleApi(req, res, url) {
       guest,
       printNo,
       copies,
+      orient, // the design's orientation — the stored bitmap is rotated for paper when landscape
       printer: requestedPrinter,
       media: jobMedia,
       status: cfg.requireApproval ? 'awaiting-approval' : 'pending',

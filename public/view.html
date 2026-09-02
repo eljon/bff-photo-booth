@@ -58,8 +58,13 @@
   .now { position: relative; }
   .now.idle .now-body { opacity: .5; }
   .now-body { flex: 1; display: flex; gap: clamp(14px, 1.8vw, 30px); align-items: center; min-height: 0; }
-  .now-strip { flex: 0 1 auto; height: 100%; max-height: 46vh; max-width: 52%; aspect-ratio: 3/2; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px -18px #000; display: grid; place-items: center; }
+  .now-strip { position: relative; container-type: size; flex: 0 1 auto; height: 100%; max-height: 46vh; max-width: 52%; aspect-ratio: 3/2; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px -18px #000; display: grid; place-items: center; }
   .now-strip img { width: 100%; height: 100%; object-fit: contain; }
+  /* A landscape design is stored rotated 90° for the paper — spin it back upright. */
+  .now-strip.rot img, .thumb.rot img {
+    width: 100cqh; height: 100cqw; object-fit: contain;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg);
+  }
   .now-info { min-width: 0; flex: 1 1 auto; }
   .now-who { font-size: clamp(28px, 3.4vw, 60px); font-weight: 800; line-height: 1.02; overflow-wrap: anywhere; }
   .now-sub { font-size: clamp(16px, 1.8vw, 30px); color: var(--dim); margin-top: 6px; }
@@ -76,7 +81,7 @@
   .row { display: flex; align-items: center; gap: 14px; background: var(--card2); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; }
   .pos { flex: none; width: clamp(38px,3vw,52px); height: clamp(38px,3vw,52px); border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: clamp(16px,1.6vw,26px); background: #ffffff14; }
   .row.next .pos { background: var(--grad); }
-  .thumb { flex: none; width: clamp(58px,5vw,86px); aspect-ratio: 3/2; background: #fff; border-radius: 8px; overflow: hidden; }
+  .thumb { position: relative; container-type: size; flex: none; width: clamp(58px,5vw,86px); aspect-ratio: 3/2; background: #fff; border-radius: 8px; overflow: hidden; }
   .thumb img { width: 100%; height: 100%; object-fit: contain; }
   .who { flex: 1; min-width: 0; font-size: clamp(18px,1.7vw,28px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .eta { flex: none; text-align: right; }
@@ -236,20 +241,24 @@
 
       // now printing
       const nowEl = $('now');
+      const nowStrip = document.querySelector('.now-strip');
       if (printing) {
         nowEl.classList.remove('idle');
         $('nowImg').src = printing.image;
+        nowStrip.classList.toggle('rot', printing.orient === 'landscape');
         $('nowWho').textContent = pno(printing);
         $('nowSub').textContent = printing.copies > 1 ? `${printing.copies} copies` : 'One copy';
         $('nowTag').textContent = '🖨️ Printing now';
       } else if (pending.length) {
         nowEl.classList.add('idle');
         $('nowImg').src = pending[0].image;
+        nowStrip.classList.toggle('rot', pending[0].orient === 'landscape');
         $('nowWho').textContent = pno(pending[0]);
         $('nowSub').textContent = 'Warming up…';
         $('nowTag').textContent = '⏳ Starting soon';
       } else {
         nowEl.classList.add('idle');
+        nowStrip.classList.remove('rot');
         $('nowImg').removeAttribute('src');
         $('nowWho').textContent = 'Ready';
         $('nowSub').textContent = 'Scan the code to send the first print!';
@@ -266,7 +275,7 @@
           const row = document.createElement('div');
           row.className = 'row' + (i === 0 && !printing ? ' next' : '');
           row.innerHTML = `<div class="pos">${j.queue?.position ?? i + 2}</div>
-            <div class="thumb"><img src="${j.image}" alt=""></div>
+            <div class="thumb${j.orient === 'landscape' ? ' rot' : ''}"><img src="${j.image}" alt=""></div>
             <div class="who">${escapeHtml(pno(j))}</div>
             <div class="eta"><b data-eta="${j.id}">${fmtEta(j.queue?.etaSeconds || 0)}</b><span>wait</span></div>`;
           list.appendChild(row);
@@ -278,7 +287,7 @@
       if (done.length) {
         rc.innerHTML = '';
         for (const j of done) {
-          const t = document.createElement('div'); t.className = 'thumb';
+          const t = document.createElement('div'); t.className = 'thumb' + (j.orient === 'landscape' ? ' rot' : '');
           t.innerHTML = `<img src="${j.image}" alt="">`;
           rc.appendChild(t);
         }

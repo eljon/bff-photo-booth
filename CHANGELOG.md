@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.5 — 2026-09-02
+
+**Landscape prints no longer sideways in the queue viewer.** A landscape
+design is stored rotated 90° to feed the portrait 4×6 paper, which made those
+photos show on their side in `/view`. Each job now carries its design
+orientation, and the viewer counter-rotates landscape prints so every photo —
+now printing, up next, and recent — displays upright.
+
+---
+
 ## 1.73.4 — 2026-09-02
 
 **Widget glow moved outside.** The queue widget's colour halo now reads as an
