@@ -95,8 +95,8 @@ test('finds a CLI that a GUI installer left inside its app bundle', async () => 
   // Installing Tailscale on a Mac puts the binary in /Applications and nothing
   // on PATH, so a plain `which` lookup finds nothing and the option looks broken.
   const result = await tunnel.pick(8080, 'tailscale', { PATH: '/nonexistent' });
-  if (result.oneShot) {
-    assert.equal(typeof result.oneShot, 'function', 'a found Tailscale is set up as a one-shot funnel');
+  if (result.command) {
+    assert.match(result.command, /tailscale/i);
   } else {
     assert.match(result.error, /Install it from tailscale\.com/,
       'when it really is missing, say how to get it');
@@ -120,17 +120,13 @@ test('a tunnel choice is remembered, so the start command stops changing', async
   assert.equal(stored, 'ssh', 'the booth should write down what it was told to use');
 });
 
-test('sets up Tailscale funnel as a verified one-shot, not a restarting child', async () => {
-  // `tailscale funnel <port>` configures funnel and exits — it is not a process to
-  // hold open. The booth must run it once and verify it is really serving, and
-  // clean up on exit, rather than respawning it (which collided with its own
-  // listener and left funnel advertised but empty).
+test('clears stale Tailscale funnel state before advertising its own', async () => {
+  // A funnel left over from a hand-run `tailscale funnel` keeps answering, so
+  // the booth must reset serve/funnel config before starting its own.
   const choice = await tunnel.pick(8080, 'tailscale', { PATH: process.env.PATH });
-  if (choice.oneShot) {
-    assert.equal(typeof choice.oneShot, 'function', 'funnel is brought up by a one-shot runner');
+  if (choice.command) {
     assert.equal(typeof choice.cleanup, 'function', 'it should also clean up on exit');
-    assert.equal(choice.stable, true, 'the .ts.net address is the same every run');
-    assert.equal(choice.command, undefined, 'it must not be spawned as a long-lived child');
+    assert.deepEqual(choice.args, ['funnel', '8080']);
   } else {
     assert.match(choice.error, /Install it from tailscale\.com/);
   }

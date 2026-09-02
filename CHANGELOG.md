@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.8 — 2026-09-02
+
+**Revert the v1.73.7 Tailscale tunnel change.** `server/tunnel.js` and its test
+are restored to exactly the 1.73.0 behavior, undoing the one-shot funnel rework.
+
+---
+
 ## 1.73.7 — 2026-09-02
 
 **Fix Tailscale funnel serving nothing (guest link timed out on phones).**
