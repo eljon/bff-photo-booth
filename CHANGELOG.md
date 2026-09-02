@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.4 — 2026-09-02
+
+**Widget glow moved outside.** The queue widget's colour halo now reads as an
+outer glow around the bubble instead of a ring tinting the inside of the white
+circle. The colour band is pushed past the bubble's edge so only its soft spill
+shows all around the outside.
+
+---
+
 ## 1.73.3 — 2026-09-02
 
 **Playful print-status widget.**
