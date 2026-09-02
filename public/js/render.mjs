@@ -420,6 +420,7 @@ export async function exportPrint(state, { rotateForPaper = false, scale = PRINT
   composePage(page, state, scale, null, safeInset);
 
   let canvas = page;
+  let rotated = false; // true when a landscape design was turned 90° for portrait paper
   if (rotateForPaper && page.width > page.height) {
     canvas = document.createElement('canvas');
     canvas.width = page.height;
@@ -428,6 +429,7 @@ export async function exportPrint(state, { rotateForPaper = false, scale = PRINT
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate(Math.PI / 2); // 90° clockwise: long edge now runs down the 6" side
     ctx.drawImage(page, -page.width / 2, -page.height / 2);
+    rotated = true;
   }
 
   if (correct) applyPrintCorrection(canvas);
@@ -448,7 +450,7 @@ export async function exportPrint(state, { rotateForPaper = false, scale = PRINT
     }
   }
   if (!blob) throw new Error('This browser could not render the print.');
-  return { blob, width: canvas.width, height: canvas.height };
+  return { blob, width: canvas.width, height: canvas.height, rotated };
 }
 
 /** Single photo filling a canvas — used by the crop editor and the slot thumbs. */

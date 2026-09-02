@@ -15,6 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.9 — 2026-09-02
+
+**Actually fix landscape prints shown sideways in /view.** The 1.73.5 viewer
+rotation was correct but never triggered: the guest app derived each job's
+`orient` from the *already-rotated* print bitmap (always portrait), so every job
+was tagged `portrait` and the counter-rotation was skipped. `exportPrint` now
+reports whether it rotated the design, and the guest tags the job from that — so
+landscape prints report `landscape` and the queue board spins them upright.
+Verified by rendering /view with a real landscape job.
+
+---
+
 ## 1.73.8 — 2026-09-02
 
 **Revert the v1.73.7 Tailscale tunnel change.** `server/tunnel.js` and its test

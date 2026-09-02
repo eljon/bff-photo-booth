@@ -1947,8 +1947,10 @@ async function doPrint() {
     layout: state.layoutId,
     copies: String(state.copies),
     guest: '',
-    // The uploaded print is always portrait now (landscape gets rotated above).
-    orient: result.width > result.height ? 'landscape' : 'portrait',
+    // The uploaded bitmap is always portrait (landscape designs are rotated for
+    // paper), so orient reflects the ORIGINAL design: `rotated` means it was a
+    // landscape composition. /view uses this to spin those thumbs upright.
+    orient: result.rotated ? 'landscape' : 'portrait',
   });
 
   beginSending(result.blob); // the photo dissolves into bits streaming to the printer
