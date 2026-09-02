@@ -124,8 +124,37 @@ const DRY_PRINT_MS = Number(process.env.DRY_PRINT_MS) || PRINT_MS; // simulated 
 const hits = new Map(); // ip -> print timestamps
 const agentWaiters = new Set(); // long-poll resolvers waiting for work
 
-/** What the Mac-side agent last told us about itself. */
-const agent = { lastSeen: 0, printers: [], name: null, dryRun: false };
+// Connected computers (agents), keyed by a stable agent id. One host can run several
+// printers by connecting several Macs/PCs — each runs `npm run agent` and reports its own
+// printers here. The browser /print page and a single-Mac setup use the id 'default'.
+const agents = new Map(); // id -> { id, name, printers:[{name,state,ready}], lastSeen, dryRun }
+
+/** Agents seen within the online window, most-recent first. */
+function onlineAgents() {
+  const now = Date.now();
+  return [...agents.values()]
+    .filter((a) => now - a.lastSeen < AGENT_ONLINE_MS)
+    .sort((a, b) => b.lastSeen - a.lastSeen);
+}
+/** One agent's friendly name, for labels on the board and the guest app. */
+function agentName(id) {
+  if (!id || id === 'local') return 'This Mac';
+  const a = agents.get(id);
+  return (a && a.name) || 'a computer';
+}
+
+/** A compact summary of the connected computers, for the host screen and the board. */
+function agentSummary() {
+  const on = onlineAgents();
+  const name = on.length === 1 ? on[0].name : on.length ? `${on.length} computers` : null;
+  return {
+    online: on.length > 0,
+    count: on.length,
+    name,
+    lastSeen: on[0] ? on[0].lastSeen : 0,
+    agents: on.map((a) => ({ id: a.id, name: a.name, dryRun: a.dryRun, printers: a.printers })),
+  };
+}
 
 // ---------------------------------------------------------------- persistence
 // In relay (cloud) mode the queue lives ON DISK, so a guest's print is safe on the
@@ -134,7 +163,7 @@ const agent = { lastSeen: 0, printers: [], name: null, dryRun: false };
 // queue.json and reload it on boot. (Booth/LAN mode prints straight to CUPS and is
 // left in memory, so a restart never risks reprinting what already came out.)
 const QUEUE_FILE = path.join(PRINTS_DIR, 'queue.json');
-const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'orient', 'copies', 'printer', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
+const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'orient', 'copies', 'printer', 'agentId', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
 let persistTimer = null;
 
 /** Write the whole queue to disk atomically (temp file, then rename). Relay only. */
@@ -412,7 +441,53 @@ function agentAuthorised(req) {
   return secretsMatch(presentedToken(req), BOOTH_TOKEN);
 }
 
-const agentOnline = () => Date.now() - agent.lastSeen < AGENT_ONLINE_MS;
+const agentOnline = () => onlineAgents().length > 0;
+
+// ---------------------------------------------------------------- printer slots
+// A "slot" is one printer the host chose to run: { agentId, name, label }. Prints are
+// dispatched across all free slots at once (concurrency = number of slots), and each new
+// print goes to whichever slot is free first. When the host has selected none, we fall back
+// to the single default destination (concurrency 1) — exactly the old one-printer behaviour.
+
+/** The printers the host selected to run, or [] when none are chosen. */
+function enabledSlots(cfg) {
+  if (Array.isArray(cfg.printers) && cfg.printers.length) {
+    return cfg.printers.map((p, i) => ({
+      agentId: p.agentId || 'local',
+      name: p.name,
+      label: p.label || p.name || `Printer ${i + 1}`,
+    }));
+  }
+  // Nothing chosen: in relay mode spread across every printer the connected computers
+  // report; in booth mode use the single default destination (one serial slot).
+  if (MODE === 'relay') {
+    const out = [];
+    for (const a of onlineAgents()) for (const pr of a.printers) out.push({ agentId: a.id, name: pr.name, label: pr.name });
+    return out;
+  }
+  return [];
+}
+
+/** How many prints can run at once, from the configured slots (at least 1). */
+function laneCount(cfg) {
+  return Math.max(1, enabledSlots(cfg).length);
+}
+
+/** The (agentId|name) keys of printers busy with a print right now. */
+function busyPrinterKeys() {
+  const set = new Set();
+  for (const j of jobs.values()) {
+    if (ON_PRINTER.has(j.status) && j.printer) set.add(`${j.agentId || 'local'}|${j.printer}`);
+  }
+  return set;
+}
+
+/** The label a guest/board should show for the printer a job landed on. */
+function printerLabelFor(cfg, job) {
+  if (!job.printer) return null;
+  const hit = enabledSlots(cfg).find((s) => s.agentId === (job.agentId || 'local') && s.name === job.printer);
+  return (hit && hit.label) || job.printer;
+}
 
 /** The sticker to actually stamp: the configured one if it's still on disk, else the
  *  first available, so a renamed/removed file never leaves the badge blank. */
@@ -477,10 +552,13 @@ function completeJob(job) {
   pumpPrinter().catch((err) => console.error('  ⚠ could not release the next print:', err.message));
 }
 
-/** Send one job to the local printer and mark it printing (booth mode). */
-async function dispatchToPrinter(job) {
+/** Send one job to a local printer and mark it printing (booth mode). `assigned` names the
+ *  printer slot the scheduler picked; null means the single default destination. */
+async function dispatchToPrinter(job, assigned = null) {
+  job.agentId = 'local';
   if (DRY_RUN) {
     job.status = 'printing';
+    job.printer = assigned || job.printer || 'Dry-Run-Printer';
     job.printedAt = Date.now();
     job.cupsJobId = `dry-run-${job.id.slice(0, 6)}`;
     const timer = setTimeout(() => completeJob(job), DRY_PRINT_MS);
@@ -489,7 +567,7 @@ async function dispatchToPrinter(job) {
   }
 
   const cfg = config.load();
-  const { name, error } = await resolvePrinter(job.printer);
+  const { name, error } = await resolvePrinter(assigned || job.printer);
   if (!name) {
     job.status = 'failed';
     job.error = error;
@@ -527,38 +605,58 @@ async function dispatchToPrinter(job) {
 }
 
 /**
- * Advance the queue: if the printer is free, dispatch the oldest waiting job.
- * Called on submit, on approval, and whenever a print finishes. In relay mode the
- * Mac's agent pulls jobs one at a time, so here we just wake it.
+ * Advance the queue (booth mode): fill every free printer with the oldest waiting jobs,
+ * so several printers run at once and each new print goes to whichever slot is free first.
+ * With no printers chosen it falls back to one serial slot. In relay mode the connected
+ * computers pull jobs themselves, so here we just wake them.
  */
 async function pumpPrinter() {
   if (MODE === 'relay') { notifyAgents(); return; }
   if (dispatching) return;
-  if ([...jobs.values()].some((j) => j.status === 'printing')) return; // one at a time
-  const next = [...jobs.values()]
-    .filter((j) => j.status === 'pending')
-    .sort((a, b) => a.createdAt - b.createdAt)[0];
-  if (!next) return;
-
   dispatching = true;
   try {
-    await dispatchToPrinter(next);
+    for (;;) {
+      const cfg = config.load();
+      const slots = enabledSlots(cfg);
+      const oldestPending = () => [...jobs.values()]
+        .filter((j) => j.status === 'pending')
+        .sort((a, b) => a.createdAt - b.createdAt)[0];
+
+      let assigned = null; // the printer name to send to, or null for the default slot
+      if (slots.length) {
+        const busy = busyPrinterKeys();
+        const free = slots.find((s) => !busy.has(`local|${s.name}`));
+        if (!free) break;
+        assigned = free.name;
+      } else {
+        // One default destination: strictly one print at a time.
+        if ([...jobs.values()].some((j) => j.status === 'printing')) break;
+      }
+
+      const next = oldestPending();
+      if (!next) break;
+      await dispatchToPrinter(next, assigned);
+      // A job that couldn't go frees nothing — loop again to try the next job/slot.
+    }
   } finally {
     dispatching = false;
   }
-  if (next.status === 'failed') await pumpPrinter(); // that one couldn't go — try the next
 }
 
-/** Poll CUPS until the job on the printer leaves the active list, then advance. */
+/** Poll CUPS until each printing job leaves the active list, then advance. Watches every
+ *  printer at once, so several prints can run in parallel. */
 function startPrinterWatch() {
   if (printerWatch || DRY_RUN) return;
   printerWatch = setInterval(async () => {
-    const job = [...jobs.values()].find((j) => j.status === 'printing');
-    if (!job) { clearInterval(printerWatch); printerWatch = null; return; }
-    const elapsed = Date.now() - (job.printedAt || 0);
-    if (elapsed > MAX_PRINT_MS) { completeJob(job); return; } // never wait forever
+    const printing = [...jobs.values()].filter((j) => j.status === 'printing');
+    if (!printing.length) { clearInterval(printerWatch); printerWatch = null; return; }
+    let active;
     try {
-      const active = await cups.listJobs(); // lpstat -o — jobs not yet finished
+      active = await cups.listJobs(); // lpstat -o — jobs not yet finished (all printers)
+    } catch { return; /* transient lpstat hiccup — try again next tick */ }
+    for (const job of printing) {
+      const elapsed = Date.now() - (job.printedAt || 0);
+      if (elapsed > MAX_PRINT_MS) { completeJob(job); continue; } // never wait forever
       const present = Boolean(job.cupsJobId) && active.some((j) => j.id === job.cupsJobId);
       if (present) job.seenActive = true;
       // CUPS drops a job from its queue the moment the backend finishes SENDING it to
@@ -568,7 +666,7 @@ function startPrinterWatch() {
       // and been printing for at least one physical interval (PRINT_MS, env-tunable).
       const clearedCups = !present && (job.seenActive || elapsed > 8000);
       if (clearedCups && elapsed >= PRINT_MS) completeJob(job);
-    } catch { /* transient lpstat hiccup — try again next tick */ }
+    }
   }, 2000);
   if (printerWatch.unref) printerWatch.unref();
 }
@@ -586,14 +684,26 @@ function printSchedule(now) {
   const active = [...jobs.values()]
     .filter((job) => ACTIVE.has(job.status))
     .sort((a, b) => a.createdAt - b.createdAt);
+  const lanes = laneCount(config.load());
+  const laneFree = new Array(lanes).fill(now); // when each printer next becomes free
   const finishAt = new Map();
-  let free = now;
+  const earliestLane = () => { let m = 0; for (let i = 1; i < lanes; i++) if (laneFree[i] < laneFree[m]) m = i; return m; };
+
+  // Jobs already on a printer hold a lane, anchored to when they really started.
   for (const job of active) {
-    const end = ON_PRINTER.has(job.status) && jobStartedAt(job)
-      ? Math.max(jobStartedAt(job) + avgPrintMs, now) // on the printer: real elapsed counted
-      : Math.max(free, now) + avgPrintMs; // waits for the printer, then its slot
+    if (!(ON_PRINTER.has(job.status) && jobStartedAt(job))) continue;
+    const end = Math.max(jobStartedAt(job) + avgPrintMs, now);
     finishAt.set(job.id, end);
-    free = Math.max(free, end);
+    const m = earliestLane();
+    laneFree[m] = Math.max(laneFree[m], end);
+  }
+  // Everything waiting takes the next-free lane, one avgPrintMs slot each.
+  for (const job of active) {
+    if (finishAt.has(job.id)) continue;
+    const m = earliestLane();
+    const end = Math.max(laneFree[m], now) + avgPrintMs;
+    laneFree[m] = end;
+    finishAt.set(job.id, end);
   }
   return { active, finishAt };
 }
@@ -618,6 +728,7 @@ function queueInfo(job, now = Date.now()) {
 }
 
 function publicJob(job) {
+  const cfg = config.load();
   return {
     id: job.id,
     status: job.status,
@@ -626,6 +737,8 @@ function publicJob(job) {
     orient: job.orient || 'portrait',
     copies: job.copies,
     printer: job.printer || null,
+    printerLabel: printerLabelFor(cfg, job), // host-set name/number shown to guests
+    computer: job.printer ? agentName(job.agentId) : null, // which Mac/PC it's printing on
     cupsJobId: job.cupsJobId || null,
     error: job.error || null,
     createdAt: job.createdAt,
@@ -635,20 +748,38 @@ function publicJob(job) {
   };
 }
 
-/** Oldest job an agent may take, requeueing anything a dead agent claimed. Only
- *  one job is ever in flight — nothing new is handed out while one is claimed, so
- *  the Mac prints one at a time and the queue drains in order. */
-function nextClaimableJob() {
+/** Pick a job for a polling computer (agent) and pin it to one of that computer's free
+ *  printers, so several computers/printers drain the queue in parallel and each print lands
+ *  on whichever printer is free first. Requeues anything a dead computer claimed. */
+function nextClaimableJob(agentId) {
+  const cfg = config.load();
   const now = Date.now();
   const ordered = [...jobs.values()].sort((a, b) => a.createdAt - b.createdAt);
   for (const job of ordered) {
     if (job.status === 'claimed' && now - (job.claimedAt || 0) > CLAIM_TIMEOUT_MS) {
       job.status = 'pending';
+      job.printer = null;
+      job.agentId = null;
       job.error = null;
     }
   }
-  if (ordered.some((job) => job.status === 'claimed')) return null; // one in flight already
-  return ordered.find((job) => job.status === 'pending') || null;
+
+  // The printers this computer is allowed to run. When the host chose specific printers,
+  // only that computer's chosen ones; otherwise every printer this computer reports.
+  const chosen = enabledSlots(cfg).filter((s) => s.agentId === agentId);
+  const self = agents.get(agentId);
+  const slots = chosen.length
+    ? chosen
+    : (Array.isArray(cfg.printers) && cfg.printers.length)
+      ? [] // host chose printers, but none on this computer — it stays idle
+      : (self ? self.printers.map((p) => ({ agentId, name: p.name, label: p.name })) : []);
+
+  const busy = busyPrinterKeys();
+  const free = slots.find((s) => !busy.has(`${agentId}|${s.name}`));
+  if (!free) return null;
+  const next = ordered.find((job) => job.status === 'pending');
+  if (!next) return null;
+  return { job: next, printer: free.name };
 }
 
 // ---------------------------------------------------------------- agent API
@@ -658,38 +789,52 @@ async function handleAgentApi(req, res, url) {
   if (!agentAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Bad booth token.' });
 
   const cfg = config.load();
+  // Which computer is calling. Several can connect at once; each carries a stable id.
+  // The browser /print page and a lone Mac send none, so they share the id 'default'.
+  const agentId = String(req.headers['x-agent-id'] || 'default').slice(0, 80);
 
-  // The Mac says hello and tells us which printers it can actually reach.
+  /** Note this computer as seen, upserting its record. */
+  const touchAgent = (patch = {}) => {
+    const prev = agents.get(agentId) || { id: agentId, name: agentId, printers: [], dryRun: false };
+    agents.set(agentId, { ...prev, ...patch, id: agentId, lastSeen: Date.now() });
+  };
+
+  // A computer says hello and tells us which printers it can actually reach.
   if (url.pathname === '/api/agent/hello' && req.method === 'POST') {
     const body = await readJson(req);
-    agent.lastSeen = Date.now();
-    agent.name = String(body.name || 'booth agent').slice(0, 60);
-    agent.dryRun = Boolean(body.dryRun);
-    agent.printers = Array.isArray(body.printers)
-      ? body.printers.slice(0, 40).map((p) => ({
-          name: String(p.name || '').slice(0, 128),
-          state: String(p.state || '').slice(0, 60),
-          ready: Boolean(p.ready),
-        })).filter((p) => p.name)
-      : [];
+    touchAgent({
+      name: String(body.name || 'booth agent').slice(0, 60),
+      dryRun: Boolean(body.dryRun),
+      printers: Array.isArray(body.printers)
+        ? body.printers.slice(0, 40).map((p) => ({
+            name: String(p.name || '').slice(0, 128),
+            state: String(p.state || '').slice(0, 60),
+            ready: Boolean(p.ready),
+          })).filter((p) => p.name)
+        : [],
+    });
     return sendJson(res, 200, { ok: true, config: cfg });
   }
 
-  // Long poll: hand over the next job, or hold the connection until one lands.
+  // Long poll: hand over the next job for one of this computer's free printers, or hold
+  // the connection until one lands.
   if (url.pathname === '/api/agent/jobs' && req.method === 'GET') {
-    agent.lastSeen = Date.now();
+    touchAgent();
     const waitMs = Math.min(50_000, Math.max(0, Number(url.searchParams.get('wait')) || 0) * 1000);
 
     const claim = () => {
-      const job = nextClaimableJob();
-      if (!job) return null;
+      const chosen = nextClaimableJob(agentId);
+      if (!chosen) return null;
+      const { job, printer } = chosen;
       job.status = 'claimed';
       job.claimedAt = Date.now();
+      job.agentId = agentId;
+      job.printer = printer || cfg.printer || null;
       persist();
       return {
         id: job.id,
         copies: job.copies,
-        printer: job.printer || cfg.printer,
+        printer: job.printer,
         media: job.media || cfg.media,
         mediaType: cfg.mediaType,
         borderless: cfg.borderless,
@@ -714,13 +859,13 @@ async function handleAgentApi(req, res, url) {
       res.on('close', finish);
     });
     if (res.writableEnded || res.destroyed) return undefined;
-    agent.lastSeen = Date.now();
+    touchAgent();
     return sendJson(res, 200, { ok: true, job: claim() });
   }
 
-  // The Mac reports what CUPS said.
+  // The computer reports what CUPS said.
   if (url.pathname === '/api/agent/result' && req.method === 'POST') {
-    agent.lastSeen = Date.now();
+    touchAgent();
     const body = await readJson(req);
     const job = jobs.get(body.id);
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
@@ -728,6 +873,7 @@ async function handleAgentApi(req, res, url) {
     if (body.ok) {
       job.cupsJobId = body.cupsJobId ? String(body.cupsJobId).slice(0, 120) : null;
       job.printer = body.printer ? String(body.printer).slice(0, 128) : job.printer;
+      job.agentId = agentId;
       job.error = null;
       // Three shapes of "ok":
       //   done:true    — the printer really finished (the Mac agent watched CUPS). Trust it.
@@ -807,13 +953,20 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === '/api/printers' && req.method === 'GET') {
     if (MODE === 'relay') {
+      // Every printer across every connected computer, each tagged with its computer so the
+      // host can pick which to run and give each a name/number.
+      const list = [];
+      for (const a of onlineAgents()) {
+        for (const pr of a.printers) list.push({ agentId: a.id, agentName: a.name, name: pr.name, state: pr.state, ready: pr.ready });
+      }
       return sendJson(res, 200, {
-        dryRun: agent.dryRun,
+        dryRun: onlineAgents().some((a) => a.dryRun),
         remote: true,
         agentOnline: agentOnline(),
         cupsAvailable: agentOnline(),
-        printers: agent.printers,
-        default: cfg.printer || (agent.printers[0] ? agent.printers[0].name : null),
+        printers: list,
+        agents: agentSummary().agents,
+        default: cfg.printer || (list[0] ? list[0].name : null),
       });
     }
     if (DRY_RUN) {
@@ -821,7 +974,7 @@ async function handleApi(req, res, url) {
         dryRun: true,
         agentOnline: true,
         cupsAvailable: false,
-        printers: [{ name: 'Dry-Run-Printer', state: 'idle', ready: true }],
+        printers: [{ agentId: 'local', agentName: 'This Mac', name: 'Dry-Run-Printer', state: 'idle', ready: true }],
         default: 'Dry-Run-Printer',
       });
     }
@@ -829,7 +982,8 @@ async function handleApi(req, res, url) {
       cups.listPrinters(),
       cups.available(),
     ]);
-    return sendJson(res, 200, { dryRun: false, agentOnline: true, cupsAvailable, printers, default: cfg.printer || fallback, error });
+    const tagged = printers.map((p) => ({ ...p, agentId: 'local', agentName: 'This Mac' }));
+    return sendJson(res, 200, { dryRun: false, agentOnline: true, cupsAvailable, printers: tagged, default: cfg.printer || fallback, error });
   }
 
   // The page sizes a printer really supports, so the host can pick the exact
@@ -848,7 +1002,7 @@ async function handleApi(req, res, url) {
     if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const cupsJobs = MODE === 'relay' || DRY_RUN ? [] : await cups.listJobs();
     const recent = [...jobs.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 40).map(publicJob);
-    return sendJson(res, 200, { cupsJobs, jobs: recent, agent: { online: agentOnline(), name: agent.name, lastSeen: agent.lastSeen } });
+    return sendJson(res, 200, { cupsJobs, jobs: recent, agent: agentSummary() });
   }
 
   if (url.pathname === '/api/config' && req.method === 'GET') {
@@ -861,7 +1015,7 @@ async function handleApi(req, res, url) {
       dryRun: DRY_RUN,
       exposed: isExposed(),
       keyRequired: guestKeyRequired(),
-      agent: { online: agentOnline(), name: agent.name, printers: agent.printers },
+      agent: agentSummary(),
       pinned: config.pinnedKeys(),
       urls: joinUrls(req),
       stickers: config.listStickers(),
@@ -898,7 +1052,8 @@ async function handleApi(req, res, url) {
     const layout = (url.searchParams.get('layout') || 'unknown').replace(/[^a-z0-9_-]/gi, '').slice(0, 40);
     const guest = (url.searchParams.get('guest') || '').replace(/[^\p{L}\p{N} '._-]/gu, '').slice(0, 40);
     const copies = Math.max(1, Math.min(cfg.maxCopies, Number(url.searchParams.get('copies')) || cfg.copies));
-    const requestedPrinter = (url.searchParams.get('printer') || '').slice(0, 128) || null;
+    // The server load-balances across the host's chosen printers (free-first), so a guest
+    // never picks the printer — it is assigned when the print is dispatched.
 
     // The guest app rotates the sheet to match the photos. Only honour that when
     // the host is on 4x6/6x4 photo paper; a host who chose Letter/A4 keeps it.
@@ -924,7 +1079,8 @@ async function handleApi(req, res, url) {
       printNo,
       copies,
       orient, // the design's orientation — the stored bitmap is rotated for paper when landscape
-      printer: requestedPrinter,
+      printer: null,  // assigned by the scheduler to whichever printer is free first
+      agentId: null,  // the computer that ends up printing it
       media: jobMedia,
       status: cfg.requireApproval ? 'awaiting-approval' : 'pending',
       createdAt: Date.now(),

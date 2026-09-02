@@ -54,10 +54,21 @@
   .panel { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: clamp(14px, 1.6vw, 26px); min-height: 0; display: flex; flex-direction: column; }
   .panel h2 { margin: 0 0 12px; font-size: clamp(15px, 1.3vw, 22px); letter-spacing: .04em; text-transform: uppercase; color: var(--dim); font-weight: 700; }
 
-  /* now printing */
+  /* now printing — one card per printer that is running (several at once when the host
+     runs several printers). One card fills the panel; two or more share a scrolling column. */
   .now { position: relative; }
-  .now.idle .now-body { opacity: .5; }
-  .now-body { flex: 1; display: flex; gap: clamp(14px, 1.8vw, 30px); align-items: center; min-height: 0; }
+  .now.idle .now-list { opacity: .5; }
+  .now-list { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: clamp(10px, 1.4vw, 18px); overflow: auto; }
+  .now-card { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; gap: clamp(14px, 1.8vw, 30px); align-items: center; }
+  .now-card + .now-card { border-top: 1px solid var(--line); padding-top: clamp(10px, 1.4vw, 18px); }
+  .now-card .now-info { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+  /* Several cards share the panel, so scale each one down to fit without overlapping. */
+  .now-list:has(.now-card + .now-card) .now-who { font-size: clamp(20px, 2vw, 34px); }
+  .now-list:has(.now-card + .now-card) .now-sub { font-size: clamp(13px, 1.1vw, 18px); margin-top: 0; }
+  .now-list:has(.now-card + .now-card) .now-tag { margin-top: 6px; font-size: clamp(14px, 1.2vw, 20px); padding: 6px 14px; }
+  .now-list:has(.now-card + .now-card) .bar { margin-top: 8px; height: 10px; }
+  .now-list:has(.now-card + .now-card) .big-eta { font-size: clamp(14px, 1.3vw, 22px); margin-top: 4px; }
+  .now-list:has(.now-card + .now-card) .now-strip { max-width: 40%; }
   .now-strip { position: relative; container-type: size; flex: 0 1 auto; height: 100%; max-height: 46vh; max-width: 52%; aspect-ratio: 3/2; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px -18px #000; display: grid; place-items: center; }
   .now-strip img { width: 100%; height: 100%; object-fit: contain; }
   /* A landscape design is stored rotated 90° for the paper — spin it back upright. */
@@ -133,16 +144,7 @@
     <main>
       <section class="panel now" id="now">
         <h2>Now printing</h2>
-        <div class="now-body" id="nowBody">
-          <div class="now-strip"><img id="nowImg" alt=""></div>
-          <div class="now-info">
-            <div class="now-who" id="nowWho">…</div>
-            <div class="now-sub" id="nowSub"></div>
-            <div class="now-tag" id="nowTag">🖨️ Printing now</div>
-            <div class="bar"><i id="nowBar"></i></div>
-            <div class="big-eta" id="nowEta"></div>
-          </div>
-        </div>
+        <div class="now-list" id="nowList"></div>
       </section>
 
       <section class="panel up">
@@ -221,12 +223,14 @@
     function render(data) {
       const jobs = data.jobs || [];
       const now = Date.now();
-      const printing = jobs.find((j) => j.status === 'printing' || j.status === 'claimed');
+      const printing = jobs
+        .filter((j) => j.status === 'printing' || j.status === 'claimed')
+        .sort((a, b) => a.createdAt - b.createdAt);
       const pending = jobs
         .filter((j) => j.status === 'pending' || j.status === 'awaiting-approval')
         .sort((a, b) => (a.queue?.position || 99) - (b.queue?.position || 99) || a.createdAt - b.createdAt);
       const done = jobs.filter((j) => j.status === 'done').slice(0, 8);
-      const active = [printing, ...pending].filter(Boolean);
+      const active = [...printing, ...pending];
 
       // header stats
       $('inLine').textContent = String(active.length);
@@ -239,30 +243,50 @@
       $('offline').hidden = !off;
       $('dot').className = 'dot' + (off ? ' off' : '');
 
-      // now printing
+      // now printing — a card per printer that is running (its P#, which printer/computer,
+      // and a live ETA). When nothing is on a printer yet, show the next in line warming up.
       const nowEl = $('now');
-      const nowStrip = document.querySelector('.now-strip');
-      if (printing) {
+      const nowList = $('nowList');
+      const printerLine = (j) => j.printerLabel
+        ? `${j.printerLabel}${j.computer && j.computer !== 'This Mac' ? ` · ${j.computer}` : ''}`
+        : null;
+      nowList.innerHTML = '';
+      if (printing.length) {
         nowEl.classList.remove('idle');
-        $('nowImg').src = printing.image;
-        nowStrip.classList.toggle('rot', printing.orient === 'landscape');
-        $('nowWho').textContent = pno(printing);
-        $('nowSub').textContent = printing.copies > 1 ? `${printing.copies} copies` : 'One copy';
-        $('nowTag').textContent = '🖨️ Printing now';
-      } else if (pending.length) {
-        nowEl.classList.add('idle');
-        $('nowImg').src = pending[0].image;
-        nowStrip.classList.toggle('rot', pending[0].orient === 'landscape');
-        $('nowWho').textContent = pno(pending[0]);
-        $('nowSub').textContent = 'Warming up…';
-        $('nowTag').textContent = '⏳ Starting soon';
+        for (const j of printing) {
+          const where = printerLine(j);
+          const card = document.createElement('div');
+          card.className = 'now-card';
+          card.innerHTML = `
+            <div class="now-strip${j.orient === 'landscape' ? ' rot' : ''}"><img src="${j.image}" alt=""></div>
+            <div class="now-info">
+              <div class="now-who">${escapeHtml(pno(j))}</div>
+              <div class="now-sub">${j.copies > 1 ? j.copies + ' copies' : 'One copy'}</div>
+              <div class="now-tag">🖨️ ${escapeHtml(where ? 'On ' + where : 'Printing now')}</div>
+              <div class="bar"><i data-bar="${j.id}"></i></div>
+              <div class="big-eta" data-neta="${j.id}"></div>
+            </div>`;
+          nowList.appendChild(card);
+        }
       } else {
         nowEl.classList.add('idle');
-        nowStrip.classList.remove('rot');
-        $('nowImg').removeAttribute('src');
-        $('nowWho').textContent = 'Ready';
-        $('nowSub').textContent = 'Scan the code to send the first print!';
-        $('nowTag').textContent = '✨ Waiting for photos';
+        const j = pending[0];
+        const card = document.createElement('div');
+        card.className = 'now-card';
+        card.innerHTML = j ? `
+          <div class="now-strip${j.orient === 'landscape' ? ' rot' : ''}"><img src="${j.image}" alt=""></div>
+          <div class="now-info">
+            <div class="now-who">${escapeHtml(pno(j))}</div>
+            <div class="now-sub">Warming up…</div>
+            <div class="now-tag">⏳ Starting soon</div>
+          </div>` : `
+          <div class="now-strip"></div>
+          <div class="now-info">
+            <div class="now-who">Ready</div>
+            <div class="now-sub">Scan the code to send the first print!</div>
+            <div class="now-tag">✨ Waiting for photos</div>
+          </div>`;
+        nowList.appendChild(card);
       }
 
       // up next
@@ -295,9 +319,9 @@
 
       // remember timings for the 1s ticker + progress bar
       live = active.map((j) => ({ id: j.id, readyAt: j.queue?.readyAt || 0, printing: j.queue?.printing }));
-      if (printing) {
-        const rem = Math.max(0, Math.round(((printing.queue?.readyAt || now) - now) / 1000));
-        seenMax.set(printing.id, Math.max(seenMax.get(printing.id) || 0, rem, 1));
+      for (const j of printing) {
+        const rem = Math.max(0, Math.round(((j.queue?.readyAt || now) - now) / 1000));
+        seenMax.set(j.id, Math.max(seenMax.get(j.id) || 0, rem, 1));
       }
       tick();
     }
@@ -308,9 +332,10 @@
       for (const j of live) {
         const rem = Math.max(0, Math.round((j.readyAt - now) / 1000));
         if (j.printing) {
-          $('nowEta').textContent = rem <= 5 ? 'Any second now…' : `Ready in about ${fmtEta(rem)}`;
-          const max = seenMax.get(j.id) || rem || 1;
-          $('nowBar').style.width = Math.min(100, Math.max(4, (1 - rem / max) * 100)) + '%';
+          const eta = document.querySelector(`[data-neta="${j.id}"]`);
+          if (eta) eta.textContent = rem <= 5 ? 'Any second now…' : `Ready in about ${fmtEta(rem)}`;
+          const bar = document.querySelector(`[data-bar="${j.id}"]`);
+          if (bar) { const max = seenMax.get(j.id) || rem || 1; bar.style.width = Math.min(100, Math.max(4, (1 - rem / max) * 100)) + '%'; }
         }
         const el = document.querySelector(`[data-eta="${j.id}"]`);
         if (el) el.textContent = fmtEta(rem);

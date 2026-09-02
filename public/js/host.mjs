@@ -9,6 +9,8 @@ let urls = [];
 let token = readToken();
 let timer = null;
 let chosenSticker = null; // the sticker the host has picked (committed on Save)
+let availablePrinters = []; // every printer across the connected computers
+let selection = new Map();   // "agentId|name" -> host-set label (the printers to run)
 
 function readToken() {
   try {
@@ -151,50 +153,103 @@ function renderStickers(stickers, current) {
   }
 }
 
+const slotKey = (agentId, name) => `${agentId || 'local'}|${name}`;
+
+/** The printers the host has ticked, with their names, ready to save. */
+function selectedPrinters() {
+  return availablePrinters
+    .filter((p) => selection.has(slotKey(p.agentId, p.name)))
+    .map((p) => ({ agentId: p.agentId || 'local', name: p.name, label: selection.get(slotKey(p.agentId, p.name)) || p.name }));
+}
+
+/** The printer used to read paper sizes (the first ticked one, or the default). */
+function primaryPrinter() {
+  const sel = selectedPrinters();
+  return sel.length ? sel[0].name : (config.printer || (availablePrinters[0] && availablePrinters[0].name) || '');
+}
+
 async function loadPrinters() {
   const data = await (await fetch('/api/printers')).json();
-  const select = $('printerPick');
-  select.innerHTML = '';
+  availablePrinters = data.printers || [];
 
   const state = $('agentState');
   if (data.remote) {
-    state.textContent = data.agentOnline ? 'booth mac connected' : 'booth mac offline';
+    const n = (data.agents || []).length;
+    state.textContent = data.agentOnline ? (n > 1 ? `${n} computers connected` : 'computer connected') : 'no computer connected';
     state.className = `pill ${data.agentOnline ? 'good' : 'bad'}`;
   } else {
     state.textContent = data.dryRun ? 'dry run' : 'this mac';
     state.className = 'pill quiet';
   }
 
-  if (!data.printers.length) {
-    const option = document.createElement('option');
-    option.textContent = data.remote && !data.agentOnline ? 'Waiting for the booth Mac…' : 'No printers found';
-    option.value = '';
-    select.appendChild(option);
-    $('printerHint').textContent = data.remote
-      ? 'Start the booth agent on the Mac that has the printer:  npm run agent'
-      : 'Add a printer in System Settings ▸ Printers & Scanners, then reload this page.';
+  // Seed the selection: the saved printers, else the legacy single printer, else all found.
+  selection = new Map();
+  const saved = Array.isArray(config.printers) ? config.printers : [];
+  if (saved.length) {
+    for (const p of saved) selection.set(slotKey(p.agentId, p.name), p.label || p.name);
+  } else if (config.printer && availablePrinters.some((p) => p.name === config.printer)) {
+    const p = availablePrinters.find((x) => x.name === config.printer);
+    selection.set(slotKey(p.agentId, p.name), p.name);
+  } else {
+    for (const p of availablePrinters) selection.set(slotKey(p.agentId, p.name), p.name);
+  }
+  renderPrinterList(data);
+}
+
+/** Draw the printer checklist: a row per printer (grouped by computer in relay mode),
+ *  each with a tick to run it and a name/number the guests will see. */
+function renderPrinterList(data) {
+  const box = $('printerList');
+  box.innerHTML = '';
+  if (!availablePrinters.length) {
+    box.innerHTML = `<p class="hint">${data.remote && !data.agentOnline
+      ? 'No computer connected yet. Start the agent on each printing computer: npm run agent'
+      : 'No printers found. Add one in System Settings ▸ Printers &amp; Scanners, then reload.'}</p>`;
     return;
   }
-
-  for (const printer of data.printers) {
-    const option = document.createElement('option');
-    option.value = printer.name;
-    option.textContent = `${printer.name} (${printer.state})`;
-    select.appendChild(option);
+  let lastAgent = null;
+  for (const p of availablePrinters) {
+    if (data.remote && p.agentName !== lastAgent) {
+      lastAgent = p.agentName;
+      const head = document.createElement('div');
+      head.className = 'printer-computer';
+      head.textContent = p.agentName || 'a computer';
+      box.appendChild(head);
+    }
+    const key = slotKey(p.agentId, p.name);
+    const row = document.createElement('label');
+    row.className = 'printer-row';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selection.has(key);
+    const name = document.createElement('span');
+    name.className = 'printer-name';
+    name.textContent = p.state ? `${p.name} (${p.state})` : p.name;
+    const label = document.createElement('input');
+    label.type = 'text';
+    label.className = 'text-input printer-label';
+    label.maxLength = 40;
+    label.placeholder = 'Name or number (e.g. #1)';
+    label.value = selection.get(key) || '';
+    label.disabled = !cb.checked;
+    cb.addEventListener('change', () => {
+      if (cb.checked) { selection.set(key, label.value.trim() || p.name); label.disabled = false; label.focus(); }
+      else { selection.delete(key); label.disabled = true; }
+    });
+    label.addEventListener('input', () => { if (cb.checked) selection.set(key, label.value.trim() || p.name); });
+    row.append(cb, name, label);
+    box.appendChild(row);
   }
-  select.value = config.printer || data.default || data.printers[0].name;
   $('printerHint').textContent = data.dryRun
-    ? 'Dry run: strips are saved but never handed to a printer.'
-    : data.remote
-      ? `Printing on ${data.printers.length} printer${data.printers.length === 1 ? '' : 's'} reported by the booth Mac.`
-      : `Default destination: ${data.default || 'none'}.`;
+    ? 'Dry run: prints are saved but never handed to a printer.'
+    : `${selectedPrinters().length || 'No'} printer${selectedPrinters().length === 1 ? '' : 's'} selected — prints go to whichever is free first.`;
 }
 
 /** Populate the Paper dropdown with the page sizes the selected printer actually
  *  supports, so a borderless (full-bleed) size can be chosen by name. Falls back to
  *  the static list when the driver list is unavailable (dry run, relay, no printer). */
 async function loadMedia() {
-  const printer = $('printerPick').value || '';
+  const printer = primaryPrinter();
   let options = [];
   try {
     options = (await (await api(`/api/media?printer=${encodeURIComponent(printer)}`)).json()).options || [];
@@ -301,8 +356,12 @@ async function refreshQueue() {
     queueBox.innerHTML = '<p class="hint">Queue is empty.</p>';
   }
   for (const job of inFlight) {
-    const state = job.status === 'printing' || job.status === 'claimed' ? 'Printing' : 'On its way to the printer';
-    queueBox.appendChild(jobCard({ image: job.image, title: pno(job), subtitle: `${state} · ${job.layout}` }, []));
+    const onPrinter = job.status === 'printing' || job.status === 'claimed';
+    const where = onPrinter && job.printerLabel
+      ? ` · ${job.printerLabel}${job.computer && job.computer !== 'This Mac' ? ` (${job.computer})` : ''}`
+      : '';
+    const state = onPrinter ? 'Printing' : 'On its way to the printer';
+    queueBox.appendChild(jobCard({ image: job.image, title: pno(job), subtitle: `${state}${where} · ${job.layout}` }, []));
   }
   for (const job of data.cupsJobs) {
     queueBox.appendChild(jobCard(
@@ -360,8 +419,10 @@ function bind() {
   });
 
   $('saveConfig').addEventListener('click', async () => {
+    const printers = selectedPrinters();
     await post('/api/config', {
-      printer: $('printerPick').value || null,
+      printers,
+      printer: printers[0] ? printers[0].name : null, // legacy fallback / relay default
       media: $('mediaPick').value,
       borderless: $('borderless').checked,
       fitToPage: $('fitToPage').checked,
@@ -377,8 +438,6 @@ function bind() {
     await loadMedia();
     toast('Saved.');
   });
-
-  $('printerPick').addEventListener('change', () => { loadMedia(); });
 }
 
 function start() {

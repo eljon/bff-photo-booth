@@ -28,6 +28,10 @@ const BOOTH_TOKEN = process.env.BOOTH_TOKEN || '';
 const DRY_RUN = process.env.DRY_RUN === '1';
 const PRINTS_DIR = process.env.PRINTS_DIR || path.join(__dirname, '..', 'prints');
 const AGENT_NAME = process.env.AGENT_NAME || `${os.hostname()} booth`;
+// A stable id for THIS computer, so the relay can tell several connected Macs/PCs apart and
+// assign each print to whichever computer's printer is free first. Set AGENT_ID to pin it;
+// otherwise it is remembered in a small file beside the prints so it survives restarts.
+const AGENT_ID = resolveAgentId();
 const POLL_SECONDS = 25;
 const HELLO_EVERY_MS = 60_000;
 // Minimum time one sheet holds the printer before the agent pulls the next job.
@@ -44,7 +48,13 @@ if (!RELAY_URL || !BOOTH_TOKEN) {
 
 fs.mkdirSync(PRINTS_DIR, { recursive: true });
 
-const headers = { 'x-booth-token': BOOTH_TOKEN };
+/** A stable per-computer id: the pinned AGENT_ID, else the machine's hostname. Distinct
+ *  machines get distinct ids automatically; set AGENT_ID to run two agents on one machine. */
+function resolveAgentId() {
+  return String(process.env.AGENT_ID || os.hostname() || 'agent').slice(0, 80);
+}
+
+const headers = { 'x-booth-token': BOOTH_TOKEN, 'x-agent-id': AGENT_ID };
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const stamp = () => new Date().toLocaleTimeString();
 const log = (message) => console.log(`  ${stamp()}  ${message}`);
@@ -158,18 +168,10 @@ async function waitForCupsDone(cupsJobId, startedAt = Date.now()) {
   }
 }
 
-async function tick() {
-  if (Date.now() - lastHello > HELLO_EVERY_MS) {
-    const printers = await sayHello();
-    if (!printers.length) log('warning: this Mac reports no printers — add one in System Settings');
-  }
-
-  const response = await relay(`/api/agent/jobs?wait=${POLL_SECONDS}`);
-  if (!response.ok) throw new Error(`poll failed (${response.status})`);
-  const { job } = await response.json();
-  if (!job) return;
-
-  log(`job ${job.id.slice(0, 8)} · ${job.layout} · ${job.copies} ${job.copies === 1 ? 'copy' : 'copies'}`);
+/** Carry one claimed job through to completion. The relay already pinned it to one of this
+ *  computer's printers (job.printer), so several of these can run at once, one per printer. */
+async function runJob(job) {
+  log(`job ${job.id.slice(0, 8)} · ${job.layout} · ${job.copies} ${job.copies === 1 ? 'copy' : 'copies'}${job.printer ? ` · ${job.printer}` : ''}`);
   try {
     const outcome = await printJob(job);
     if (!outcome.ok) {
@@ -183,8 +185,8 @@ async function tick() {
       return;
     }
     // Two phases: tell the relay it STARTED (so the guest sees "Printing now"), then
-    // watch CUPS and report DONE only once the sheet has really left the queue. This
-    // also serialises prints on one printer and teaches the relay the true duration.
+    // watch CUPS and report DONE only once the sheet has really left the queue. This also
+    // holds this printer busy for one real print and teaches the relay the true duration.
     const startedAt = Date.now();
     await report(job, { ...outcome, started: true });
     log(`  → printing (CUPS ${outcome.cupsJobId || 'accepted'})`);
@@ -198,6 +200,7 @@ async function tick() {
 }
 
 async function main() {
+  const localCount = (await localPrinters()).length;
   console.log('');
   console.log(`  ${AGENT_NAME}  v${build.label}`);
   console.log(`  relay:    ${RELAY_URL}`);
@@ -205,10 +208,30 @@ async function main() {
   if (DRY_RUN) console.log('  DRY_RUN=1 — jobs are downloaded but never printed.');
   console.log('');
 
+  // How many prints this computer runs at once — one per printer it has (at least 1). The
+  // relay only ever hands out a job for a printer that is actually free, so this is a ceiling.
+  const maxConcurrent = Math.max(1, localCount);
+  const inFlight = new Set(); // job ids currently printing on this computer
+
   for (;;) {
     try {
-      await tick();
+      if (Date.now() - lastHello > HELLO_EVERY_MS) {
+        const printers = await sayHello();
+        if (!printers.length) log('warning: this computer reports no printers — add one in System Settings');
+      }
+      if (inFlight.size >= maxConcurrent) { await wait(1000); continue; } // all printers busy
+
+      // Poll: wait long when idle, briefly when prints are running so we come back to reap
+      // them and grab the next free-printer job without delay.
+      const waitS = inFlight.size ? 2 : POLL_SECONDS;
+      const response = await relay(`/api/agent/jobs?wait=${waitS}`);
+      if (!response.ok) throw new Error(`poll failed (${response.status})`);
       backoff = 1000;
+      const { job } = await response.json();
+      if (job && !inFlight.has(job.id)) {
+        inFlight.add(job.id);
+        runJob(job).finally(() => inFlight.delete(job.id)); // concurrent — do not await
+      }
     } catch (err) {
       log(`${err.message} — retrying in ${Math.round(backoff / 1000)}s`);
       await wait(backoff);

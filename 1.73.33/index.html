@@ -3603,6 +3603,14 @@ function uploadPrint(path, blob, onProgress) {
   });
 }
 
+/** How the guest is told which printer their copy is on — the host-set name/number, plus the
+ *  computer when it's a separate one. Empty until the print reaches a printer. */
+function onPrinter(job) {
+  if (!job || !job.printerLabel) return '';
+  const who = job.computer && job.computer !== 'This Mac' ? ` (${job.computer})` : '';
+  return ` on ${job.printerLabel}${who}`;
+}
+
 /** Turn a job record into what the guest sees. */
 function showJob(job) {
   if (job.status === 'awaiting-approval') {
@@ -3629,7 +3637,7 @@ function showJob(job) {
       title: session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       body: session.dryRun
         ? 'Dry-run mode. Nothing is sent to a real printer.'
-        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} printing now. Hang tight, we'll tell you the moment it's ready.`,
+        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} printing now${onPrinter(job)}. Hang tight, we'll tell you the moment it's ready.`,
       image: job.image,
       busy: true,
     });
@@ -3759,7 +3767,7 @@ function renderJob(job) {
     setResultText('🖨️', session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       session.dryRun
         ? 'Dry-run mode. Nothing goes to a real printer.'
-        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} printing now. Hang tight, we'll tell you the moment it's ready.`);
+        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} printing now${onPrinter(job)}. Hang tight, we'll tell you the moment it's ready.`);
     $('resultDone').disabled = false;
     return;
   }

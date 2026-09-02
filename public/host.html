@@ -46,9 +46,10 @@
 
   <section class="panel">
     <h2>Printer <span class="pill quiet" id="agentState">…</span></h2>
-    <label class="field"><span>Destination</span>
-      <select id="printerPick" class="text-input"></select>
-    </label>
+    <div class="field"><span>Printers to use</span>
+      <div id="printerList" class="printer-list"></div>
+      <p class="hint">Tick every printer to run. Prints are shared out to whichever printer is free first. The name you type is what guests and the queue board see.</p>
+    </div>
     <label class="field"><span>Paper</span>
       <select id="mediaPick" class="text-input">
         <option value="Custom.4x6in">4×6 in (photo)</option>

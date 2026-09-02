@@ -15,7 +15,29 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.33 — 2026-09-02
+## 1.73.34 — 2026-09-02
+
+**Multiple printers, and multiple computers, on one booth.** The host can now run several
+printers at once and the server shares prints across them, sending each new print to whichever
+printer is free first.
+
+- **Host screen**: a "Printers to use" checklist — tick each printer to run and give it a
+  name or number (e.g. "Front #1"). That name is what guests and the board see. In relay
+  mode the list is grouped by computer.
+- **More than one computer**: several Macs/PCs can each run `npm run agent` against the same
+  cloud (or tunnelled) server; each reports its own printers and prints in parallel. Each
+  computer carries a stable id (its hostname, or `AGENT_ID`), and the relay hands every job to
+  a free printer on whichever computer is ready. A single agent with several printers also
+  prints several at once.
+- **Free-first assignment**: the scheduler fills every free printer, so N printers clear the
+  queue about N× faster; ETAs now model the parallel printers.
+- **Queue board (/view)**: "Now printing" shows a card per running printer — the print, its
+  printer name, and the computer it's on.
+- **Guest app**: while a print runs, the guest is told which printer (and computer) it's on,
+  using the host-set name.
+
+Backwards compatible: with no printers selected it behaves exactly as before (one printer,
+serial). Verified with new tests for parallel booth printers and two connected computers.
 
 **"Allow media" on Facebook / Messenger (Android) — fix the picker in place.** The earlier
 banner (1.73.31) and browser-redirect (1.73.32) are both gone. The real trigger is the

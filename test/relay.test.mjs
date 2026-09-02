@@ -206,6 +206,33 @@ test('end to end: guest prints, the Mac agent picks it up and reports the queue'
   assert.equal(readdirSync(agent.printsDir).length, 1);
 });
 
+test('two computers share one queue — prints land on whichever is free, tagged by computer', async (t) => {
+  const booth = await startRelay();
+  const one = await startAgent(booth.base, TOKEN, { AGENT_ID: 'mac-1', AGENT_NAME: 'Mac One' });
+  const two = await startAgent(booth.base, TOKEN, { AGENT_ID: 'mac-2', AGENT_NAME: 'Mac Two' });
+  t.after(() => Promise.all([one.close(), two.close(), booth.close()]));
+
+  // Both computers connect and report their printers.
+  await until(async () => {
+    const data = await (await fetch(`${booth.base}/api/printers`)).json();
+    return (data.agents || []).length >= 2 ? data : null;
+  });
+
+  const j1 = (await printAsGuest(booth)).data.job;
+  const j2 = (await printAsGuest(booth)).data.job;
+
+  const finished = async (id) => until(async () => {
+    const j = (await (await fetch(`${booth.base}/api/job?id=${id}`)).json()).job;
+    return j.status === 'done' ? j : null;
+  });
+  const d1 = await finished(j1.id);
+  const d2 = await finished(j2.id);
+
+  // Each print was handled by one of the connected computers and carries its name.
+  assert.ok(['Mac One', 'Mac Two'].includes(d1.computer), `computer ${d1.computer}`);
+  assert.ok(['Mac One', 'Mac Two'].includes(d2.computer), `computer ${d2.computer}`);
+});
+
 test('a held print only reaches the Mac after the host approves it', async (t) => {
   const booth = await startRelay();
   const agent = await startAgent(booth.base, TOKEN);

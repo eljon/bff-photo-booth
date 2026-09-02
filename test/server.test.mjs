@@ -110,6 +110,41 @@ test('accepts a composed print and writes it to the prints folder', async (t) =>
   assert.equal(served.headers.get('content-type'), 'image/png');
 });
 
+test('several chosen printers print in parallel, each new print going to a free one', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+
+  // The host picks two printers to run, each with a name/number.
+  await fetch(`${booth.base}/api/config`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ printers: [
+      { agentId: 'local', name: 'Alpha', label: 'Front #1' },
+      { agentId: 'local', name: 'Bravo', label: 'Back #2' },
+    ] }),
+  });
+
+  const submit = () => fetch(`${booth.base}/api/print?layout=grid`, {
+    method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng(),
+  }).then((r) => r.json());
+
+  const a = await submit();
+  const b = await submit();
+  const c = await submit();
+
+  // Two printers → two prints run at once; the third waits for one to free up.
+  assert.equal(a.job.status, 'printing');
+  assert.equal(b.job.status, 'printing', 'the second printer runs in parallel');
+  assert.equal(c.job.status, 'pending', 'the third waits for a free printer');
+  assert.notEqual(a.job.printer, b.job.printer, 'the two prints are on different printers');
+  assert.ok(['Front #1', 'Back #2'].includes(a.job.printerLabel), `label ${a.job.printerLabel}`);
+  assert.equal(a.job.computer, 'This Mac');
+
+  // Two lanes → a and b finish in one slot (~30s), c in the second (~60s), not 90s.
+  assert.ok(a.job.queue.etaSeconds <= 30 && b.job.queue.etaSeconds <= 30, 'both run now');
+  assert.ok(c.job.queue.etaSeconds >= 25 && c.job.queue.etaSeconds <= 60, `c ETA ${c.job.queue.etaSeconds}`);
+});
+
 test('reports a live queue position and ETA for each print', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

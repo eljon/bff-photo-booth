@@ -8,7 +8,12 @@ const CONFIG_PATH = process.env.PHOTOBOOTH_CONFIG || path.join(__dirname, '..', 
 
 const DEFAULTS = {
   boothName: 'BFF Photo Booth',
-  printer: null,            // null => the Mac's default destination
+  printer: null,            // null => the Mac's default destination (legacy single printer)
+  // Multiple printers the host chose to run in parallel. Each: { agentId, name, label }.
+  // agentId is 'local' for a printer on the booth Mac, or a connected computer's id in
+  // relay mode. label is the host-set name/number shown to guests and on the board.
+  // Empty => fall back to the single `printer` (or the one default destination).
+  printers: [],
   media: 'Custom.4x6in',    // paper size passed to lp
   mediaType: 'photographic', // MediaType for lp — photo paper mode (else plain, grainy)
   borderless: true,         // fill the sheet edge-to-edge, and auto-pick the printer's borderless size
@@ -122,6 +127,16 @@ function save(patch) {
       continue;
     }
     if (key === 'accessKey') continue; // rotated deliberately, never set by hand
+    if (key === 'printers') {
+      next[key] = Array.isArray(value)
+        ? value.slice(0, 40).map((p) => ({
+            agentId: String((p && p.agentId) || 'local').slice(0, 80),
+            name: String((p && p.name) || '').slice(0, 128),
+            label: String((p && p.label) || '').slice(0, 40),
+          })).filter((p) => p.name)
+        : [];
+      continue;
+    }
     if (key === 'sticker') {
       // Only accept a sticker the booth actually has, so this can't be pointed
       // at an arbitrary path.
