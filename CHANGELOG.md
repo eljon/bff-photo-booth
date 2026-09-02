@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.71.1 — 2026-09-02
+
+**Added the Manila Temple sticker.**
+
+- Placed the temple sticker in `public/backgrounds/` (where the booth scans for stickers) so
+  it shows up in the host's sticker picker. It had been uploaded to the built output folder,
+  which the app doesn't read.
+
 ## 1.71.0 — 2026-09-02
 
 **Switch the strip's sticker from the host screen.**
