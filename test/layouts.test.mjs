@@ -205,12 +205,11 @@ test('the hero photo leads and is among the largest, within the cap', () => {
   const photos = [mk(900, 1300), mk(950, 1300), mk(900, 1350), mk(920, 1280)];
   const { cells } = resolveGrid(LAYOUTS.grid, photos);
 
-  assert.equal(cells[0].photo, 0, 'photo 0 leads as the hero');
+  // The booth picks the fullest-filling hero design, so the hero may be any photo — but a
+  // hero LEADS the cells and is the largest (or tied), within the 2× cap. Never a thumbnail.
   const heroArea = cells[0].w * cells[0].h;
   const areas = cells.map((c) => c.w * c.h);
-  // Space is the priority, so with equal-ish photos the hero is the biggest cell or ties
-  // for it — never a shrunken thumbnail — and stays within the 2× cap.
-  assert.ok(heroArea >= Math.max(...areas) - 1, 'the hero is the largest cell (or tied)');
+  assert.ok(heroArea >= Math.max(...areas) - 1, 'the hero leads and is the largest cell (or tied)');
   assert.ok(heroArea <= Math.min(...areas) * 2 + 1, 'the hero stays within 2× the smallest');
 });
 

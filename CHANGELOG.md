@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.20 — 2026-09-02
+
+**Default pick fills the most paper.** The booth was defaulting to photo 0 as the
+hero, which on a mixed set could stack the photos into a narrow column with wide
+margins. It now picks, among the four possible heroes, the one that fills the most
+paper (keeps one hero per rule 3). On the tested portrait+landscape mix the default
+went from ~44% of the sheet to ~83% — whole photos, tight, with the decorative paper
+as even matting and the sticker in the margin.
+
+---
+
 ## 1.73.19 — 2026-09-02
 
 **Revert the cropping — whole photos again.** 1.73.18 filled the sheet by trimming

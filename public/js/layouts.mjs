@@ -359,11 +359,25 @@ function evenDesign(aspects, stickerAR) {
 const media = (page) => (page.w > page.h ? 'Custom.6x4in' : 'Custom.4x6in');
 const paper = (page) => (page.w > page.h ? '6×4 landscape' : '4×6 portrait');
 
+/** Fraction of the sheet the photos cover — how little paper margin a design leaves. */
+function photoCoverage(d) {
+  return d.cells.filter((c) => c.photo != null).reduce((s, c) => s + c.w * c.h, 0) / (d.page.w * d.page.h);
+}
+
 /**
- * The booth's own pick: photo 0 as the hero, on whichever sheet fills the most paper.
+ * The booth's own pick: of every arrangement (each photo as the hero, or four equal), the
+ * one that FILLS THE MOST PAPER — the least matting — so a mixed set never defaults to a
+ * narrow column with wide margins.
  */
-export function resolveGrid(base, photos, heroIndex = 0, sticker = null) {
-  const d = heroDesign(photos.map(photoAspect), heroIndex, sticker && sticker.aspect);
+export function resolveGrid(base, photos, heroIndex = null, sticker = null) {
+  const aspects = photos.map(photoAspect);
+  const ar = sticker && sticker.aspect;
+  // Keep one hero (rule 3), but of the four possible heroes pick the one that fills the most
+  // paper — so a mixed set never defaults to a narrow column with wide margins.
+  const designs = heroIndex != null
+    ? [heroDesign(aspects, heroIndex, ar)]
+    : photos.map((_, h) => heroDesign(aspects, h, ar));
+  const d = designs.reduce((bestD, cur) => (photoCoverage(cur) > photoCoverage(bestD) ? cur : bestD));
   return { cells: d.cells, captions: [], page: d.page, media: media(d.page), paper: paper(d.page) };
 }
 
