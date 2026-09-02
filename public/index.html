@@ -109,6 +109,21 @@
   <div class="spacer"></div>
 </div>
 
+<!-- Print-code (voucher) prompt: shown before a print when the booth requires a code. -->
+<div class="sheet hidden" id="codeSheet" role="dialog" aria-modal="true" aria-label="Enter print code">
+  <div class="sheet-card code-card">
+    <h2 class="code-title">🎟️ Enter your print code</h2>
+    <p class="code-note">Type the code from your voucher to print.</p>
+    <input id="codeInput" class="code-input" type="text" inputmode="text" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="ABC234" aria-label="Print code">
+    <p class="code-err" id="codeErr" role="alert"></p>
+    <div class="code-actions">
+      <button class="btn btn-ghost" id="codeCancel" type="button">Cancel</button>
+      <button class="btn btn-primary" id="codeSubmit" type="button">Print</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet hidden" id="editor" role="dialog" aria-modal="true" aria-label="Adjust photo">
   <div class="sheet-card">
     <div class="sheet-head">

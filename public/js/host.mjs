@@ -116,10 +116,23 @@ async function loadConfig() {
   $('fitToPage').checked = config.fitToPage;
   $('printingEnabled').checked = config.printingEnabled;
   $('requireApproval').checked = config.requireApproval;
+  $('requireVoucher').checked = config.requireVoucher;
+  $('voucherBox').hidden = !config.requireVoucher;
+  loadVouchers();
   $('maxCopies').value = String(config.maxCopies);
   $('boothNameInput').value = config.boothName;
   $('messageInput').value = config.message;
   renderStickers(info.stickers || [], config.sticker);
+}
+
+/** Show how many print codes exist and how many are still unused. */
+async function loadVouchers() {
+  try {
+    const v = await (await api('/api/vouchers')).json();
+    $('voucherStats').textContent = v.total
+      ? `${v.unused} unused · ${v.used} used · ${v.total} total`
+      : 'No codes yet. Generate a batch, then download and print them.';
+  } catch { /* leave the placeholder text */ }
 }
 
 /** Draw the sticker chooser: a thumbnail per available sticker, the current one marked. */
@@ -427,6 +440,26 @@ async function refreshQueue() {
 function bind() {
   $('urlPick').addEventListener('change', (event) => paintQr(event.target.value));
 
+  $('requireVoucher').addEventListener('change', (e) => { $('voucherBox').hidden = !e.target.checked; });
+
+  $('genVouchers').addEventListener('click', async () => {
+    const count = Math.max(1, Math.min(10000, Number($('voucherCount').value) || 1000));
+    if (!confirm(`Generate ${count} new print codes? They are added to any existing ones.`)) return;
+    const r = await post('/api/vouchers', { action: 'generate', count });
+    toast(`Added ${r.added} codes.`);
+    loadVouchers();
+  });
+  $('dlVouchers').addEventListener('click', () => {
+    // Same-origin download; the token rides in the query so a fresh tab is still authorised.
+    window.open(`/api/vouchers/export?only=unused&token=${encodeURIComponent(token)}`, '_blank');
+  });
+  $('clearVouchers').addEventListener('click', async () => {
+    if (!confirm('Delete ALL print codes? Any vouchers you handed out stop working.')) return;
+    await post('/api/vouchers', { action: 'clear' });
+    toast('All codes cleared.');
+    loadVouchers();
+  });
+
   $('choosePrinters').addEventListener('click', () => {
     const list = $('printerList');
     const open = list.hidden;
@@ -471,6 +504,7 @@ function bind() {
       fitToPage: $('fitToPage').checked,
       printingEnabled: $('printingEnabled').checked,
       requireApproval: $('requireApproval').checked,
+      requireVoucher: $('requireVoucher').checked,
       maxCopies: Number($('maxCopies').value) || 3,
       boothName: $('boothNameInput').value.trim() || 'Photo Booth',
       message: $('messageInput').value.trim(),

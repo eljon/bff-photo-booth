@@ -66,6 +66,19 @@
     <label class="switch"><input type="checkbox" id="fitToPage"> <span>Scale to fit (only when borderless is off)</span></label>
     <label class="switch"><input type="checkbox" id="printingEnabled"> <span>Printing is on</span></label>
     <label class="switch"><input type="checkbox" id="requireApproval"> <span>Ask me before each print</span></label>
+    <label class="switch"><input type="checkbox" id="requireVoucher"> <span>Require a print code (voucher)</span></label>
+    <div class="field" id="voucherBox" hidden><span>Print codes</span>
+      <p class="hint" id="voucherStats">No codes yet.</p>
+      <label class="field" style="margin-bottom:8px"><span>How many to generate</span>
+        <input id="voucherCount" class="text-input" type="number" min="1" max="10000" value="1000">
+      </label>
+      <div class="voucher-actions">
+        <button class="btn btn-ghost" id="genVouchers" type="button">Generate codes</button>
+        <button class="btn btn-ghost" id="dlVouchers" type="button">Download unused</button>
+        <button class="btn btn-ghost danger" id="clearVouchers" type="button">Clear all</button>
+      </div>
+      <p class="hint">Each code prints once. Hand them out; guests type one to print. Download and print the list to make vouchers.</p>
+    </div>
     <label class="field"><span>Max copies per guest</span>
       <input id="maxCopies" class="text-input" type="number" min="1" max="10">
     </label>

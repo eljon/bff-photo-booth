@@ -110,6 +110,64 @@ test('accepts a composed print and writes it to the prints folder', async (t) =>
   assert.equal(served.headers.get('content-type'), 'image/png');
 });
 
+test('a booth can gate printing behind single-use print codes (vouchers)', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+  const H = { 'content-type': 'application/json' };
+
+  await fetch(`${booth.base}/api/config`, { method: 'POST', headers: H, body: JSON.stringify({ requireVoucher: true }) });
+  const gen = await (await fetch(`${booth.base}/api/vouchers`, { method: 'POST', headers: H, body: JSON.stringify({ action: 'generate', count: 5 }) })).json();
+  assert.equal(gen.added, 5);
+  assert.equal(gen.codes.length, 5);
+  const code = gen.codes[0];
+  assert.match(code, /^[A-HJ-NP-Z2-9]{6}$/, 'six unambiguous chars, no I/L/O/0/1');
+
+  // Guests are told a code is required.
+  assert.equal((await (await fetch(`${booth.base}/api/session`)).json()).codeRequired, true);
+
+  const printWith = (c) => fetch(`${booth.base}/api/print?layout=grid${c != null ? `&code=${encodeURIComponent(c)}` : ''}`, {
+    method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng(),
+  }).then(async (r) => ({ status: r.status, data: await r.json() }));
+
+  // No code, or a wrong one, is refused with a code error — never printed.
+  assert.equal((await printWith(null)).status, 402);
+  const wrong = await printWith('ZZZZZZ');
+  assert.equal(wrong.status, 402);
+  assert.equal(wrong.data.codeError, true);
+
+  // The real code prints — and cannot be used a second time.
+  const ok = await printWith(code);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.data.job.status, 'printing');
+  const reuse = await printWith(code);
+  assert.equal(reuse.status, 402);
+  assert.equal(reuse.data.reason, 'used');
+
+  const stats = await (await fetch(`${booth.base}/api/vouchers`)).json();
+  assert.equal(stats.used, 1);
+  assert.equal(stats.unused, 4);
+});
+
+test('a skipped print hands the guest their code back', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+  const H = { 'content-type': 'application/json' };
+
+  await fetch(`${booth.base}/api/config`, { method: 'POST', headers: H, body: JSON.stringify({ requireVoucher: true, requireApproval: true }) });
+  const gen = await (await fetch(`${booth.base}/api/vouchers`, { method: 'POST', headers: H, body: JSON.stringify({ action: 'generate', count: 1 }) })).json();
+  const code = gen.codes[0];
+
+  const first = await (await fetch(`${booth.base}/api/print?layout=grid&code=${code}`, { method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng() })).json();
+  assert.equal(first.job.status, 'awaiting-approval');
+  assert.equal((await (await fetch(`${booth.base}/api/vouchers`)).json()).unused, 0, 'the code is spent while it waits');
+
+  // The host skips it → the code comes back and works again.
+  await fetch(`${booth.base}/api/reject`, { method: 'POST', headers: H, body: JSON.stringify({ id: first.job.id }) });
+  assert.equal((await (await fetch(`${booth.base}/api/vouchers`)).json()).unused, 1, 'a skipped print refunds the code');
+  const again = await (await fetch(`${booth.base}/api/print?layout=grid&code=${code}`, { method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng() })).json();
+  assert.equal(again.job.status, 'awaiting-approval', 'the refunded code prints again');
+});
+
 test('several chosen printers print in parallel, each new print going to a free one', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

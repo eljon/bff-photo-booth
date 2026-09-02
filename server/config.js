@@ -21,6 +21,7 @@ const DEFAULTS = {
   copies: 1,
   maxCopies: 3,
   requireApproval: false,   // host taps "Print" on /host before anything reaches the queue
+  requireVoucher: false,    // guests must enter a single-use print code (voucher) to print
   printingEnabled: true,    // false => download-only mode (no printer at the party)
   message: 'Make a strip. Take it home.',
   // Off by default: guests scan and print, nothing in the way. Turn it on and

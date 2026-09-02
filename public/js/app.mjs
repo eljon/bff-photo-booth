@@ -1945,6 +1945,40 @@ function beginSending(blob) {
   img.src = sendUrl;
 }
 
+/** Ask the guest for their print code. Resolves to the entered code, or null if cancelled. */
+function askForCode(errorMsg = '') {
+  return new Promise((resolve) => {
+    const sheet = $('codeSheet');
+    const input = $('codeInput');
+    const err = $('codeErr');
+    err.textContent = errorMsg || '';
+    input.value = '';
+    sheet.classList.remove('hidden');
+    setTimeout(() => input.focus(), 60);
+
+    const cleanup = () => {
+      sheet.classList.add('hidden');
+      $('codeSubmit').removeEventListener('click', onOk);
+      $('codeCancel').removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+    };
+    const onOk = () => {
+      const value = input.value.trim().toUpperCase();
+      if (!value) { err.textContent = 'Type your code.'; input.focus(); return; }
+      cleanup();
+      resolve(value);
+    };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onKey = (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); onOk(); }
+      if (event.key === 'Escape') onCancel();
+    };
+    $('codeSubmit').addEventListener('click', onOk);
+    $('codeCancel').addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+  });
+}
+
 async function doPrint() {
   // The hosted (GitHub Pages) preview shows the Print button exactly like the
   // real booth, but there is no printer behind it — tapping it does nothing.
@@ -1952,6 +1986,13 @@ async function doPrint() {
   if (filledCount() < 4) {
     toast('Four photos first.');
     return;
+  }
+  // This booth gates printing behind a single-use code (voucher). Ask for it before we
+  // render or send anything; cancelling just returns to the design.
+  let printCode = null;
+  if (session.codeRequired) {
+    printCode = await askForCode();
+    if (!printCode) return;
   }
   // A fresh print supersedes any queue standing (and its collapsed pill) on screen.
   clearQueueTimers();
@@ -1973,23 +2014,36 @@ async function doPrint() {
     return;
   }
 
-  const params = new URLSearchParams({
-    layout: state.layoutId,
-    copies: String(state.copies),
-    guest: '',
-    // The uploaded bitmap is always portrait (landscape designs are rotated for
-    // paper), so orient reflects the ORIGINAL design: `rotated` means it was a
-    // landscape composition. /view uses this to spin those thumbs upright.
-    orient: result.rotated ? 'landscape' : 'portrait',
-  });
-
-  beginSending(result.blob); // the photo dissolves into bits streaming to the printer
-
-  try {
-    const { status, data } = await uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
-      // Update just the progress line so the animation keeps running underneath.
+  // One upload attempt with the current code. The photo dissolves into bits streaming out.
+  const send = () => {
+    const params = new URLSearchParams({
+      layout: state.layoutId,
+      copies: String(state.copies),
+      guest: '',
+      // The uploaded bitmap is always portrait (landscape designs are rotated for
+      // paper), so orient reflects the ORIGINAL design: `rotated` means it was a
+      // landscape composition. /view uses this to spin those thumbs upright.
+      orient: result.rotated ? 'landscape' : 'portrait',
+      ...(printCode ? { code: printCode } : {}),
+    });
+    beginSending(result.blob);
+    return uploadPrint(`/api/print?${params}`, result.blob, (fraction) => {
       $('resultBody').textContent = `Beaming your photo over… ${Math.round(fraction * 100)}%`;
     });
+  };
+
+  try {
+    let { status, data } = await send();
+
+    // A wrong or used code comes back as 402: ask for another and try again.
+    while (status === 402 && data && data.codeError) {
+      printCode = await askForCode(data.error || 'That code did not work. Try another.');
+      if (!printCode) {
+        showResult({ emoji: '🎫', title: 'Print cancelled', body: 'No code entered. You can still save the photo to your phone.' });
+        return;
+      }
+      ({ status, data } = await send());
+    }
 
     if (status === 401) {
       accessKey = '';

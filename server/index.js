@@ -27,6 +27,7 @@ const crypto = require('node:crypto');
 
 const cups = require('./cups');
 const config = require('./config');
+const { VoucherStore, LEN: VOUCHER_LEN } = require('./vouchers');
 const tunnel = require('./tunnel');
 const build = require('./version');
 const { openInBrowser } = require('./open-browser');
@@ -163,7 +164,7 @@ function agentSummary() {
 // queue.json and reload it on boot. (Booth/LAN mode prints straight to CUPS and is
 // left in memory, so a restart never risks reprinting what already came out.)
 const QUEUE_FILE = path.join(PRINTS_DIR, 'queue.json');
-const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'orient', 'copies', 'printer', 'agentId', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
+const PERSIST_FIELDS = ['id', 'token', 'file', 'layout', 'guest', 'printNo', 'orient', 'copies', 'printer', 'agentId', 'voucher', 'media', 'status', 'createdAt', 'claimedAt', 'printedAt', 'doneAt', 'cupsJobId', 'error'];
 let persistTimer = null;
 
 /** Write the whole queue to disk atomically (temp file, then rename). Relay only. */
@@ -216,6 +217,9 @@ function loadQueue() {
 }
 
 loadQueue();
+
+// Single-use print codes (vouchers). Stored beside the queue so they survive a restart.
+const vouchers = new VoucherStore(path.join(PRINTS_DIR, 'vouchers.json'));
 
 // ---------------------------------------------------------------- helpers
 
@@ -535,6 +539,11 @@ const ON_PRINTER = new Set(['printing', 'claimed']); // the job actually at the 
 
 const jobStartedAt = (job) => job.printedAt || job.claimedAt || 0;
 
+/** A print that fails or is skipped should not burn the guest's code — hand it back. */
+function refundVoucher(job) {
+  if (job && job.voucher) { vouchers.refund(job.voucher); job.voucher = null; }
+}
+
 /** Learn from a finished print so future ETAs track this printer's real speed. */
 function recordDuration(ms) {
   if (ms > 3000 && ms < MAX_PRINT_MS) avgPrintMs = Math.round(avgPrintMs * 0.6 + ms * 0.4);
@@ -571,6 +580,7 @@ async function dispatchToPrinter(job, assigned = null) {
   if (!name) {
     job.status = 'failed';
     job.error = error;
+    refundVoucher(job);
     console.error(`  ✗ print failed for job ${job.id.slice(0, 8)}: ${error}`);
     return;
   }
@@ -592,6 +602,7 @@ async function dispatchToPrinter(job, assigned = null) {
   if (!result.ok) {
     job.status = 'failed';
     job.error = result.error;
+    refundVoucher(job);
     console.error(`  ✗ print failed for job ${job.id.slice(0, 8)} on ${name}: ${result.error}`);
     return;
   }
@@ -896,6 +907,7 @@ async function handleAgentApi(req, res, url) {
     } else {
       job.status = 'failed';
       job.error = String(body.error || 'The booth printer refused the job.').slice(0, 300);
+      refundVoucher(job);
       persist();
       notifyAgents(); // let the agent pick up the next one
     }
@@ -944,6 +956,8 @@ async function handleApi(req, res, url) {
       shareHashtag: cfg.shareHashtag, // Facebook caption; client defaults to #bff2026
       printingEnabled: printingEnabledEffective(cfg),
       requireApproval: GUEST_ONLY ? false : cfg.requireApproval,
+      codeRequired: !GUEST_ONLY && cfg.requireVoucher === true, // a single-use print code
+      codeLength: VOUCHER_LEN,
       keyRequired: guestKeyRequired(),
       remote: MODE === 'relay' || Boolean(PRINT_HOST),
       dryRun: DRY_RUN,
@@ -1028,6 +1042,45 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { config: config.save(patch) });
   }
 
+  // Print codes (vouchers). The host generates a batch, hands them out, and downloads the
+  // list to print. Guests spend one per print (see /api/print).
+  if (url.pathname === '/api/vouchers' && req.method === 'GET') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    return sendJson(res, 200, { requireVoucher: cfg.requireVoucher === true, codeLength: VOUCHER_LEN, ...vouchers.stats() });
+  }
+
+  if (url.pathname === '/api/vouchers' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const { action, count } = await readJson(req);
+    if (action === 'clear') {
+      vouchers.clear();
+      return sendJson(res, 200, { ok: true, ...vouchers.stats() });
+    }
+    if (action === 'generate') {
+      const added = vouchers.generate(Math.max(1, Math.min(10_000, Number(count) || 1000)));
+      return sendJson(res, 200, { ok: true, added: added.length, codes: added, ...vouchers.stats() });
+    }
+    return sendJson(res, 400, { ok: false, error: 'Unknown voucher action.' });
+  }
+
+  // Download the codes as a CSV to print onto vouchers. `only=unused` skips spent codes.
+  // A browser download can't set headers, so the token may ride in the query here.
+  if (url.pathname === '/api/vouchers/export' && req.method === 'GET') {
+    const authed = hostAuthorised(req) || (BOOTH_TOKEN && secretsMatch(url.searchParams.get('token'), BOOTH_TOKEN));
+    if (!authed) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const onlyUnused = url.searchParams.get('only') === 'unused';
+    const rows = vouchers.list().filter((v) => !onlyUnused || !v.used);
+    const csv = ['code,status', ...rows.map((v) => `${v.code},${v.used ? 'used' : 'unused'}`)].join('\r\n');
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.writeHead(200, {
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': `attachment; filename="print-codes-${stamp}.csv"`,
+      'cache-control': 'no-store',
+    });
+    res.end(csv);
+    return undefined;
+  }
+
   if (url.pathname === '/api/print' && req.method === 'POST') {
     if (!printingEnabledEffective(cfg)) {
       return sendJson(res, 503, { ok: false, error: 'Printing is switched off for this booth. Save the photo to your phone instead.' });
@@ -1047,6 +1100,22 @@ async function handleApi(req, res, url) {
     const kind = imageKind(body);
     if (!kind) {
       return sendJson(res, 400, { ok: false, error: 'Expected a PNG or JPEG image body.' });
+    }
+
+    // Single-use print code (voucher). Spend it now; a failed or skipped print refunds it.
+    let voucherCode = null;
+    if (cfg.requireVoucher) {
+      const supplied = url.searchParams.get('code') || req.headers['x-print-code'] || '';
+      const r = vouchers.redeem(supplied);
+      if (!r.ok) {
+        return sendJson(res, 402, {
+          ok: false,
+          codeError: true,
+          reason: r.reason,
+          error: r.reason === 'used' ? 'That print code has already been used.' : 'That print code is not valid.',
+        });
+      }
+      voucherCode = r.code;
     }
 
     const layout = (url.searchParams.get('layout') || 'unknown').replace(/[^a-z0-9_-]/gi, '').slice(0, 40);
@@ -1081,6 +1150,7 @@ async function handleApi(req, res, url) {
       orient, // the design's orientation — the stored bitmap is rotated for paper when landscape
       printer: null,  // assigned by the scheduler to whichever printer is free first
       agentId: null,  // the computer that ends up printing it
+      voucher: voucherCode, // the single-use code spent on this print (refunded if it fails)
       media: jobMedia,
       status: cfg.requireApproval ? 'awaiting-approval' : 'pending',
       createdAt: Date.now(),
@@ -1125,6 +1195,7 @@ async function handleApi(req, res, url) {
     const job = jobs.get(id);
     if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
     job.status = 'rejected';
+    refundVoucher(job); // a skipped print hands the guest's code back
     persist();
     return sendJson(res, 200, { ok: true, job: publicJob(job) });
   }

@@ -631,6 +631,22 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   opacity: 0.6;
 }
 .app-version:empty { display: none; }
+
+/* Print-code (voucher) prompt. */
+.code-card { max-width: 380px; margin: auto; text-align: center; padding: 22px 20px; }
+.code-title { margin: 0 0 6px; font-size: 20px; }
+.code-note { margin: 0 0 16px; color: var(--ink-dim); font-size: 14px; }
+.code-input {
+  width: 100%; box-sizing: border-box; text-align: center;
+  font: 700 30px/1.1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  padding: 14px 12px; border-radius: 14px;
+  background: #0f0e13; color: var(--ink); border: 1px solid #3a3745;
+}
+.code-input:focus { outline: none; border-color: var(--accent); }
+.code-err { min-height: 18px; margin: 8px 0 0; color: var(--accent); font-size: 13px; }
+.code-actions { display: flex; gap: 10px; margin-top: 16px; }
+.code-actions .btn { flex: 1; }
 .spacer { height: calc(env(safe-area-inset-bottom) + 14px); }
 
 /* ------------------------------------------------------------- commit control

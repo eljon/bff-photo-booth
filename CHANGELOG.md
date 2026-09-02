@@ -15,7 +15,24 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.36 — 2026-09-02
+## 1.73.37 — 2026-09-02
+
+**Print codes (vouchers).** A booth can now require a single-use code to print, so only guests
+holding a voucher can use the printer.
+
+- **Codes**: 6 characters from a 31-letter alphabet with the ambiguous glyphs removed (no
+  I, L, O, 0, 1) — clear on a printed voucher, and ~887 million combinations, so a handful of
+  live codes out of a batch is a one-in-a-million guess per try (and print attempts are rate
+  limited). Codes are generated cryptographically at random, never sequential.
+- **Host screen**: turn on "Require a print code", generate a batch (default 1000), see how
+  many are unused/used, and download the unused codes as a CSV to print onto vouchers. Codes
+  are stored on disk so they survive a restart.
+- **Guest**: tapping Print asks for the code before anything is sent; a wrong or already-used
+  code is refused and the guest can try another.
+- **Single-use**: a code is spent the moment a print is accepted, and refunded automatically if
+  that print fails or the host skips it — so a booth error never burns a guest's voucher.
+
+Off by default (no code needed). Verified with tests for gating, single-use, and refunds.
 
 **Collapse the printer list.** The settings screen no longer lists every printer on the machine
 by default — it shows only the printers you've chosen (with their names/numbers) and a "Choose
