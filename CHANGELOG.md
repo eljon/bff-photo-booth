@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.6 — 2026-09-02
+
+**Print colour correction.** Prints now get a subtle contrast and saturation
+boost (+9% contrast, +16% saturation) so photos come out punchier on paper,
+which reads flatter than a phone screen. Applied to the print bitmap only — the
+photo saved to the guest's phone keeps its true on-screen look. Tunable via
+`PRINT_CONTRAST` / `PRINT_SATURATION` in `public/js/render.mjs`.
+
+---
+
 ## 1.73.5 — 2026-09-02
 
 **Landscape prints no longer sideways in the queue viewer.** A landscape
