@@ -386,6 +386,106 @@ export const PRINT_SAFE_INSET = 0.05;
 // where it would fight the driver's colour management and skew every printer
 // differently.
 
+// Canvas exports carry NO colour profile in most browsers (a PNG comes out with no
+// iCCP/sRGB chunk at all, and mobile Safari often omits the JPEG profile too). A real
+// camera photo always ships an ICC profile, so the print pipeline colour-manages it —
+// an untagged image gets handled with a wrong assumed profile and prints dark, warm
+// and washed out next to a real photo. We tag every export as sRGB so it is managed
+// the same way. This is a compact sRGB profile (extracted from a browser's own JPEG).
+const SRGB_ICC_B64 =
+  'AAAByAAAAAAEMAAAbW50clJHQiBYWVogB+AAAQABAAAAAAAAYWNzcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAPbWAAEAAAAA0y0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZGVzYwAAAPAAAAAkclhZWgAAARQAAAAUZ1hZWgAAASgAAAAUYlhZWgAAATwAAAAUd3RwdAAAAVAAAAAUclRSQwAAAWQAAAAoZ1RSQwAAAWQAAAAoYlRSQwAAAWQAAAAoY3BydAAAAYwAAAA8bWx1YwAAAAAAAAABAAAADGVuVVMAAAAIAAAAHABzAFIARwBCWFlaIAAAAAAAAG+iAAA49QAAA5BYWVogAAAAAAAAYpkAALeFAAAY2lhZWiAAAAAAAAAkoAAAD4QAALbPWFlaIAAAAAAAAPbWAAEAAAAA0y1wYXJhAAAAAAAEAAAAAmZmAADypwAADVkAABPQAAAKWwAAAAAAAAAAbWx1YwAAAAAAAAABAAAADGVuVVMAAAAgAAAAHABHAG8AbwBnAGwAZQAgAEkAbgBjAC4AIAAyADAAMQA2';
+
+let _srgbIcc = null;
+function srgbIccBytes() {
+  if (_srgbIcc) return _srgbIcc;
+  const bin = atob(SRGB_ICC_B64);
+  _srgbIcc = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) _srgbIcc[i] = bin.charCodeAt(i);
+  return _srgbIcc;
+}
+
+function crc32(buf) {
+  let c = ~0;
+  for (let i = 0; i < buf.length; i++) {
+    c ^= buf[i];
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return (~c) >>> 0;
+}
+
+/** Embed the sRGB profile in a JPEG as an APP2 ICC_PROFILE segment (unless one is
+ *  already there). */
+function tagJpegBytes(b) {
+  if (b[0] !== 0xff || b[1] !== 0xd8) return b;
+  let i = 2;
+  while (i + 4 <= b.length && b[i] === 0xff) {
+    const marker = b[i + 1];
+    if (marker === 0xda || marker === 0xd9) break; // image data / end
+    const len = (b[i + 2] << 8) | b[i + 3];
+    if (marker === 0xe2 && i + 16 <= b.length) {
+      let tag = '';
+      for (let k = 0; k < 12; k++) tag += String.fromCharCode(b[i + 4 + k]);
+      if (tag === 'ICC_PROFILE\0') return b; // already colour-tagged
+    }
+    i += 2 + len;
+  }
+  const icc = srgbIccBytes();
+  const segLen = 2 + 12 + 2 + icc.length; // length field + tag + seq/count + profile
+  const seg = new Uint8Array(2 + segLen);
+  seg[0] = 0xff; seg[1] = 0xe2;
+  seg[2] = (segLen >> 8) & 0xff; seg[3] = segLen & 0xff;
+  const tag = 'ICC_PROFILE\0';
+  for (let k = 0; k < 12; k++) seg[4 + k] = tag.charCodeAt(k);
+  seg[16] = 1; seg[17] = 1; // chunk 1 of 1
+  seg.set(icc, 18);
+  const out = new Uint8Array(b.length + seg.length);
+  out.set(b.subarray(0, 2), 0);        // SOI
+  out.set(seg, 2);                     // our APP2 right after it
+  out.set(b.subarray(2), 2 + seg.length);
+  return out;
+}
+
+/** Declare a PNG as sRGB with an sRGB chunk after IHDR (unless already colour-tagged). */
+function tagPngBytes(b) {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  for (let k = 0; k < 8; k++) if (b[k] !== sig[k]) return b;
+  let pos = 8, ihdrEnd = -1, tagged = false;
+  while (pos + 12 <= b.length) {
+    const len = b[pos] * 0x1000000 + (b[pos + 1] << 16) + (b[pos + 2] << 8) + b[pos + 3];
+    const type = String.fromCharCode(b[pos + 4], b[pos + 5], b[pos + 6], b[pos + 7]);
+    if (type === 'IHDR') ihdrEnd = pos + 12 + len;
+    if (type === 'iCCP' || type === 'sRGB') tagged = true;
+    if (type === 'IDAT' || type === 'IEND') break;
+    pos += 12 + len;
+  }
+  if (tagged || ihdrEnd < 0) return b;
+  const chunk = new Uint8Array(13);
+  chunk[3] = 1; // data length 1
+  chunk[4] = 0x73; chunk[5] = 0x52; chunk[6] = 0x47; chunk[7] = 0x42; // 'sRGB'
+  chunk[8] = 0; // rendering intent: perceptual
+  const crc = crc32(chunk.subarray(4, 9));
+  chunk[9] = (crc >>> 24) & 0xff; chunk[10] = (crc >>> 16) & 0xff; chunk[11] = (crc >>> 8) & 0xff; chunk[12] = crc & 0xff;
+  const out = new Uint8Array(b.length + 13);
+  out.set(b.subarray(0, ihdrEnd), 0);
+  out.set(chunk, ihdrEnd);
+  out.set(b.subarray(ihdrEnd), ihdrEnd + 13);
+  return out;
+}
+
+/** Return a copy of the blob tagged as sRGB, so the printer colour-manages the app's
+ *  output like a real photo. Best effort: any hiccup returns the original blob. */
+async function tagSrgb(blob) {
+  try {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const out = blob.type === 'image/jpeg' ? tagJpegBytes(bytes)
+      : blob.type === 'image/png' ? tagPngBytes(bytes)
+        : bytes;
+    return out === bytes ? blob : new Blob([out], { type: blob.type });
+  } catch {
+    return blob;
+  }
+}
+
 export async function exportPrint(state, { rotateForPaper = false, scale = PRINT_SCALE, safeInset = 0 } = {}) {
   const page = document.createElement('canvas');
   composePage(page, state, scale, null, safeInset);
@@ -419,6 +519,7 @@ export async function exportPrint(state, { rotateForPaper = false, scale = PRINT
     }
   }
   if (!blob) throw new Error('This browser could not render the print.');
+  blob = await tagSrgb(blob); // ship an sRGB profile so the printer colour-manages it like a photo
   return { blob, width: canvas.width, height: canvas.height, rotated };
 }
 

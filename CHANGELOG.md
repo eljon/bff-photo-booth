@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.14 — 2026-09-02
+
+**Tag prints as sRGB so they colour-manage like a real photo.** Prints from the
+app came out darker, warmer and more washed out than ordinary photos on the same
+printer. The cause: a browser canvas export carries no colour profile (a PNG has
+no sRGB/iCCP chunk at all, and mobile Safari often omits the JPEG profile too), so
+the print pipeline handles it with a wrong assumed profile. A real photo always
+ships an ICC profile and gets managed correctly. Every export is now tagged sRGB
+(an sRGB ICC segment on JPEG, an sRGB chunk on PNG) so the printer treats it the
+same as a photo. Verified the tagged files still decode and carry the profile.
+
+---
+
 ## 1.73.13 — 2026-09-02
 
 **Remove the print colour correction — prints are now a faithful copy of the
