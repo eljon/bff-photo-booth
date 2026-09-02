@@ -380,42 +380,13 @@ export const SAVE_SCALE = 1;
 // instead of eating into the photos. Applied on the rotateForPaper path.
 export const PRINT_SAFE_INSET = 0.05;
 
-// Print correction. Paper (dye-sub and inkjet photo) reads a touch flatter and
-// less punchy than a backlit phone screen, so we nudge contrast and saturation up
-// for the print bitmap only. The save-to-phone image is left untouched — it should
-// match what the guest saw on screen. Tune here.
-export const PRINT_CONTRAST = 1.09;   // +9% contrast
-export const PRINT_SATURATION = 1.16; // +16% saturation
+// No colour correction is applied to the print. The print is a faithful copy of
+// what the guest sees on screen (sRGB) — adjusting brightness/contrast/colour to
+// match a given printer belongs in the printer's own colour settings, not here,
+// where it would fight the driver's colour management and skew every printer
+// differently.
 
-/** Boost contrast and saturation of a canvas in place, for print output only.
- *  Pixel-based so it is identical on every device (no reliance on ctx.filter). */
-function applyPrintCorrection(canvas, contrast = PRINT_CONTRAST, saturation = PRINT_SATURATION) {
-  const ctx = canvas.getContext('2d');
-  let img;
-  try {
-    img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  } catch {
-    return; // tainted canvas or no read access — skip rather than fail the print
-  }
-  const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    // Contrast around mid-grey.
-    let r = (d[i] - 128) * contrast + 128;
-    let g = (d[i + 1] - 128) * contrast + 128;
-    let b = (d[i + 2] - 128) * contrast + 128;
-    // Saturation: push each channel away from its luma (Rec. 709).
-    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    r = luma + (r - luma) * saturation;
-    g = luma + (g - luma) * saturation;
-    b = luma + (b - luma) * saturation;
-    d[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    d[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
-    d[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
-  }
-  ctx.putImageData(img, 0, 0);
-}
-
-export async function exportPrint(state, { rotateForPaper = false, scale = PRINT_SCALE, safeInset = 0, correct = false } = {}) {
+export async function exportPrint(state, { rotateForPaper = false, scale = PRINT_SCALE, safeInset = 0 } = {}) {
   const page = document.createElement('canvas');
   composePage(page, state, scale, null, safeInset);
 
@@ -431,8 +402,6 @@ export async function exportPrint(state, { rotateForPaper = false, scale = PRINT
     ctx.drawImage(page, -page.width / 2, -page.height / 2);
     rotated = true;
   }
-
-  if (correct) applyPrintCorrection(canvas);
 
   // A photographic page (the watercolor paper + photos) makes a huge PNG that is
   // slow to encode — ~6.6MB and ~400ms at 600 DPI, which hitched the coverflow — and

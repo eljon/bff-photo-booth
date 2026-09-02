@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.13 — 2026-09-02
+
+**Remove the print colour correction — prints are now a faithful copy of the
+screen.** The contrast/saturation boost added in 1.73.6 was darkening prints
+(the contrast crushed midtones and shadows), and colour correction in the app
+fights the printer's own colour management. The print bitmap is now plain sRGB,
+matching what the guest sees. Brightness and colour balance belong in the
+printer's settings, where they can be tuned to the actual printer.
+
+---
+
 ## 1.73.12 — 2026-09-02
 
 **Remove em dashes from all user-facing text.** Every em dash in text guests,

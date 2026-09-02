@@ -1937,7 +1937,7 @@ async function doPrint() {
     // sideways. (Save-to-phone keeps the true orientation — it uses lastPrintBlob,
     // warmed separately, which we deliberately don't overwrite here.) safeInset pulls
     // the photos in a touch so borderless edge-overscan trims the watercolor, not them.
-    result = await exportPrint(state, { rotateForPaper: true, safeInset: PRINT_SAFE_INSET, correct: true });
+    result = await exportPrint(state, { rotateForPaper: true, safeInset: PRINT_SAFE_INSET });
   } catch (err) {
     showResult({ emoji: '😵', title: 'Could not build the print', body: err.message });
     return;
