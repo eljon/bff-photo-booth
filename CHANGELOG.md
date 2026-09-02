@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.25 — 2026-09-02
+
+**Revert the 1.73.24 rewrite; just shrink the paper margin.** The 1.73.24 change rewrote the
+layout optimiser and broke the layout rules — that is undone. The optimiser and all the rules
+are back exactly as they were (whole photos, no cropping, one hero at most 2× the smallest, the
+sticker its own 5th cell). The only change now is a smaller margin: the decorative paper border
+around the photos (the frame inset) is cut from ~3.5% to ~1.5% per side, and the gutter between
+photos from 26px to 14px, so the same layout sits larger on the sheet. Note the paper that
+remains around whole photos is the cost of the no-crop rule, not margin — mixed-shape photos
+cannot tile a rectangle without cropping.
+
+---
+
 ## 1.73.24 — 2026-09-02
 
 **Fill the entire paper — no margins.** The four photos now tile 100% of the sheet: a
