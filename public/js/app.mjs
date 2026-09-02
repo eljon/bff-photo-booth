@@ -1945,16 +1945,25 @@ function beginSending(blob) {
   img.src = sendUrl;
 }
 
-/** Ask the guest for their print code. Resolves to the entered code, or null if cancelled. */
-function askForCode(errorMsg = '') {
+/** Ask the guest for their print code. Resolves to the entered code, or null if cancelled.
+ *  On a retry, `errorMsg` is shown loudly (red, shaking) and `prefill` keeps what they typed
+ *  so a single typo is easy to fix. */
+function askForCode(errorMsg = '', prefill = '') {
   return new Promise((resolve) => {
     const sheet = $('codeSheet');
     const input = $('codeInput');
     const err = $('codeErr');
     err.textContent = errorMsg || '';
-    input.value = '';
+    input.value = prefill || '';
+    if (errorMsg) {
+      input.classList.remove('bad'); void input.offsetWidth; // restart the shake each time
+      input.classList.add('bad');
+    } else {
+      input.classList.remove('bad');
+    }
     sheet.classList.remove('hidden');
-    setTimeout(() => input.focus(), 60);
+    setTimeout(() => { input.focus(); input.select(); }, 60);
+    input.addEventListener('input', () => input.classList.remove('bad'), { once: true });
 
     const cleanup = () => {
       sheet.classList.add('hidden');
@@ -2037,7 +2046,7 @@ async function doPrint() {
 
     // A wrong or used code comes back as 402: ask for another and try again.
     while (status === 402 && data && data.codeError) {
-      printCode = await askForCode(data.error || 'That code did not work. Try another.');
+      printCode = await askForCode(data.error || 'That code did not work. Try another.', printCode);
       if (!printCode) {
         showResult({ emoji: '🎫', title: 'Print cancelled', body: 'No code entered. You can still save the photo to your phone.' });
         return;

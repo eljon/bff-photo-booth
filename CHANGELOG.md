@@ -15,7 +15,18 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.37 — 2026-09-02
+## 1.73.38 — 2026-09-02
+
+**Fix the wrong-code prompt, and harden guessing.** A rejected print code was being drawn
+*behind* the "Sending…" screen, so a guest who typed a wrong code saw no error. The code prompt
+now sits above everything: a wrong code shakes the field red, keeps what was typed (selected, so
+a typo is one tap to fix), and shows a bold "That print code is not valid." The check also runs
+before the photo is uploaded, so it's instant.
+
+And to make guessing near-impossible: on top of the ~887-million code space (31^6, with only the
+handed-out codes live), repeated wrong codes from one device now trip a cool-off (8 wrong tries
+in 10 minutes → locked out), so a brute-force sweep is throttled to a standstill. Verified with a
+new lockout test and the wrong-code flow.
 
 **Print codes (vouchers).** A booth can now require a single-use code to print, so only guests
 holding a voucher can use the printer.

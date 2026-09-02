@@ -148,6 +148,25 @@ test('a booth can gate printing behind single-use print codes (vouchers)', async
   assert.equal(stats.unused, 4);
 });
 
+test('too many wrong codes trip a brute-force cool-off', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+  const H = { 'content-type': 'application/json' };
+  await fetch(`${booth.base}/api/config`, { method: 'POST', headers: H, body: JSON.stringify({ requireVoucher: true }) });
+  await fetch(`${booth.base}/api/vouchers`, { method: 'POST', headers: H, body: JSON.stringify({ action: 'generate', count: 5 }) });
+
+  const guess = (c) => fetch(`${booth.base}/api/print?layout=grid&code=${c}`, {
+    method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng(),
+  }).then((r) => r.status);
+
+  // The first several wrong guesses are rejected (402); after the limit the address is
+  // locked out (429), so brute-forcing the code space is throttled to a crawl.
+  const statuses = [];
+  for (let i = 0; i < 12; i++) statuses.push(await guess(`WRO${String(i).padStart(3, '0')}`));
+  assert.ok(statuses.slice(0, 8).every((s) => s === 402), `early guesses refused: ${statuses}`);
+  assert.ok(statuses.slice(8).some((s) => s === 429), `later guesses locked out: ${statuses}`);
+});
+
 test('a skipped print hands the guest their code back', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

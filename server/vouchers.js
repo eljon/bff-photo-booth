@@ -75,6 +75,16 @@ class VoucherStore {
     return added;
   }
 
+  /** Check a code WITHOUT spending it. Returns { ok, reason } — for a fast, cheap reject
+   *  before the image is uploaded, and to feed the brute-force guard. */
+  peek(input) {
+    const code = normalize(input);
+    const v = this.codes.get(code);
+    if (!v) return { ok: false, reason: 'unknown' };
+    if (v.used) return { ok: false, reason: 'used' };
+    return { ok: true, code };
+  }
+
   /** Spend a code. Returns { ok, reason } — reason is 'unknown' or 'used' on failure. */
   redeem(input, printNo = null) {
     const code = normalize(input);

@@ -645,7 +645,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 }
 .app-version:empty { display: none; }
 
-/* Print-code (voucher) prompt. */
+/* Print-code (voucher) prompt. It must sit ABOVE the "Sending…" result overlay and the
+   queue widget, so a rejected-code re-prompt is never hidden behind them. */
+#codeSheet { z-index: 90; align-items: center; padding: 20px; }
 .code-card { max-width: 380px; margin: auto; text-align: center; padding: 22px 20px; }
 .code-title { margin: 0 0 6px; font-size: 20px; }
 .code-note { margin: 0 0 16px; color: var(--ink-dim); font-size: 14px; }
@@ -657,7 +659,15 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   background: #0f0e13; color: var(--ink); border: 1px solid #3a3745;
 }
 .code-input:focus { outline: none; border-color: var(--accent); }
-.code-err { min-height: 18px; margin: 8px 0 0; color: var(--accent); font-size: 13px; }
+.code-input.bad { border-color: #ff5c7a; background: #2a1016; animation: codeShake 0.4s; }
+@keyframes codeShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-8px); }
+  40%, 60% { transform: translateX(8px); }
+}
+@media (prefers-reduced-motion: reduce) { .code-input.bad { animation: none; } }
+.code-err { min-height: 20px; margin: 10px 0 0; color: #ff7d97; font-size: 14px; font-weight: 700; }
 .code-actions { display: flex; gap: 10px; margin-top: 16px; }
 .code-actions .btn { flex: 1; }
 .spacer { height: calc(env(safe-area-inset-bottom) + 14px); }
@@ -4199,16 +4209,25 @@ function beginSending(blob) {
   img.src = sendUrl;
 }
 
-/** Ask the guest for their print code. Resolves to the entered code, or null if cancelled. */
-function askForCode(errorMsg = '') {
+/** Ask the guest for their print code. Resolves to the entered code, or null if cancelled.
+ *  On a retry, `errorMsg` is shown loudly (red, shaking) and `prefill` keeps what they typed
+ *  so a single typo is easy to fix. */
+function askForCode(errorMsg = '', prefill = '') {
   return new Promise((resolve) => {
     const sheet = $('codeSheet');
     const input = $('codeInput');
     const err = $('codeErr');
     err.textContent = errorMsg || '';
-    input.value = '';
+    input.value = prefill || '';
+    if (errorMsg) {
+      input.classList.remove('bad'); void input.offsetWidth; // restart the shake each time
+      input.classList.add('bad');
+    } else {
+      input.classList.remove('bad');
+    }
     sheet.classList.remove('hidden');
-    setTimeout(() => input.focus(), 60);
+    setTimeout(() => { input.focus(); input.select(); }, 60);
+    input.addEventListener('input', () => input.classList.remove('bad'), { once: true });
 
     const cleanup = () => {
       sheet.classList.add('hidden');
@@ -4291,7 +4310,7 @@ async function doPrint() {
 
     // A wrong or used code comes back as 402: ask for another and try again.
     while (status === 402 && data && data.codeError) {
-      printCode = await askForCode(data.error || 'That code did not work. Try another.');
+      printCode = await askForCode(data.error || 'That code did not work. Try another.', printCode);
       if (!printCode) {
         showResult({ emoji: '🎫', title: 'Print cancelled', body: 'No code entered. You can still save the photo to your phone.' });
         return;

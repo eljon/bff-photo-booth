@@ -307,6 +307,22 @@ function rateLimited(req) {
   return false;
 }
 
+// Brute-force guard for print codes: a handful of wrong codes from one address triggers a
+// cool-off, so guessing the ~1000 live codes out of 887 million is not just improbable per
+// try but rate-throttled to a crawl (see CODE_MISS_MAX per 10-minute window).
+const codeMisses = new Map(); // ip -> [timestamps of wrong-code tries]
+const CODE_MISS_WINDOW = 10 * 60 * 1000;
+const CODE_MISS_MAX = 8;
+function recentMisses(req) {
+  const ip = clientIp(req);
+  const now = Date.now();
+  const arr = (codeMisses.get(ip) || []).filter((t) => now - t < CODE_MISS_WINDOW);
+  codeMisses.set(ip, arr);
+  return arr;
+}
+const codeLockedOut = (req) => recentMisses(req).length >= CODE_MISS_MAX;
+function noteWrongCode(req) { recentMisses(req).push(Date.now()); }
+
 function readBody(req, limit = MAX_BODY) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -1096,22 +1112,38 @@ async function handleApi(req, res, url) {
       return sendJson(res, 429, { ok: false, error: 'That is a lot of prints. Give the printer a minute.' });
     }
 
+    // Single-use print code (voucher). Check it up front — before uploading the image — so a
+    // wrong code is refused fast and repeated wrong guesses trip the brute-force cool-off.
+    const suppliedCode = cfg.requireVoucher ? (url.searchParams.get('code') || req.headers['x-print-code'] || '') : null;
+    if (cfg.requireVoucher) {
+      if (codeLockedOut(req)) {
+        return sendJson(res, 429, { ok: false, codeError: true, error: 'Too many wrong codes. Wait a minute, then try again.' });
+      }
+      const check = vouchers.peek(suppliedCode);
+      if (!check.ok) {
+        noteWrongCode(req);
+        return sendJson(res, 402, {
+          ok: false, codeError: true, reason: check.reason,
+          error: check.reason === 'used' ? 'That print code has already been used.' : 'That print code is not valid.',
+        });
+      }
+    }
+
     const body = await readBody(req);
     const kind = imageKind(body);
     if (!kind) {
       return sendJson(res, 400, { ok: false, error: 'Expected a PNG or JPEG image body.' });
     }
 
-    // Single-use print code (voucher). Spend it now; a failed or skipped print refunds it.
+    // Spend the code now (a failed or skipped print refunds it). Re-checked here in case the
+    // same code was spent by another guest between the fast check above and now.
     let voucherCode = null;
     if (cfg.requireVoucher) {
-      const supplied = url.searchParams.get('code') || req.headers['x-print-code'] || '';
-      const r = vouchers.redeem(supplied);
+      const r = vouchers.redeem(suppliedCode);
       if (!r.ok) {
+        noteWrongCode(req);
         return sendJson(res, 402, {
-          ok: false,
-          codeError: true,
-          reason: r.reason,
+          ok: false, codeError: true, reason: r.reason,
           error: r.reason === 'used' ? 'That print code has already been used.' : 'That print code is not valid.',
         });
       }
