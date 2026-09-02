@@ -97,6 +97,46 @@ function todayStamp() {
     .toUpperCase();
 }
 
+/** Facebook / Messenger / Instagram (and similar) open links in their own in-app browser,
+ *  an Android WebView that blocks the photo picker with an "allow media" error. Detect it
+ *  so we can offer a way out to a real browser, where the picker works. */
+function isInAppBrowser() {
+  return /\b(FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|Twitter|TikTok|musical_ly|Snapchat|GSA)\b/i.test(navigator.userAgent || '');
+}
+const isAndroidUA = () => /Android/i.test(navigator.userAgent || '');
+
+/** Reopen the current URL outside the in-app browser. On Android we can hand the WebView an
+ *  intent that launches Chrome; on iOS we can't redirect out, so copy the link to paste. */
+function openInExternalBrowser() {
+  const href = location.href;
+  if (isAndroidUA()) {
+    const noScheme = href.replace(/^https?:\/\//, '');
+    // Launch Chrome specifically; if it isn't installed the intent falls through and the
+    // banner's written "use the ⋮ menu" instructions still stand.
+    window.location.href = `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`;
+    return;
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(href).then(
+      () => toast('Link copied — paste it into Safari or Chrome', 3600),
+      () => {},
+    );
+  }
+}
+
+/** Show the escape-hatch banner only inside an in-app browser. */
+function setupInAppBrowserNotice() {
+  if (!isInAppBrowser()) return;
+  const el = $('extBrowser');
+  if (!el) return;
+  if (!isAndroidUA()) {
+    const how = $('extBrowserHow');
+    if (how) how.textContent = 'Tap to copy this link, then open it in Safari';
+  }
+  el.classList.remove('hidden');
+  el.addEventListener('click', openInExternalBrowser);
+}
+
 /** iPhone/Samsung gallery photos are frequently HEIC/HEIF, which Android Chrome can't
  *  decode (the camera hands us a plain JPEG, which is why "Take photo" always works). */
 function looksHeic(file) {
@@ -1203,6 +1243,7 @@ async function acceptFiles(files, startIndex = null) {
   const chosen = [...files];
   const list = chosen.slice(0, 4);
   if (!list.length) return;
+  $('extBrowser')?.classList.add('hidden'); // the picker returned files, so it works here
 
   if (startIndex === null && replaceAllNext) {
     state.photos = [null, null, null, null];
@@ -2150,6 +2191,7 @@ function openPicker(replaceAll) {
 }
 
 function bind() {
+  setupInAppBrowserNotice();
   $('addAll').addEventListener('click', () => openPicker(filledCount() === 4));
   $('swapAll').addEventListener('click', () => openPicker(true)); // starts a fresh set of 4
   $('filePicker').addEventListener('change', (event) => acceptFiles(event.target.files));

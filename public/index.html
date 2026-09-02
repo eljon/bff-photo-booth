@@ -24,6 +24,17 @@
     </div>
   </header>
 
+  <!-- Shown only inside an in-app browser (Facebook / Messenger / Instagram), whose
+       Android WebView blocks the photo picker with an "allow media" error. Tapping it
+       reopens the page in a real browser where photos work. -->
+  <button class="ext-browser hidden" id="extBrowser" type="button">
+    <span class="ext-browser-ico" aria-hidden="true">📷</span>
+    <span class="ext-browser-text">
+      <b>Photos won't open here.</b>
+      <span id="extBrowserHow">Tap to open in your browser</span>, or use the ⋮ menu and choose &ldquo;Open in Chrome&rdquo;.
+    </span>
+  </button>
+
   <section class="stage" aria-label="Print preview">
     <div class="step-guide" id="stepGuide">
       <span class="step-kicker" id="stepKicker">Step 1 of 3</span>

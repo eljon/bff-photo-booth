@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.31 — 2026-09-02
+
+**Fix "allow media" when opening from Facebook / Messenger.** Those apps open links in their
+own in-app browser, an Android WebView that blocks the photo picker with an "allow media"
+error the guest can't get past. The app now detects that in-app browser (Facebook, Messenger,
+Instagram and similar) and shows a bright banner: tap it to reopen the page in Chrome (an
+Android intent), or use the ⋮ menu's "Open in Chrome". On iOS in-app browsers the banner
+copies the link to paste into Safari instead. The banner shows only inside those browsers and
+disappears the moment the picker returns photos. Verified by loading the page under a Messenger
+user-agent (banner shown) and normal Chrome (hidden).
+
+---
+
 ## 1.73.30 — 2026-09-02
 
 **Bring the coverflow deck up to the swipe cue.** The max-height cap rises to 1000px, but on a
