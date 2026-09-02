@@ -111,6 +111,67 @@ function resetTailscale(binary) {
   });
 }
 
+/** This machine's public Tailscale name (e.g. host.tailnet.ts.net), read from
+ *  `tailscale status --json`. That is the funnel address, known before we start,
+ *  so we never have to scrape it out of command output. Null if unavailable. */
+function tailscaleDnsName(binary) {
+  return new Promise((resolve) => {
+    execFile(binary, ['status', '--json'], { timeout: 8000 }, (err, stdout) => {
+      if (err) return resolve(null);
+      try {
+        const name = JSON.parse(stdout)?.Self?.DNSName;
+        resolve(name ? name.replace(/\.$/, '') : null);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
+/** True when funnel is actually proxying our port — not merely "Funnel on" with an
+ *  empty serve config, the stuck state that resolves publicly but serves nothing. */
+function tailscaleFunnelServes(binary, port) {
+  return new Promise((resolve) => {
+    execFile(binary, ['funnel', 'status'], { timeout: 8000 }, (err, stdout, stderr) => {
+      const out = `${stdout || ''}${stderr || ''}`;
+      if (/no serve config/i.test(out)) return resolve(false);
+      resolve(new RegExp(`127\\.0\\.0\\.1:${port}\\b|localhost:${port}\\b|:${port}\\b`).test(out));
+    });
+  });
+}
+
+/**
+ * Bring up a Tailscale funnel and confirm it is really serving. On current
+ * Tailscale `tailscale funnel <port>` is a fire-and-exit config command, not a
+ * long-running process — so we run it once (with --bg so it persists in
+ * tailscaled, surviving booth restarts and sleep) and verify, instead of holding
+ * a child open and respawning it (which collided with its own listener and left
+ * funnel advertised but empty). If the first try hits a stale listener, we reset
+ * and retry once.
+ */
+async function startTailscaleFunnel(binary, port) {
+  const run = () => new Promise((resolve) => {
+    execFile(binary, ['funnel', '--bg', String(port)], { timeout: 20_000 }, (err, stdout, stderr) => {
+      resolve(`${stdout || ''}${stderr || ''}`);
+    });
+  });
+
+  let out = await run();
+  let serving = await tailscaleFunnelServes(binary, port);
+  if (!serving || /listener already exists|already (?:in use|serving)/i.test(out)) {
+    // A leftover listener (a past hand-run, a crashed booth) is holding the port,
+    // or funnel came up empty — clear it and try once more from clean state.
+    await resetTailscale(binary);
+    out = await run();
+    serving = await tailscaleFunnelServes(binary, port);
+  }
+  if (!serving) {
+    const detail = out.trim().split('\n').filter(Boolean).slice(-3).join('; ');
+    return { error: detail || 'tailscale funnel did not start serving.' };
+  }
+  return { ok: true };
+}
+
 /**
  * Work out what to run. Environment beats guessing: naming a persistent address
  * is how you say "this booth has an address of its own".
@@ -156,16 +217,16 @@ async function pick(port, prefer, env = process.env) {
     if (!tailscale) {
       return { error: 'Tailscale was not found. Install it from tailscale.com/download and sign in, then try again.' };
     }
-    // Wipe leftover funnel state before we advertise our own, or a stale entry
-    // from a hand-run `tailscale funnel` keeps answering with nothing useful.
-    await resetTailscale(tailscale);
+    // The funnel address is this machine's .ts.net name — known up front from
+    // status, so it is the same every run and needs no output scraping.
+    const host = await tailscaleDnsName(tailscale);
     return {
-      command: tailscale,
-      args: ['funnel', String(port)],
+      // A one-shot: `tailscale funnel --bg <port>` configures funnel and exits,
+      // rather than holding a process open. open() runs and verifies it once
+      // instead of spawning a restarting child.
+      oneShot: () => startTailscaleFunnel(tailscale, port),
       label: 'tailscale funnel',
-      fixed: null,
-      // The address is tied to the machine and tailnet, so it is the same every
-      // run — we just have to read it out of the output the first time.
+      fixed: host ? https(host) : null,
       stable: true,
       // Leave nothing advertised once the booth stops.
       cleanup: () => resetTailscale(tailscale),
@@ -293,6 +354,19 @@ async function open(port, { timeoutMs = 30_000, prefer = 'auto', onEvent } = {})
   fixedUrl = choice.fixed || null;
   stableAddress = Boolean(choice.stable);
   if (fixedUrl) publicUrl = fixedUrl;
+
+  // A one-shot tunnel (Tailscale funnel) is a config command that returns once it
+  // is serving, not a process to keep alive. Run and verify it; do not spawn a
+  // restarting child — funnel persists in tailscaled on its own.
+  if (choice.oneShot) {
+    const result = await choice.oneShot();
+    if (result.error) {
+      publicUrl = null;
+      return { url: null, error: result.error };
+    }
+    if (!publicUrl && result.url) publicUrl = result.url;
+    return { url: publicUrl, label: choice.label, persistent: true };
+  }
 
   return new Promise((resolve) => {
     let settled = false;

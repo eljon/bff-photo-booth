@@ -15,6 +15,25 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.7 — 2026-09-02
+
+**Fix Tailscale funnel serving nothing (guest link timed out on phones).**
+Regression from 1.11.1: the booth ran `tailscale funnel <port>` as if it were a
+long-lived process and respawned it when it exited — but on current Tailscale
+that command configures funnel and returns immediately, so the respawn collided
+with its own listener (`listener already exists for port 443`) and left funnel
+"on" with an empty serve config. The `.ts.net` address then resolved publicly but
+forwarded to nothing, so phones timed out while the Mac (on the tailnet) still
+worked.
+
+The Tailscale path is now a verified one-shot: it reads the fixed `.ts.net`
+address from `tailscale status`, brings funnel up with `tailscale funnel --bg`
+(persisting in tailscaled, surviving booth restarts and sleep), and confirms it
+is actually proxying the port — clearing stale state and retrying once if not,
+and reporting the real reason instead of a silent dead link.
+
+---
+
 ## 1.73.6 — 2026-09-02
 
 **Print colour correction.** Prints now get a subtle contrast and saturation
