@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid, designVariants } from '../public/js/layouts.mjs';
+import { LAYOUTS, LAYOUT_ORDER, FRAMES, resolveGrid, designVariants, stickerSpec } from '../public/js/layouts.mjs';
 
 // Four stand-in photos of mixed orientation, so the dynamic grid is exercised
 // on the case that matters — not just placeholders.
@@ -91,7 +91,7 @@ test('frames define a readable ink colour', () => {
   }
 });
 
-test('nothing is cropped and the sheet is filled: cells contain their photos and tile the page', () => {
+test('photos fill the whole sheet edge to edge: cover-fit, no white, no empty margin', () => {
   const mixes = [
     [[1000, 1500], [1200, 1200], [1200, 1200], [1200, 1200]],   // portrait hero
     [[1600, 1000], [1200, 1200], [1200, 1200], [1200, 1200]],   // landscape hero
@@ -105,19 +105,37 @@ test('nothing is cropped and the sheet is filled: cells contain their photos and
     let covered = 0;
     for (const c of cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= page.w + 1 && c.y + c.h <= page.h + 1, 'cell stays on the page');
-      // Nothing is cropped: the photo is drawn "contain", so the whole photo shows (any
-      // slack is a thin letterbox bar, matted by the frame — never a cut).
-      assert.equal(c.fit, 'contain', 'photo is shown whole (contain) — no crop');
+      // Each photo fills its cell edge to edge (cover), so there is no white bar — the small
+      // overflow is trimmed. The optimiser keeps that trim minimal.
+      assert.equal(c.fit, 'cover', 'photo fills its cell (cover) — no white bars');
       covered += c.w * c.h;
     }
-    // The cells fill the WHOLE sheet — no big empty margin. They partition the page, so
-    // their areas sum to essentially the full sheet.
+    // The four photos tile the WHOLE sheet — no empty margin at all.
     assert.ok(covered / (page.w * page.h) > 0.98, 'the four photos fill the sheet — no empty margin');
     for (let i = 0; i < cells.length; i++) {
       for (let j = i + 1; j < cells.length; j++) {
         assert.ok(!overlaps(cells[i], cells[j]), `cells ${i} and ${j} overlap`);
       }
     }
+  }
+});
+
+test('the sticker gets its own cell and is never stamped on a photo', () => {
+  const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
+  const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
+  const sticker = stickerSpec(FRAMES.watercolor);
+  for (const v of designVariants(LAYOUTS.grid, photos, sticker)) {
+    const stick = v.cells.filter((c) => c.extra === 'sticker');
+    const photoCells = v.cells.filter((c) => c.photo !== undefined);
+    assert.equal(stick.length, 1, `${v.key}: exactly one sticker cell`);
+    assert.equal(photoCells.length, 4, `${v.key}: four photo cells`);
+    // The sticker occupies its own region and never overlaps a photo.
+    for (const p of photoCells) {
+      assert.ok(!overlaps(stick[0], p), `${v.key}: sticker overlaps a photo`);
+    }
+    // The five cells tile the whole sheet — no empty background.
+    const covered = v.cells.reduce((s, c) => s + c.w * c.h, 0);
+    assert.ok(covered / (v.page.w * v.page.h) > 0.98, `${v.key}: cells fill the sheet`);
   }
 });
 
@@ -231,7 +249,7 @@ test('the coverflow offers each photo as the hero plus an even grid, all distinc
   }
 });
 
-test('every coverflow design crops nothing and never overlaps', () => {
+test('every coverflow design fills the sheet edge to edge and never overlaps', () => {
   const mk = (w, h) => ({ bitmap: { width: w, height: h }, transform: { zoom: 1, dx: 0, dy: 0, rot: 0 } });
   const photos = [mk(1000, 1500), mk(1600, 1000), mk(1200, 1200), mk(1000, 1500)];
   for (const v of designVariants(LAYOUTS.grid, photos)) {
@@ -240,7 +258,7 @@ test('every coverflow design crops nothing and never overlaps', () => {
     for (const c of v.cells) {
       assert.ok(c.x >= -1 && c.y >= -1 && c.x + c.w <= v.page.w + 1 && c.y + c.h <= v.page.h + 1, `${v.key} stays on the page`);
       if (c.photo !== undefined) {
-        assert.equal(c.fit, 'contain', `${v.key}: photo shown whole (contain) — no crop`);
+        assert.equal(c.fit, 'cover', `${v.key}: photo fills its cell (cover) — no white bars`);
         photoCells.push(c);
         covered += c.w * c.h;
       }

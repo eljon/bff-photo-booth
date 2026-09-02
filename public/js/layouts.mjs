@@ -212,14 +212,19 @@ function placeTree(node, x, y, w, h, out) {
 }
 
 /**
- * Best full-sheet layout of the FOUR PHOTOS across both sheets. The cells always tile the
- * whole sheet (no empty regions); `heroIndex` names the photo whose cell is 2× the others
- * (rule 4), or null for four equal cells. We keep the arrangement that shows the most photo
- * — the least letterbox — so cell shapes match the photos as closely as the sheet allows.
- * The sticker is added as a small corner badge, composited on top, never the hero.
+ * Best full-sheet layout across both sheets. The five cells — four photos plus the sticker —
+ * ALWAYS tile the whole sheet: there is never white background and the sticker never sits on
+ * top of a photo, it gets its own cell. Photos are shown "cover" (they fill their cell edge
+ * to edge; the small overflow is trimmed), so there are no letterbox bars either. `heroIndex`
+ * names the photo whose cell is 2× the others (rule 4); the sticker cell is a small badge and
+ * never the hero. We enumerate every arrangement × both sheets and pick the one that needs the
+ * LEAST cropping — the worst-matched cell as good as possible (minimax), then the total — so
+ * cell shapes hug the photos and the trim on each is as small as the sheet allows.
  */
 function tilingDesign(aspects, stickerAR, heroIndex) {
   const items = aspects.map((a, i) => ({ aspect: a, photo: i, target: i === heroIndex ? 2 : 1 }));
+  const stickerIdx = stickerAR != null ? items.length : -1;
+  if (stickerAR != null) items.push({ aspect: stickerAR, sticker: true, target: 0.5 }); // its own small cell
   const idxs = items.map((_, i) => i);
   const memo = new Map();
   let best = null;
@@ -228,35 +233,31 @@ function tilingDesign(aspects, stickerAR, heroIndex) {
     for (const tree of slicingTrees(idxs, items, memo)) {
       const cells = [];
       placeTree(tree, 0, 0, page.w, page.h, cells);
-      // How full each cell is once its photo is shown "contain": a cell of aspect ar holding
-      // a photo of aspect ap reveals fraction min(ar,ap)/max(ar,ap) (1 when the shapes match).
-      // Score MINIMAX-first: maximise the WORST cell's fill, so no single cell becomes a tiny
-      // photo swimming in white (the thing that looks broken); then break ties on the total
-      // shown, so overall letterbox stays minimal. Every cell then takes a shape close to its
-      // photo, spreading the unavoidable slack thinly instead of dumping it in one cell.
-      let worst = Infinity, shown = 0;
+      // Each cell is filled edge-to-edge (cover). match = how close the cell's shape is to its
+      // photo's: min(ar,ap)/max(ar,ap) is 1 when they match and drops as more must be trimmed.
+      // Score MINIMAX-first: make the WORST-matched cell as good as possible, so no single photo
+      // is heavily cropped; then break ties on the total match, keeping every trim minimal.
+      let worst = Infinity, total = 0;
       for (const c of cells) {
         const ap = items[c.node].aspect, ar = c.w / c.h;
-        const fill = Math.min(ar, ap) / Math.max(ar, ap);
-        if (fill < worst) worst = fill;
-        shown += c.w * c.h * fill;
+        const match = Math.min(ar, ap) / Math.max(ar, ap);
+        if (match < worst) worst = match;
+        total += c.w * c.h * match;
       }
-      if (!best || worst > best.worst + 1e-6 || (Math.abs(worst - best.worst) <= 1e-6 && shown > best.shown)) {
-        best = { worst, shown, cells, page };
+      if (!best || worst > best.worst + 1e-6 || (Math.abs(worst - best.worst) <= 1e-6 && total > best.total)) {
+        best = { worst, total, cells, page };
       }
     }
   }
 
   const page = best.page;
-  const out = best.cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.node].photo, fit: 'contain' }));
-
-  if (stickerAR != null) {
-    const minCell = Math.min(...best.cells.map((c) => c.w * c.h));
-    const target = Math.min(minCell * 0.42, page.w * page.h * 0.03); // small badge, never a hero
-    const sw = Math.sqrt(target * stickerAR), sh = sw / stickerAR;
-    const pad = Math.round(page.w * 0.015);
-    out.push({ x: page.w - sw - pad, y: page.h - sh - pad, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
-  }
+  const out = best.cells.map((c) => {
+    const it = items[c.node];
+    // The sticker is shown whole (contain) in its own cell; photos fill their cell (cover).
+    return it.sticker
+      ? { x: c.x, y: c.y, w: c.w, h: c.h, extra: 'sticker', fit: 'contain' }
+      : { x: c.x, y: c.y, w: c.w, h: c.h, photo: it.photo, fit: 'cover' };
+  });
   return { cells: out, page };
 }
 

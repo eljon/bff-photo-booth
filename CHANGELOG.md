@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.18 — 2026-09-02
+
+**No white background, and the sticker gets its own cell.** Photos now fill their
+cells edge to edge (cover-fit) instead of being letterboxed, so there is no white
+around a photo — the small overflow is trimmed, and the optimiser keeps that trim
+as small as possible (worst-matched cell first). The sticker is now a real cell in
+the layout with its own space, never stamped on top of a photo. NOTE: this changes
+the "no cropping" rule — filling the sheet edge-to-edge for mixed-shape photos is
+only possible by trimming a little off each; that is the deliberate trade for zero
+white. Verified by rendering the portrait+landscape mixes.
+
+---
+
 ## 1.73.17 — 2026-09-02
 
 **No photo swims in white any more (minimax fill).** The layout already fills the
