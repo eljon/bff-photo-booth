@@ -2074,6 +2074,8 @@ async function loadSession() {
   document.title = session.boothName;
   const msgEl = $('boothMessage');
   if (msgEl && session.message) msgEl.textContent = session.message;
+  const verEl = $('version');
+  if (verEl) verEl.textContent = session.version ? `v${session.version}` : '';
   if (session.sticker) applySticker(session.sticker);
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 

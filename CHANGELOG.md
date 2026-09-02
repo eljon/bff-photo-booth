@@ -15,6 +15,12 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.1 — 2026-09-02
+
+**The version is shown on the guest page again.**
+
+- Brought back a quiet version stamp (e.g. `v1.73.1`) at the foot of the guest page.
+
 ## 1.73.0 — 2026-09-02
 
 **Every print gets a number — P1, P2, P3…**

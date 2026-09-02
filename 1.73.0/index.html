@@ -631,6 +631,16 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 
 .version { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.08em; margin: 0; }
 
+/* A quiet version stamp at the foot of the guest page. */
+.app-version {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  opacity: 0.55;
+}
+.app-version:empty { display: none; }
 .spacer { height: calc(env(safe-area-inset-bottom) + 14px); }
 
 /* ------------------------------------------------------------- commit control
@@ -1135,6 +1145,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
     <p class="hint problem hidden" id="printProblem"></p>
   </section>
 
+  <p class="app-version" id="version"></p>
   <div class="spacer"></div>
 </div>
 
@@ -4139,6 +4150,8 @@ async function loadSession() {
   document.title = session.boothName;
   const msgEl = $('boothMessage');
   if (msgEl && session.message) msgEl.textContent = session.message;
+  const verEl = $('version');
+  if (verEl) verEl.textContent = session.version ? `v${session.version}` : '';
   if (session.sticker) applySticker(session.sticker);
   state.copies = Math.min(session.defaultCopies || 1, session.maxCopies || 3);
 
