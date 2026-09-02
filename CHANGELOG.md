@@ -15,17 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.32 — 2026-09-02
+## 1.73.33 — 2026-09-02
 
-**"Allow media" from Facebook / Messenger — send the guest straight to a working browser.**
-Replaces the 1.73.31 banner (which only told the guest to do it themselves). Reading the
-gallery on the web is only possible through the file picker, and that picker cannot work
-inside an in-app WebView that denies media access. So now, when a guest inside an in-app
-browser (Facebook, Messenger, Instagram and similar) taps to add or replace photos, the booth
-relaunches itself in a real browser at the same URL — an Android intent opens Chrome, iOS uses
-Chrome's URL scheme with the link copied as a Safari fallback — landing them back on this page
-where the picker works. Normal browsers are unaffected. Verified that the tap opens the picker
-in a normal browser and routes to the external browser under a Messenger user-agent.
+**"Allow media" on Facebook / Messenger (Android) — fix the picker in place.** The earlier
+banner (1.73.31) and browser-redirect (1.73.32) are both gone. The real trigger is the
+`accept="image/*"` filter: on Facebook's Android WebView it launches the gallery intent, which
+needs a media permission the Facebook app often does not hold — hence "allow media". The plain
+document picker (Storage Access Framework) needs no such permission. So on the Facebook Android
+WebView only, the picker drops the image filter (loadPhoto still rejects non-images); every
+other browser, including Facebook on iOS, keeps `accept="image/*"` exactly as before. Verified
+that only the FB-Android user-agent drops the filter and the picker still opens.
 
 ## 1.73.31 — 2026-09-02
 

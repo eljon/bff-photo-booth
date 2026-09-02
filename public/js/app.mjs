@@ -97,32 +97,21 @@ function todayStamp() {
     .toUpperCase();
 }
 
-/** Facebook / Messenger / Instagram (and similar) open links in their own in-app browser,
- *  an Android WebView that blocks the photo picker with an "allow media" error. Detect it
- *  so we can offer a way out to a real browser, where the picker works. */
-function isInAppBrowser() {
-  return /\b(FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|Twitter|TikTok|musical_ly|Snapchat|GSA)\b/i.test(navigator.userAgent || '');
+/** Facebook / Messenger's Android in-app browser (a WebView) shows an "allow media" error for
+ *  an image-only file input: `accept="image/*"` makes the WebView launch the gallery intent,
+ *  which needs a media runtime permission the Facebook app often does not hold. The plain
+ *  document picker (Storage Access Framework) needs no such permission. So on that WebView we
+ *  drop the image filter and let loadPhoto reject anything that is not an image. */
+function isFbAndroidWebView() {
+  const ua = navigator.userAgent || '';
+  return /Android/i.test(ua) && /\b(FBAN|FBAV|FB_IAB)\b/.test(ua);
 }
-const isAndroidUA = () => /Android/i.test(navigator.userAgent || '');
 
-/** Reading the phone's gallery on the web is only possible through the file picker, and the
- *  picker cannot work inside an in-app WebView that denies media access — no web code can grant
- *  that OS permission. So when the guest reaches for their photos here, relaunch the booth in a
- *  real browser (same URL, so they land back on this page) where the picker works. Returns true
- *  if it handled the tap. Android: an intent launches Chrome. iOS: Chrome's URL scheme, with a
- *  copied link + note so they can paste into Safari if Chrome isn't installed. */
-function escapeInAppBrowser() {
-  if (!isInAppBrowser()) return false;
-  const href = location.href;
-  if (isAndroidUA()) {
-    const noScheme = href.replace(/^https?:\/\//, '');
-    window.location.href = `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`;
-    return true;
-  }
-  if (navigator.clipboard) navigator.clipboard.writeText(href).catch(() => {});
-  window.location.href = href.replace(/^https:/, 'googlechromes:').replace(/^http:/, 'googlechrome:');
-  toast('Open this booth in Safari to add your photos — link copied.', 4200);
-  return true;
+/** Set the picker's `accept` for the current browser: image-only everywhere except the FB
+ *  Android WebView, where an image filter triggers the "allow media" block. */
+function primePicker(input) {
+  if (isFbAndroidWebView()) input.removeAttribute('accept');
+  else input.setAttribute('accept', 'image/*');
 }
 
 /** iPhone/Samsung gallery photos are frequently HEIC/HEIF, which Android Chrome can't
@@ -1222,10 +1211,11 @@ function onSlotTap(index) {
 }
 
 function pickInto(index) {
-  if (escapeInAppBrowser()) return;
   pendingSlot = index;
-  $('fileOne').value = '';
-  $('fileOne').click();
+  const input = $('fileOne');
+  input.value = '';
+  primePicker(input);
+  input.click();
 }
 
 async function acceptFiles(files, startIndex = null) {
@@ -2173,12 +2163,11 @@ async function refreshPrinter() {
 // ---------------------------------------------------------------- wiring
 
 function openPicker(replaceAll) {
-  // Inside an in-app browser the picker just throws "allow media"; send the guest to a real
-  // browser instead of opening a picker that can't work.
-  if (escapeInAppBrowser()) return;
   replaceAllNext = replaceAll;
-  $('filePicker').value = '';
-  $('filePicker').click();
+  const input = $('filePicker');
+  input.value = '';
+  primePicker(input);
+  input.click();
 }
 
 function bind() {
