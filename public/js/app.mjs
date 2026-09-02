@@ -1384,7 +1384,7 @@ function showJob(job) {
       title: session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       body: session.dryRun
         ? 'Dry-run mode — nothing is sent to a real printer.'
-        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} coming out now. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`,
+        : `Your ${job.copies === 1 ? 'copy is' : `${job.copies} copies are`} printing now — hang tight, we'll tell you the moment it's ready.`,
       image: job.image,
       busy: true,
     });
@@ -1514,7 +1514,7 @@ function renderJob(job) {
     setResultText('🖨️', session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       session.dryRun
         ? 'Dry-run mode — nothing goes to a real printer.'
-        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} coming out now. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`);
+        : `${copies(['Your copy is', `Your ${job.copies} copies are`])} printing now — hang tight, we'll tell you the moment it's ready.`);
     $('resultDone').disabled = false;
     return;
   }

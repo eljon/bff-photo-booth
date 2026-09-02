@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.11 — 2026-09-02
+
+**Only send guests to the tray once the print is actually done.** While a job
+was still `printing`, the guest screen said "coming out now — grab it from the
+tray", telling people to collect a print that wasn't out yet. The printing state
+now says "printing now — hang tight, we'll tell you the moment it's ready", and
+the tray/collect instruction appears only on the `done` state (which, since
+1.73.10, lands when the sheet has really finished).
+
+---
+
 ## 1.73.10 — 2026-09-02
 
 **Stop flooding the printer's own queue — send one sheet at a time for real.**
