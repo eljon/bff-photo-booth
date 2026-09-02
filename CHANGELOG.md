@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.71.2 — 2026-09-02
+
+**Gallery photos from Samsung/iPhone (HEIC) now work.**
+
+- Picking a photo from the gallery could fail with "could not use this photo" on Android
+  (Samsung), because the file was HEIC/HEIF — a format Chrome can't decode (the camera hands
+  over a JPEG, which is why "Take photo" always worked). The app now converts HEIC to JPEG on
+  the fly, and tries several decode paths (bitmap → object URL → data URL) for stubborn
+  files. If a photo still can't open, the message points to "Take photo" instead.
+
 ## 1.71.1 — 2026-09-02
 
 **Added the Manila Temple sticker.**

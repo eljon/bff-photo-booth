@@ -2137,32 +2137,91 @@ function todayStamp() {
     .toUpperCase();
 }
 
-/** Decode a picked file, honouring EXIF rotation, and shrink it for memory. */
+/** iPhone/Samsung gallery photos are frequently HEIC/HEIF, which Android Chrome can't
+ *  decode (the camera hands us a plain JPEG, which is why "Take photo" always works). */
+function looksHeic(file) {
+  return /hei[cf]/i.test(file.type || '') || /\.hei[cf]$/i.test(file.name || '');
+}
+
+/** Load the HEIC→JPEG converter on demand (only when a HEIC is actually picked), so the
+ *  base app stays light. Resolves to window.heic2any, or null if it can't be fetched. */
+let heicLoader = null;
+function ensureHeic() {
+  if (window.heic2any) return Promise.resolve(window.heic2any);
+  if (heicLoader) return heicLoader;
+  heicLoader = new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    s.onload = () => resolve(window.heic2any || null);
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+  return heicLoader;
+}
+
+async function convertHeic(file) {
+  const heic2any = await ensureHeic();
+  if (!heic2any) return null;
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  return Array.isArray(out) ? out[0] : out; // a multi-image HEIC yields an array
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function imgFrom(url, revoke) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = async () => {
+      try { if (img.decode) await img.decode(); } catch { /* onload already fired; use it */ }
+      if (revoke) URL.revokeObjectURL(url);
+      resolve(img.naturalWidth ? img : null);
+    };
+    img.onerror = () => { if (revoke) URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+/** Try every decode path a real phone might need, newest/cheapest first. */
+async function decodeAny(file) {
+  try { const b = await createImageBitmap(file, { imageOrientation: 'from-image' }); if (b && b.width) return b; } catch { /* try next */ }
+  try { const b = await createImageBitmap(file); if (b && b.width) return b; } catch { /* try next */ }
+  try { const img = await imgFrom(URL.createObjectURL(file), true); if (img) return img; } catch { /* try next */ }
+  try { const img = await imgFrom(await fileToDataUrl(file), false); if (img) return img; } catch { /* give up */ }
+  return null;
+}
+
+/** Decode a picked file, honouring EXIF rotation, and shrink it for memory. Handles
+ *  HEIC/HEIF from the gallery by converting to JPEG first when needed. */
 async function loadPhoto(file) {
-  let source = null;
-  try {
-    source = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  } catch {
-    source = await loadViaImgElement(file);
+  let source;
+  if (looksHeic(file)) {
+    // Convert first; if that can't run, still try a direct decode in case it's mislabelled.
+    source = (await tryHeicDecode(file)) || (await decodeAny(file));
+  } else {
+    // Decode directly; if every path fails it may be a HEIC with an image/* or empty type.
+    source = (await decodeAny(file)) || (await tryHeicDecode(file));
   }
-  if (!source || !source.width) throw new Error('That file is not a photo this browser can read.');
+  if (!source || !source.width) {
+    throw new Error(looksHeic(file)
+      ? 'That looks like a HEIC photo this phone can’t open here — tap “Take photo”, or pick a JPEG.'
+      : 'Could not open that photo. Try another one, or tap “Take photo”.');
+  }
   return downscale(source, MAX_SOURCE_DIM);
 }
 
-function loadViaImgElement(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Could not open that photo. Try a different one.'));
-    };
-    img.src = url;
-  });
+async function tryHeicDecode(file) {
+  try {
+    const jpeg = await convertHeic(file);
+    if (jpeg) return await decodeAny(jpeg);
+  } catch { /* converter unavailable or failed */ }
+  return null;
 }
 
 function downscale(source, maxDim) {
