@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.3 — 2026-09-02
+
+**Playful print-status widget.**
+
+- The little status widget now shows a printer icon and a colorful glow halo that gently
+  spins and breathes around it, while the print number, place in line, and ETA stay crisp on
+  the white bubble. (The glow holds still under reduced-motion.)
+
 ## 1.73.2 — 2026-09-02
 
 **The status widget shows the ETA again.**

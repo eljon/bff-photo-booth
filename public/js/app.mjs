@@ -1472,9 +1472,9 @@ function compactEta(seconds) {
 /** Fill the collapsed round queue widget (icon + place + ETA). */
 function updateQueuePill(job) {
   // Print number leads (the guest's ticket); the sub line carries place in line + ETA.
-  let icon = '🧾', title = printTag(job) || 'Print', sub = '';
+  let icon = '🖨️', title = printTag(job) || 'Print', sub = '';
   if (stillWaiting(job)) {
-    icon = '🧾';
+    icon = '🖨️';
     if (job.agentOnline === false) {
       sub = 'queued';
     } else {
