@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.24 — 2026-09-02
+
+**Fill the entire paper — no margins.** The four photos now tile 100% of the sheet: a
+weighted guillotine partition slices the whole page (hero exactly 2× every other photo,
+the rest equal) and each photo is shown cover-fit, so it fills its cell edge to edge with
+no blank border and no letterbox. The optimiser searches both sheet orientations and every
+arrangement and keeps the one that trims the photos the least. The sticker is a small badge
+on top in the lower-right corner, so it never carves out an empty cell. The watercolor frame
+was also tightened (much smaller inset, thinner border and corner radius) so the photos reach
+the paper edges instead of floating in a wide mat. Verified by rendering a portrait+landscape
+mix at 100% coverage.
+
+---
+
 ## 1.73.23 — 2026-09-02
 
 **Revert the layout to the 1.73.14 version.** The 1.73.15–1.73.22 layout rework made the

@@ -74,75 +74,131 @@ function photoAspect(photo) {
 const PORTRAIT_4X6 = { w: inches(4), h: inches(6), media: 'Custom.4x6in', paper: '4×6 portrait' };
 const LANDSCAPE_6X4 = { w: inches(6), h: inches(4), media: 'Custom.6x4in', paper: '6×4 landscape' };
 
-const GAP = 26; // uniform gutter between photos, in print pixels
-
 // The sticker asset's own aspect ratio (w/h) — the small corner badge is shaped to
 // this so the art fills it exactly.
 const STICKER_AR = 1448 / 1086;
 
 // The picker grid is computed by OPTIMIZATION, not a fixed template (see CLAUDE.md).
-// Nothing is cropped: every cell has its photo's exact aspect ratio, so the whole photo
-// shows. We search sheet orientation × arrangements and keep the one with the greatest
-// coverage, subject to the rules: one hero, hero ≤ 2× the smallest photo, and the sticker
-// a real 5th cell that is never the hero. Whole photos can't tile a rectangle, so the
-// leftover is the decorative paper (matting) — that slack is the cost of "no crop", and
-// holding the hero to 2× keeps every photo near-equal, which also can't tile perfectly.
+// The five cells (four photos + the sticker) ALWAYS tile the WHOLE sheet edge to edge —
+// the paper margin is disregarded, so there is never any blank border. Cells are sized by
+// exact area weight (hero 2×, each photo 1×, sticker 0.55×) so the rules hold — one hero,
+// hero exactly 2× every other photo, sticker the smallest — and photos are shown "cover"
+// so each fills its cell with no letterbox. We search both sheet orientations and every
+// guillotine arrangement and keep the one that crops the photos the least (their cell
+// shapes hug the photos best), so filling the whole page trims as little as possible.
 
 const SHEETS = [PORTRAIT_4X6, LANDSCAPE_6X4];
 
-/** Every ordered partition of a list into non-empty groups. */
-function partitions(arr) {
-  if (arr.length === 0) return [[]];
-  const [first, ...rest] = arr;
+// Target AREA weights (rule 3 + 4 + 5): the hero is exactly 2× every other photo — one
+// unmistakable hero, none more than 2× another — while the sticker is a small badge, clearly
+// the smallest thing on the page (never the hero).
+const HERO_RATIO = 2;
+const PHOTO_RATIO = 1;
+
+// ─── Weighted guillotine tiler ───────────────────────────────────────────────
+// Recursively slice the sheet: each cut is side-by-side (V) or stacked (H) and divides the
+// rectangle in proportion to the total area weight on each side. So every leaf cell ends up
+// with EXACTLY (its weight / total weight) of the sheet, and together the cells fill 100% of
+// the paper — no margins, no gaps.
+
+/** Every unordered split of a set of indices into two non-empty groups (each once). */
+function bipartitions(idxs) {
   const out = [];
-  for (const p of partitions(rest)) {
-    for (let i = 0; i < p.length; i++) out.push(p.map((g, j) => (j === i ? [first, ...g] : g)));
-    out.push([[first], ...p]);
+  for (let mask = 1; mask < (1 << idxs.length) - 1; mask++) {
+    if (!(mask & 1)) continue; // keep idxs[0] in A, so complements aren't repeated
+    const A = [], B = [];
+    for (let i = 0; i < idxs.length; i++) (mask & (1 << i) ? A : B).push(idxs[i]);
+    out.push([A, B]);
   }
   return out;
 }
 
-
-// Target AREA ratios for a hero design (rule 3 + 4 + 5): the hero is exactly 2× every
-// other photo — one unmistakable hero, and no photo more than 2× another — while the
-// sticker is a small badge, clearly the smallest thing on the page (never the hero).
-const HERO_RATIO = 2;
-const PHOTO_RATIO = 1;
-const STICKER_RATIO = 0.55;
-
-/** Pack fixed-size items (each shaped to its aspect, sized by √ratio so areas match the
- *  ratios above) into stacked rows, top-to-bottom, each row centred. `asCols` transposes
- *  the whole thing into side-by-side columns. Returns the cells and the bounding box —
- *  the caller scales that box to the sheet, so we keep the exact area ratios (no crop,
- *  and the hero stays exactly 2× every photo). */
-function packFixed(groups, items, asCols) {
-  const K = 1000;
-  // Build each line (a row, or a column when asCols). Along-axis = width for rows.
-  const lines = groups.map((g) => {
-    const cells = g.map((i) => {
-      const side = Math.sqrt(items[i].ratio) * K;      // area = ratio·K²
-      const w = side * Math.sqrt(items[i].aspect);
-      const h = side / Math.sqrt(items[i].aspect);
-      return { item: i, w, h };
-    });
-    const thick = asCols ? Math.max(...cells.map((c) => c.w)) : Math.max(...cells.map((c) => c.h));
-    const along = cells.reduce((s, c) => s + (asCols ? c.h : c.w), 0) + GAP * (cells.length - 1);
-    return { cells, thick, along };
-  });
-  const bboxAlong = Math.max(...lines.map((l) => l.along));
-  const bboxThick = lines.reduce((s, l) => s + l.thick, 0) + GAP * (lines.length - 1);
-  const out = [];
-  let off = 0; // across-axis offset (y for rows, x for cols)
-  for (const l of lines) {
-    let pos = (bboxAlong - l.along) / 2; // centre the line
-    for (const c of l.cells) {
-      if (asCols) out.push({ item: c.item, x: off + (l.thick - c.w) / 2, y: pos, w: c.w, h: c.h });
-      else out.push({ item: c.item, x: pos, y: off + (l.thick - c.h) / 2, w: c.w, h: c.h });
-      pos += (asCols ? c.h : c.w) + GAP;
+/** All slicing trees over a set of items, memoised by subset. A node is a leaf
+ *  ({ leaf }) or a split ({ op:'V'|'H', a, b }). */
+function slicingTrees(idxs, memo) {
+  const key = idxs.join(',');
+  const hit = memo.get(key);
+  if (hit) return hit;
+  let res;
+  if (idxs.length === 1) {
+    res = [{ leaf: idxs[0] }];
+  } else {
+    res = [];
+    for (const [A, B] of bipartitions(idxs)) {
+      const ta = slicingTrees(A, memo);
+      const tb = slicingTrees(B, memo);
+      for (const a of ta) for (const b of tb) {
+        res.push({ op: 'V', a, b });
+        res.push({ op: 'H', a, b });
+      }
     }
-    off += l.thick + GAP;
   }
-  return { cells: out, bboxW: asCols ? bboxThick : bboxAlong, bboxH: asCols ? bboxAlong : bboxThick };
+  memo.set(key, res);
+  return res;
+}
+
+/** Total area weight of a subtree. */
+function treeWeight(node, W) {
+  return node.leaf != null ? W[node.leaf] : treeWeight(node.a, W) + treeWeight(node.b, W);
+}
+
+/** Lay a tree into a rectangle, splitting each cut by area weight so the cells tile the whole
+ *  rectangle with no gaps. Pushes leaf rects into `out`. */
+function placeTree(node, x, y, w, h, W, out) {
+  if (node.leaf != null) { out.push({ item: node.leaf, x, y, w, h }); return; }
+  const wa = treeWeight(node.a, W), f = wa / (wa + treeWeight(node.b, W));
+  if (node.op === 'V') { // side by side, full height
+    placeTree(node.a, x, y, w * f, h, W, out);
+    placeTree(node.b, x + w * f, y, w * (1 - f), h, W, out);
+  } else {               // stacked, full width
+    placeTree(node.a, x, y, w, h * f, W, out);
+    placeTree(node.b, x, y + h * f, w, h * (1 - f), W, out);
+  }
+}
+
+/** How much a cell of aspect `cellAR` must trim (cover) or leave blank (contain) to hold a
+ *  photo/badge of aspect `ar` — 0 when the shapes match, approaching 1 as they diverge. */
+function mismatch(cellAR, ar) {
+  return 1 - Math.min(cellAR, ar) / Math.max(cellAR, ar);
+}
+
+/** Tile the WHOLE sheet with the photos (each { aspect, weight, photo }). Search both sheets
+ *  and every guillotine arrangement; keep the one that crops the photos the least. Every photo
+ *  fills its cell (cover), and the cells cover 100% of the paper — no margin anywhere. */
+function fillSheet(items) {
+  const idxs = items.map((_, i) => i);
+  const W = items.map((it) => it.weight);
+  const memo = new Map();
+  const trees = slicingTrees(idxs, memo);
+  let best = null;
+  for (const page of SHEETS) {
+    for (const tree of trees) {
+      const cells = [];
+      placeTree(tree, 0, 0, page.w, page.h, W, cells);
+      let worst = 0, total = 0;
+      for (const c of cells) {
+        const m = mismatch(c.w / c.h, items[c.item].aspect);
+        total += m; if (m > worst) worst = m;
+      }
+      const score = worst * 8 + total; // minimise cropping (worst cell first)
+      if (!best || score < best.score) best = { score, cells, page };
+    }
+  }
+  const cells = best.cells.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, photo: items[c.item].photo, fit: 'cover' }));
+  return { cells, page: best.page };
+}
+
+/** Add the sticker as a small badge in the lower-right corner, drawn ON TOP of the photos so
+ *  the photos still fill the whole paper (no blank cell for it). It is always the smallest
+ *  element on the page (rule 5) and never a hero. */
+function withSticker(design, stickerAR) {
+  if (stickerAR == null) return design;
+  const { page } = design;
+  const pad = Math.round(Math.min(page.w, page.h) * 0.02);
+  const sw = Math.min(page.w, page.h) * 0.2;   // a small corner badge
+  const sh = sw / stickerAR;
+  design.cells.push({ x: page.w - pad - sw, y: page.h - pad - sh, w: sw, h: sh, extra: 'sticker', fit: 'contain' });
+  return design;
 }
 
 /** The sticker's placement spec for a frame: its aspect ratio, or null for none. */
@@ -150,60 +206,19 @@ export function stickerSpec(frame) {
   return frame && frame.sticker ? { aspect: frame.stickerAR || STICKER_AR } : null;
 }
 
-/** Build one hero design's cells. The five items carry fixed area ratios (hero 2×, each
- *  photo 1×, sticker 0.55×); we search both sheets and every row/column arrangement and
- *  keep the one whose block scales up the most — i.e. fills the most paper. Because the
- *  ratios are fixed, the hero is always exactly 2× every photo and the sticker is always
- *  the smallest cell, whatever the packing chooses. */
+/** One hero design that fills the whole sheet: the hero cell is exactly 2× every other photo,
+ *  the sticker (if any) is the smallest cell, and together they tile 100% of the paper. */
 function heroDesign(aspects, heroIndex, stickerAR) {
-  const items = aspects.map((a, i) => ({ aspect: a, photo: i, ratio: i === heroIndex ? HERO_RATIO : PHOTO_RATIO }));
-  if (stickerAR) items.push({ aspect: stickerAR, sticker: true, ratio: STICKER_RATIO });
-  const idx = items.map((_, i) => i);
-  let best = null;
-  for (const page of SHEETS) {
-    for (const part of partitions(idx)) {
-      for (const asCols of [false, true]) {
-        const pk = packFixed(part, items, asCols);
-        const sc = Math.min(page.w / pk.bboxW, page.h / pk.bboxH);
-        const cov = pk.cells.reduce((s, c) => s + c.w * c.h, 0) * sc * sc / (page.w * page.h);
-        if (!best || cov > best.cov) best = { cov, pk, sc, page };
-      }
-    }
-  }
-  const { pk, sc, page } = best;
-  const x0 = (page.w - pk.bboxW * sc) / 2, y0 = (page.h - pk.bboxH * sc) / 2;
-  const cells = pk.cells.map((c) => {
-    const cell = { x: x0 + c.x * sc, y: y0 + c.y * sc, w: c.w * sc, h: c.h * sc, fit: 'contain' };
-    return items[c.item].sticker ? { ...cell, extra: 'sticker' } : { ...cell, photo: items[c.item].photo };
-  });
-  cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : 0)); // hero leads
-  return { cells, page };
+  const items = aspects.map((a, i) => ({ aspect: a, photo: i, weight: i === heroIndex ? HERO_RATIO : PHOTO_RATIO }));
+  const d = fillSheet(items);
+  d.cells.sort((a, b) => (a.photo === heroIndex ? -1 : b.photo === heroIndex ? 1 : 0)); // hero leads
+  return withSticker(d, stickerAR);
 }
 
-/** The no-hero design: four equal photos (all ratio 1) plus the small sticker, packed for
- *  the most paper — same machinery as a hero design but with no cell enlarged. */
+/** The no-hero design: four equal photos tiling the whole sheet, plus the small corner badge. */
 function evenDesign(aspects, stickerAR) {
-  const items = aspects.map((a, i) => ({ aspect: a, photo: i, ratio: PHOTO_RATIO }));
-  if (stickerAR) items.push({ aspect: stickerAR, sticker: true, ratio: STICKER_RATIO });
-  const idx = items.map((_, i) => i);
-  let best = null;
-  for (const page of SHEETS) {
-    for (const part of partitions(idx)) {
-      for (const asCols of [false, true]) {
-        const pk = packFixed(part, items, asCols);
-        const sc = Math.min(page.w / pk.bboxW, page.h / pk.bboxH);
-        const cov = pk.cells.reduce((s, c) => s + c.w * c.h, 0) * sc * sc / (page.w * page.h);
-        if (!best || cov > best.cov) best = { cov, pk, sc, page };
-      }
-    }
-  }
-  const { pk, sc, page } = best;
-  const x0 = (page.w - pk.bboxW * sc) / 2, y0 = (page.h - pk.bboxH * sc) / 2;
-  const cells = pk.cells.map((c) => {
-    const cell = { x: x0 + c.x * sc, y: y0 + c.y * sc, w: c.w * sc, h: c.h * sc, fit: 'contain' };
-    return items[c.item].sticker ? { ...cell, extra: 'sticker' } : { ...cell, photo: items[c.item].photo };
-  });
-  return { cells, page };
+  const items = aspects.map((a, i) => ({ aspect: a, photo: i, weight: PHOTO_RATIO }));
+  return withSticker(fillSheet(items), stickerAR);
 }
 
 const media = (page) => (page.w > page.h ? 'Custom.6x4in' : 'Custom.4x6in');
@@ -291,8 +306,8 @@ export const FRAMES = {
     sticker: 'backgrounds/sticker.png', // one per page; a small corner badge, never a hero
     stickerAR: STICKER_AR,              // the sticker's own aspect ratio
     stickerW: 0.2,                      // badge width as a fraction of the page — kept small
-    insetX: 0.035, insetY: 0.03,
-    cell: { radius: 0.07, borderW: 0.02, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
+    insetX: 0.012, insetY: 0.01,
+    cell: { radius: 0.03, borderW: 0.014, borders: ['#f5a623', '#4aa8c9', '#7cc04a', '#ef6f8a', '#5cc0be', '#f6c445'] },
   },
   white: { id: 'white', name: 'White', bg: '#ffffff', ink: '#101010', accent: '#9a9a9a' },
   black: { id: 'black', name: 'Black', bg: '#111111', ink: '#f5f5f5', accent: '#8a8a8a' },
