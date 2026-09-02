@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.16 — 2026-09-02
+
+**Layouts now fill the whole sheet — no more empty regions.** The previous version
+sized each cell to its photo and then centred/anchored the block, which left large
+blank areas on the page. The optimiser now works the other way round: it partitions
+the ENTIRE sheet into four cells (dividing each guillotine cut in proportion to the
+target areas, hero 2× the rest) so the photos cover 100% of the paper, then fits each
+photo inside its cell. It searches every arrangement × both sheet orientations and
+keeps the one that shows the most photo — i.e. whose cell shapes best match the photos,
+minimising letterbox. Nothing is cropped (a photo is shown whole inside its cell; any
+slack is a thin matted bar, never a cut), and the sticker is a small corner badge on
+top. Verified by rendering the real portrait+landscape mixes that were leaving big
+margins.
+
+---
+
 ## 1.73.15 — 2026-09-02
 
 **Fill the sheet: a guillotine-slicing layout optimiser.** The layout used to fix
