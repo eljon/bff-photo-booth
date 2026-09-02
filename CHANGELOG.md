@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.72.2 — 2026-09-02
+
+**The Mac now reports real print completion — no more guessing.**
+
+- The booth agent on the Mac watches its own CUPS queue and tells the relay "done" only
+  once the sheet has actually left the printer (it reports "started" first, so the guest
+  sees "Printing now" immediately). This replaces the time estimate, and the relay even
+  learns the true print duration from it, so ETAs get more accurate.
+- The browser `/print` page can't see the OS print queue, so that path still estimates
+  completion from the learned print time — it's the best a web page can do.
+
 ## 1.72.1 — 2026-09-02
 
 **Fixed "all done!" showing the instant a print started (relay/cloud mode).**

@@ -724,19 +724,24 @@ async function handleAgentApi(req, res, url) {
       job.cupsJobId = body.cupsJobId ? String(body.cupsJobId).slice(0, 120) : null;
       job.printer = body.printer ? String(body.printer).slice(0, 128) : job.printer;
       job.error = null;
-      // The agent's "ok" means the sheet has STARTED printing (it was handed to CUPS /
-      // dispatched by the browser), not that it's already in the tray. Marking it done here
-      // told the guest "All done!" the instant it began. Instead show it as printing and
-      // finish it after the learned print time, so "Printing now" lasts the real duration.
-      if (ON_PRINTER.has(job.status)) {
+      // Three shapes of "ok":
+      //   done:true    — the printer really finished (the Mac agent watched CUPS). Trust it.
+      //   started:true — it began printing; the real 'done' will follow. Show "Printing now"
+      //                  and keep a long safety net so a crashed agent can't wedge it.
+      //   neither      — the browser /print page dispatched it and can't see completion, so
+      //                  fall back to finishing after the learned print time (an estimate).
+      if (body.done) {
+        completeJob(job); // learns the true duration and releases the next
+      } else if (ON_PRINTER.has(job.status)) {
         job.status = 'printing';
-        job.printedAt = Date.now();
+        if (!job.printedAt) job.printedAt = Date.now();
         persist();
-        const done = job.id;
-        const timer = setTimeout(() => { const j = jobs.get(done); if (j) completeJob(j); }, avgPrintMs);
+        const id = job.id;
+        const after = body.started ? MAX_PRINT_MS : avgPrintMs;
+        const timer = setTimeout(() => { const j = jobs.get(id); if (j) completeJob(j); }, after);
         if (timer.unref) timer.unref();
       }
-      notifyAgents(); // let the agent pull the next job now (it prints while this one finishes)
+      notifyAgents();
     } else {
       job.status = 'failed';
       job.error = String(body.error || 'The booth printer refused the job.').slice(0, 300);

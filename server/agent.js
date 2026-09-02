@@ -130,6 +130,27 @@ async function report(job, outcome) {
   });
 }
 
+/** Wait until CUPS says the job has actually left the print queue — so the relay
+ *  (and the guest) learn the print is DONE for real, not on a time estimate. Gives
+ *  up after a long ceiling so a stuck job never wedges the agent forever. */
+async function waitForCupsDone(cupsJobId) {
+  if (!cupsJobId) return;
+  const started = Date.now();
+  const MAX = 6 * 60 * 1000; // never wait longer than this for one sheet
+  let seen = false;
+  for (;;) {
+    let active = [];
+    try { active = await cups.listJobs(); } catch { /* transient lpstat hiccup — retry */ }
+    const present = active.some((j) => j.id === cupsJobId);
+    if (present) seen = true;
+    // Gone from the active list once we've seen it there (or after a short grace, in
+    // case it finished before our first check) → CUPS is done with it.
+    else if (seen || Date.now() - started > 8000) return;
+    if (Date.now() - started > MAX) return;
+    await wait(1500);
+  }
+}
+
 async function tick() {
   if (Date.now() - lastHello > HELLO_EVERY_MS) {
     const printers = await sayHello();
@@ -144,8 +165,24 @@ async function tick() {
   log(`job ${job.id.slice(0, 8)} · ${job.layout} · ${job.copies} ${job.copies === 1 ? 'copy' : 'copies'}`);
   try {
     const outcome = await printJob(job);
-    await report(job, outcome);
-    log(outcome.ok ? `  → printer queue: ${outcome.cupsJobId || 'accepted'}` : `  → failed: ${outcome.error}`);
+    if (!outcome.ok) {
+      await report(job, outcome);
+      log(`  → failed: ${outcome.error}`);
+      return;
+    }
+    if (DRY_RUN) {
+      await report(job, { ...outcome, done: true }); // nothing real to wait for
+      log('  → dry run — reported done');
+      return;
+    }
+    // Two phases: tell the relay it STARTED (so the guest sees "Printing now"), then
+    // watch CUPS and report DONE only once the sheet has really left the queue. This
+    // also serialises prints on one printer and teaches the relay the true duration.
+    await report(job, { ...outcome, started: true });
+    log(`  → printing (CUPS ${outcome.cupsJobId || 'accepted'})`);
+    await waitForCupsDone(outcome.cupsJobId);
+    await report(job, { ...outcome, done: true });
+    log('  → done');
   } catch (err) {
     await report(job, { ok: false, error: err.message }).catch(() => {});
     log(`  → failed: ${err.message}`);
