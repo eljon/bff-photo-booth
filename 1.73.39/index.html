@@ -3699,6 +3699,14 @@ function showJob(job) {
       image: job.image,
     });
   }
+  if (job.status === 'cancelled') {
+    return showResult({
+      emoji: '🚫',
+      title: 'Print cancelled',
+      body: 'The host cancelled this print. You can still save it to your phone.',
+      image: job.image,
+    });
+  }
   // 'done' (or the legacy 'queued'): the print has finished.
   return showResult({
     emoji: '🎉',

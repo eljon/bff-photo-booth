@@ -15,7 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
-## 1.73.39 — 2026-09-02
+## 1.73.40 — 2026-09-02
+
+**The host can actually cancel a print now.** The Printer-queue panel only put a Cancel button
+on raw system-queue entries (which don't exist in relay mode and don't map to a guest's print),
+so the prints you could see had no working Cancel. Every in-flight print (waiting or printing)
+now has a Cancel that: removes it from the queue, cancels it at the printer if it's already
+there, refunds its print code, and releases the next print. Works in both booth and relay
+setups. The guest is shown a "Print cancelled" message if their print is cancelled.
 
 **Print-code polish.** Several fixes to the voucher flow:
 

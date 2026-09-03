@@ -1221,6 +1221,29 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, job: publicJob(job) });
   }
 
+  // Cancel one of the booth's OWN prints by its job id — works in every mode. Pulls it out of
+  // the queue, cancels the CUPS job if it is already at a local printer, refunds the code, and
+  // releases the next print. (A print already sent to a printer on a remote agent can't be
+  // recalled mid-sheet, but it still leaves the queue.)
+  if (url.pathname === '/api/cancel-job' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const { id } = await readJson(req);
+    const job = jobs.get(id);
+    if (!job) return sendJson(res, 404, { ok: false, error: 'Unknown job.' });
+    if (!ACTIVE.has(job.status)) return sendJson(res, 200, { ok: true, job: publicJob(job) }); // already finished
+
+    // Booth mode: if it is on a local printer, tell CUPS to drop it too.
+    if (MODE !== 'relay' && !DRY_RUN && job.status === 'printing' && job.cupsJobId) {
+      try { await cups.cancel(job.cupsJobId); } catch { /* best effort */ }
+    }
+    job.status = 'cancelled';
+    job.error = null;
+    refundVoucher(job); // a cancelled print hands the guest's code back
+    persist();
+    if (MODE === 'relay') notifyAgents(); else await pumpPrinter(); // free the printer, advance
+    return sendJson(res, 200, { ok: true, job: publicJob(job) });
+  }
+
   if (url.pathname === '/api/cancel' && req.method === 'POST') {
     if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const { cupsJobId } = await readJson(req);

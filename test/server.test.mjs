@@ -164,6 +164,35 @@ test('generated codes never spell something offensive', async (t) => {
   assert.equal(isClean('ABC234'), true);
 });
 
+test('the host can cancel an in-flight print, freeing the printer and refunding its code', async (t) => {
+  const booth = await startServer();
+  t.after(() => booth.close());
+  const H = { 'content-type': 'application/json' };
+  await fetch(`${booth.base}/api/config`, { method: 'POST', headers: H, body: JSON.stringify({ requireVoucher: true }) });
+  const gen = await (await fetch(`${booth.base}/api/vouchers`, { method: 'POST', headers: H, body: JSON.stringify({ action: 'generate', count: 2 }) })).json();
+
+  const submit = (code) => fetch(`${booth.base}/api/print?layout=grid&code=${code}`, {
+    method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng(),
+  }).then((r) => r.json());
+  const a = await submit(gen.codes[0]);
+  const b = await submit(gen.codes[1]);
+  assert.equal(a.job.status, 'printing');
+  assert.equal(b.job.status, 'pending');
+  assert.equal((await (await fetch(`${booth.base}/api/vouchers`)).json()).unused, 0, 'both codes spent');
+
+  // Cancel the one on the printer.
+  const c = await (await fetch(`${booth.base}/api/cancel-job`, { method: 'POST', headers: H, body: JSON.stringify({ id: a.job.id }) })).json();
+  assert.equal(c.job.status, 'cancelled');
+  assert.equal((await (await fetch(`${booth.base}/api/vouchers`)).json()).unused, 1, 'the cancelled print refunds its code');
+
+  // The next print advances onto the freed printer.
+  const bAfter = await until(async () => {
+    const j = (await (await fetch(`${booth.base}/api/job?id=${b.job.id}`)).json()).job;
+    return j.status === 'printing' ? j : null;
+  });
+  assert.equal(bAfter.status, 'printing');
+});
+
 test('too many wrong codes trip a brute-force cool-off', async (t) => {
   const booth = await startServer();
   t.after(() => booth.close());

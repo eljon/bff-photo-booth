@@ -410,7 +410,16 @@ async function refreshQueue() {
       ? ` · ${job.printerLabel}${job.computer && job.computer !== 'This Mac' ? ` (${job.computer})` : ''}`
       : '';
     const state = onPrinter ? 'Printing' : 'On its way to the printer';
-    queueBox.appendChild(jobCard({ image: job.image, title: pno(job), subtitle: `${state}${where} · ${job.layout}` }, []));
+    queueBox.appendChild(jobCard(
+      { image: job.image, title: pno(job), subtitle: `${state}${where} · ${job.layout}` },
+      [{ label: 'Cancel', run: async () => {
+        try {
+          const r = await post('/api/cancel-job', { id: job.id });
+          toast(r && r.ok ? `Cancelled ${pno(job)}.` : (r && r.error) || 'Could not cancel that print.');
+        } catch { toast('Could not cancel that print.'); }
+        refreshQueue();
+      } }],
+    ));
   }
   for (const job of data.cupsJobs) {
     queueBox.appendChild(jobCard(
