@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.20 - 2026-09-04
+
+**Guest widget now shows the printer name too.** The collapsed round status widget previously
+showed only the ticket number and a place/ETA or one-word status ("printing"); the host-set
+printer name appeared only in the expanded status card. While a print is on a printer, the
+widget's sub line now reads "on <printer name>" (the host-set label, never the raw driver name),
+so the printer stays visible even when the status is collapsed.
+
 ## 1.74.19 - 2026-09-04
 
 **Host helper-download button fixed, and the session-name prompt is now an in-app modal.**

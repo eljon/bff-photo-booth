@@ -1521,7 +1521,9 @@ function updateQueuePill(job) {
     }
   } else if (isActiveJob(job)) {
     icon = '🖨️';
-    sub = 'printing';
+    // Show the host-set printer name here too (not only in the expanded card), so it stays
+    // visible when the status is collapsed to the widget.
+    sub = job.printerLabel ? `on ${job.printerLabel}` : 'printing';
   } else if (job && (job.status === 'failed' || job.status === 'rejected')) {
     icon = '⚠️';
     sub = 'issue';
