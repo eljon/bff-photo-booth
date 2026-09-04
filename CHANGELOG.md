@@ -15,6 +15,28 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.13 — 2026-09-04
+
+**`docs/COMMERCIAL-SETUP.md` rewritten as a do-it-once production guide.** Instead of test/dev
+sandboxes, every provider is now set up in live/published mode against
+`boothless.alphanauts.net`, so the consoles are configured once and never revisited:
+
+- **Master env-var list** for Render in one place, including `SAAS_BASE_DOMAIN` and a note that
+  the cookie-signing secret persists on the `/data` disk (wiping the disk logs everyone out).
+- **Stripe live:** account activation + bank, `sk_live_` keys, a live webhook at the production
+  URL, and the trick of repointing one endpoint's URL later without changing the signing secret
+  (so you can test before DNS is green).
+- **Google published ("In production"):** External consent screen, authorized domain, privacy/
+  terms URLs, minimal non-sensitive scopes to skip verification, and the warning that adding a
+  logo triggers brand review.
+- **Facebook Live:** app domain, privacy policy, app icon/category, the required Data Deletion
+  Instructions URL, Advanced Access for `public_profile`/`email`, and the Dev→Live switch.
+- **Apple (optional):** full production steps kept for when the $99/yr program is enrolled.
+- Every OAuth provider registers **both** the custom-domain and onrender callback URLs so the
+  consoles never need editing when DNS flips.
+
+No code change — documentation only.
+
 ## 1.74.12 — 2026-09-04
 
 **OAuth + Stripe setup doc rewritten for the real deployment.** `docs/COMMERCIAL-SETUP.md`

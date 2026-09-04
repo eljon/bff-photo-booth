@@ -1,130 +1,198 @@
-# Commercial app — going live (OAuth + Stripe)
+# Production setup — OAuth + Stripe (do this once)
 
-The commercial app (`npm run saas`) works out of the box with **email + password** and a
-**dev "simulate purchase."** To turn on real social sign-in and real payments, set the
-environment variables below and restart. Nothing else changes — the flows are already built.
+This guide configures **Google, Facebook, Stripe (and Apple, optional) for real production
+use** against `https://boothless.alphanauts.net`, so you set each provider up **once** and never
+have to redo it. Everything is registered in *live / published* mode, not test/dev sandboxes.
 
-**This guide uses the real deployment:** app on Render at
-`https://hawak-mo-ang-booth.onrender.com` today, and `https://boothless.alphanauts.net` once
-that domain's DNS verifies. Set these on the Render service: **Environment → Add Environment
-Variable →** key + value **→ Save Changes** (it redeploys). Locally: `KEY=value npm run saas`.
+The code is already built — turning a provider on is purely setting its environment variables on
+the Render service and (for the OAuth ones) registering the callback URL in the provider's
+console. Nothing in the app changes.
 
-## The one rule for every OAuth provider: the callback host must match
+> **Do all four consoles with production values now**, even if DNS for the custom domain isn't
+> green yet. Where a step needs a live URL that isn't reachable until DNS is up, this guide says
+> so and gives you the one temporary move (a second URL) that avoids ever coming back.
 
-The app builds each provider's redirect URI from **the host you're browsing on**
-(`originOf(req)` in `server/commercial/app.js`), so the callback URL you register in the
-provider's console must match the host you actually click "Sign in" from. Because you have two
-hosts (the `onrender.com` one now, the custom domain once DNS is green), **register both
-callback URLs** in every provider — the onrender one works immediately, the custom-domain one
-is ready for later. Log in via the onrender URL until the domain verifies.
+---
 
-The callback paths are always:
+## 0. The master environment-variable list (Render)
 
-```
-/api/auth/oauth/google/callback
-/api/auth/oauth/facebook/callback
-/api/auth/oauth/apple/callback
-```
-
-## Stripe (payments)
-
-1. Create a [Stripe account](https://dashboard.stripe.com) and keep **Test mode** ON (top-right
-   toggle) while you set this up.
-2. **Developers → API keys** → copy the **Secret key**: `sk_test_…`.
-3. **Developers → Webhooks → Add endpoint** pointing at
-   `https://hawak-mo-ang-booth.onrender.com/api/stripe/webhook`, subscribed to
-   **`checkout.session.completed`**. Copy its **Signing secret**: `whsec_…`.
+Set these on the Render service (**Environment → Add Environment Variable → Save**, which
+redeploys). This is the whole production set in one place:
 
 ```
-STRIPE_SECRET_KEY=sk_test_...
+# ── App / hosting ────────────────────────────────────────────────
+SAAS_DATA=/data                          # persistent disk mount (accounts, booths, session secret)
+SAAS_BASE_DOMAIN=boothless.alphanauts.net   # enables per-session subdomains; set once DNS is green
+
+# ── Stripe (LIVE) ────────────────────────────────────────────────
+STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-SESSION_PRICE_CENTS=2900      # optional, default $29.00
-SESSION_CURRENCY=usd          # optional
-```
+SESSION_PRICE_CENTS=2900                  # optional — $29.00 default
+SESSION_CURRENCY=usd                      # optional
 
-With `STRIPE_SECRET_KEY` set, **Buy** opens Stripe Checkout; on payment, Stripe calls the
-webhook and the session flips to **active**. Without it, the dev simulate-purchase is used.
-Test card: `4242 4242 4242 4242`, any future date/CVC.
-
-**Going live:** flip Stripe to Live mode, grab the `sk_live_…` key, add a **second** webhook
-endpoint (live mode has its own — point it at the custom domain), and swap both env values.
-
-## Google sign-in
-
-1. [Google Cloud Console](https://console.cloud.google.com) → create/pick a project.
-2. **APIs & Services → OAuth consent screen** → **External** → fill App name
-   (`Hawak Mo ang Booth`), support email, developer email. The default `email` / `profile` /
-   `openid` scopes are enough — no sensitive scopes, so no Google review needed.
-   - While the consent screen is in **"Testing"**, only accounts listed under **Test users**
-     can sign in — add your own Gmail there. Hit **Publish app** to open it to everyone (this
-     is instant for these non-sensitive scopes).
-3. **Credentials → Create Credentials → OAuth client ID → Web application.**
-4. **Authorized redirect URIs — add both:**
-   ```
-   https://hawak-mo-ang-booth.onrender.com/api/auth/oauth/google/callback
-   https://boothless.alphanauts.net/api/auth/oauth/google/callback
-   ```
-
-```
+# ── Google ───────────────────────────────────────────────────────
 GOOGLE_CLIENT_ID=...apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=...
-```
 
-## Facebook sign-in
-
-1. [Meta for Developers](https://developers.facebook.com) → **My Apps → Create App** → use case
-   **"Authenticate and request data from users with Facebook Login"** (Consumer). Add the
-   **Facebook Login** product.
-2. **Facebook Login → Settings → Valid OAuth Redirect URIs — add both:**
-   ```
-   https://hawak-mo-ang-booth.onrender.com/api/auth/oauth/facebook/callback
-   https://boothless.alphanauts.net/api/auth/oauth/facebook/callback
-   ```
-3. **Settings → Basic** → copy **App ID** and **App Secret**.
-
-```
+# ── Facebook ─────────────────────────────────────────────────────
 FACEBOOK_APP_ID=...
 FACEBOOK_APP_SECRET=...
+
+# ── Apple (optional — needs the $99/yr Apple Developer Program) ───
+# APPLE_CLIENT_ID=net.alphanauts.boothless.web
+# APPLE_TEAM_ID=XXXXXXXXXX
+# APPLE_KEY_ID=YYYYYYYYYY
+# APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 ```
 
-- **Dev vs Live:** while the app is in **Development** mode only people with a role on the app
-  (you as admin, or anyone you add as Tester) can log in — fine for testing. To let the public
-  in, flip it to **Live**, which requires a Privacy Policy URL in Settings → Basic.
+**Session persistence (production must-know):** the cookie-signing secret is generated once and
+stored on the `/data` disk (`store.js`). It survives redeploys automatically — but if you ever
+delete/recreate the disk, every user is logged out and pending state is lost. Treat `/data` as
+production data: keep it attached, and back it up before any risky change.
 
-## Apple sign-in (deferred — optional)
+---
 
-Apple sign-in requires the **paid Apple Developer Program ($99/year)**. It's wired up in the
-code but left off for now; its button shows "soon" until the keys below are set. Add it later
-with **no code change** — just set the env vars.
+## The one rule for every OAuth provider
 
-In your [Apple Developer](https://developer.apple.com) account:
-
-1. Register an **App ID** and enable **Sign in with Apple**.
-2. Create a **Services ID** (this is your `APPLE_CLIENT_ID`) and set its return URL to
-   `https://boothless.alphanauts.net/api/auth/oauth/apple/callback` (Apple requires HTTPS and a
-   real domain — no `onrender.com` isn't rejected, but use the branded domain once it's live).
-3. Create a **Sign in with Apple key** (.p8); note the **Key ID** and your **Team ID**.
+The app builds each provider's redirect URI from **the host the user is on** (`originOf(req)`),
+so the callback URL you register must match the host they sign in from. Production is
+`boothless.alphanauts.net`. To be "set once" and never edit the consoles again, register **both**
+of these in each provider — the custom domain (production) and the Render URL (works before DNS,
+and as a permanent fallback):
 
 ```
-APPLE_CLIENT_ID=com.yourcompany.booth.web   # the Services ID
-APPLE_TEAM_ID=XXXXXXXXXX
-APPLE_KEY_ID=YYYYYYYYYY
-APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+https://boothless.alphanauts.net/api/auth/oauth/<provider>/callback
+https://hawak-mo-ang-booth.onrender.com/api/auth/oauth/<provider>/callback
 ```
 
-(The app signs Apple's required ES256 client secret from the .p8 automatically. Use `\n`
-for newlines if your host stores secrets on one line.)
+Callback paths per provider: `/api/auth/oauth/google/callback`,
+`/api/auth/oauth/facebook/callback`, `/api/auth/oauth/apple/callback`.
 
-## Which are on?
+---
 
-The landing page shows all four buttons; the unconfigured ones say "soon" until their keys
-are present. `GET /api/me` returns `providers: { google, apple, facebook }` (true/false).
+## 1. Stripe — LIVE payments
+
+1. **Activate the account.** [dashboard.stripe.com](https://dashboard.stripe.com) → complete
+   **business details + bank account** (Settings → Business / Payouts). Live keys don't work
+   until the account is activated. Set a **statement descriptor** (what shows on customers'
+   card statements) under Settings → Business.
+2. Switch the dashboard to **Live mode** (top-right toggle OFF of "Test mode").
+3. **Developers → API keys** → copy the **live Secret key**: `sk_live_…` → Render
+   `STRIPE_SECRET_KEY`.
+4. **Developers → Webhooks → Add endpoint** (this is a *live-mode* endpoint, separate from any
+   test one):
+   - **URL:** `https://boothless.alphanauts.net/api/stripe/webhook`
+   - **Event:** `checkout.session.completed`
+   - Save, then copy its **Signing secret** `whsec_…` → Render `STRIPE_WEBHOOK_SECRET`.
+   - *Editing an endpoint's URL later keeps the same signing secret*, so if you want to test
+     payments **before** DNS is live, temporarily set this endpoint's URL to the
+     `hawak-mo-ang-booth.onrender.com` one, then edit it back to the custom domain when DNS is
+     green — `STRIPE_WEBHOOK_SECRET` never changes.
+5. **Go-live checks:** confirm the payment methods you want are enabled (Settings → Payment
+   methods), and that the price (`SESSION_PRICE_CENTS`) and currency are what you'll charge.
+
+With `STRIPE_SECRET_KEY` set, **Buy** opens Stripe Checkout; on payment Stripe calls the webhook
+and the session flips to active. Verify one real (small) transaction end-to-end after go-live.
+
+---
+
+## 2. Google — published (production) sign-in
+
+1. [Google Cloud Console](https://console.cloud.google.com) → create/pick a project.
+2. **APIs & Services → OAuth consent screen → External.** Fill in:
+   - App name: `Hawak Mo ang Booth`
+   - User support email + Developer contact email
+   - **Authorized domain:** `alphanauts.net`
+   - **App privacy policy URL** and **Terms of service URL** (host them on your site — required
+     for a clean production listing).
+   - **Scopes:** keep only the defaults — `email`, `profile`, `openid`. These are
+     **non-sensitive**, so publishing needs **no Google review**.
+   - **Publishing status → Publish app → "In production."** This removes the 100-test-user cap
+     and lets anyone sign in.
+   > ⚠️ **Don't upload an app logo unless you're ready for verification** — adding a logo (or any
+   > sensitive scope) triggers Google's brand-verification review, which can take days. Text-only
+   > branding with minimal scopes publishes instantly.
+3. **Credentials → Create Credentials → OAuth client ID → Web application.**
+   - **Authorized redirect URIs** — add both:
+     ```
+     https://boothless.alphanauts.net/api/auth/oauth/google/callback
+     https://hawak-mo-ang-booth.onrender.com/api/auth/oauth/google/callback
+     ```
+4. Copy **Client ID** + **Client secret** → Render `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+---
+
+## 3. Facebook — Live app
+
+1. [Meta for Developers](https://developers.facebook.com) → **My Apps → Create App** → use case
+   **"Authenticate and request data from users with Facebook Login"**. Add the **Facebook Login**
+   product.
+2. **App settings → Basic:**
+   - **App Domains:** `boothless.alphanauts.net`
+   - **Privacy Policy URL** (required to go Live) and, recommended, **Terms of Service URL**.
+   - **Category** and **App Icon** (required to go Live).
+   - **Data Deletion:** set a **Data Deletion Instructions URL** (a public page saying how a user
+     requests deletion, e.g. "email support@alphanauts.net"). Meta requires this for Live apps.
+   - Copy **App ID** + **App Secret** → Render `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`.
+3. **Facebook Login → Settings → Valid OAuth Redirect URIs** — add both:
+   ```
+   https://boothless.alphanauts.net/api/auth/oauth/facebook/callback
+   https://hawak-mo-ang-booth.onrender.com/api/auth/oauth/facebook/callback
+   ```
+4. **Permissions:** the app uses `public_profile` and `email`. Under **App Review → Permissions
+   and Features**, ensure both have **Advanced Access** (these two standard permissions are
+   normally granted immediately — no full App Review submission needed).
+5. **Flip the app to Live** (toggle at the top of the dashboard). In Development mode only people
+   with a role on the app can sign in; Live opens it to the public. Complete the periodic **Data
+   Use Checkup** when Meta prompts, or logins get suspended.
+
+---
+
+## 4. Apple — Sign in with Apple (optional, when you enroll)
+
+Apple sign-in needs the **paid Apple Developer Program ($99/year)**. It's fully wired in the
+code; its button shows "soon" until the keys are set. Add it later with **no code change** —
+just set the env vars. Full production steps for when you enroll:
+
+1. **Certificates, Identifiers & Profiles → Identifiers → App ID** → enable **Sign in with Apple**.
+2. Create a **Services ID** (e.g. `net.alphanauts.boothless.web`) — this is `APPLE_CLIENT_ID`.
+   Configure it for Sign in with Apple:
+   - **Domains:** `boothless.alphanauts.net`
+   - **Return URLs:** `https://boothless.alphanauts.net/api/auth/oauth/apple/callback`
+     (Apple requires HTTPS on a real, verified domain — do this after DNS is green.)
+3. **Keys → +** → enable **Sign in with Apple** → download the **`.p8`**. Note the **Key ID**
+   and your **Team ID**.
+4. Render:
+   ```
+   APPLE_CLIENT_ID=net.alphanauts.boothless.web   # the Services ID
+   APPLE_TEAM_ID=XXXXXXXXXX
+   APPLE_KEY_ID=YYYYYYYYYY
+   APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+   ```
+   (The app signs Apple's required ES256 client secret from the `.p8` automatically. Use `\n`
+   for newlines since Render stores the value on one line.)
+
+---
+
+## 5. Verify production
+
+1. After each provider's env vars are saved, reload `https://boothless.alphanauts.net` — the
+   configured buttons lose their "soon" tag. `GET /api/me` returns
+   `providers: { google, apple, facebook }` (true/false) to confirm.
+2. Sign in with Google and with Facebook on the **production domain** (not onrender) once DNS is
+   green — confirm the redirect returns you signed in.
+3. Buy a session with a **real card** (small amount) → confirm Stripe Checkout completes, the
+   webhook fires (Stripe → Webhooks → your endpoint shows a 200), and the session flips to active.
+4. Open the session's host → it should land on `https://<slug>.boothless.alphanauts.net/host`.
+
+---
 
 ## Notes
 
-- Each provider's **redirect URI must match exactly** what you register, including https and
-  host. The app derives it from the request host, so set the app's public URL correctly
-  behind a proxy (`x-forwarded-proto`) — Render already sets that.
-- Sessions are stateless signed cookies — no session store to run.
-- Data lives under `SAAS_DATA` (default `./saas-data`); point it at a persistent disk in the
-  cloud, same as the booth's `/data`.
+- **Exact-match redirect URIs.** Every provider matches the callback URL character-for-character
+  (scheme + host + path). Register both hosts (done above) and you never edit the consoles again.
+- Render already sets `x-forwarded-proto`, so the app knows it's HTTPS behind the proxy.
+- Sessions are stateless signed cookies — no session store to run; the signing secret lives on
+  `/data` (see §0).
+- Keep every secret **in Render's environment only** — never commit keys to the repo, even now
+  that it's private.
