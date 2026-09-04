@@ -77,8 +77,35 @@ async function openHost(s, btn) {
   }
 }
 
+// A small in-app modal for naming a session, so we do not use the browser's native prompt.
+function askSessionName() {
+  return new Promise((resolve) => {
+    const modal = $('nameModal');
+    const input = $('sessionName');
+    input.value = '';
+    modal.classList.remove('hidden');
+    setTimeout(() => input.focus(), 0);
+    const done = (value) => {
+      modal.classList.add('hidden');
+      $('nameOk').removeEventListener('click', onOk);
+      $('nameCancel').removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+      modal.removeEventListener('mousedown', onBackdrop);
+      resolve(value);
+    };
+    const onOk = () => done(input.value);
+    const onCancel = () => done(null);
+    const onKey = (e) => { if (e.key === 'Enter') onOk(); else if (e.key === 'Escape') onCancel(); };
+    const onBackdrop = (e) => { if (e.target === modal) onCancel(); };
+    $('nameOk').addEventListener('click', onOk);
+    $('nameCancel').addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+    modal.addEventListener('mousedown', onBackdrop);
+  });
+}
+
 async function buy() {
-  const name = prompt('Name this session (e.g. "Maria\'s 30th"):', 'New event');
+  const name = await askSessionName();
   if (name === null) return;
   toast('Setting up your session…');
   const { status, data } = await api('/api/sessions/buy', { name: name.trim() || 'New event' });

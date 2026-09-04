@@ -29,6 +29,17 @@
   </div>
 </div>
 
+<div class="modal-backdrop hidden" id="nameModal">
+  <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
+    <h2 id="nameModalTitle">Name this session</h2>
+    <input class="modal-input" id="sessionName" type="text" placeholder="Session name" autocomplete="off" maxlength="60">
+    <div class="modal-actions">
+      <button class="btn ghost" id="nameCancel" type="button">Cancel</button>
+      <button class="btn primary" id="nameOk" type="button">Continue</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 <script type="module" src="/js/dashboard.mjs"></script>
 </body>

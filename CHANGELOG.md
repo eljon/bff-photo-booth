@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.19 - 2026-09-04
+
+**Host helper-download button fixed, and the session-name prompt is now an in-app modal.**
+
+- The "Download for macOS/Windows" button no longer has its glow bleeding onto the step text
+  (softer, tighter shadow plus proper spacing), the link underline is gone, and it now shows a
+  real download icon (inline SVG, not an emoji). The OS note sits cleanly on its own line.
+- Naming a new session no longer uses the browser's native prompt dialog. It opens a styled modal
+  that matches the app (card, blurred backdrop, Cancel/Continue, Enter/Escape/backdrop to close).
+  The field starts empty with no suggested name.
+
 ## 1.74.18 - 2026-09-04
 
 **Fix: 100%-off promotion codes were rejected as "This code is invalid" at checkout.**

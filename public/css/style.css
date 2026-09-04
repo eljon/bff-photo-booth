@@ -592,6 +592,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+  text-decoration: none;
   -webkit-tap-highlight-color: transparent;
 }
 .btn:disabled { opacity: 0.45; cursor: default; }

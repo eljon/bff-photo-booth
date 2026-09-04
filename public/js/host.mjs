@@ -223,18 +223,19 @@ function renderHelperDownload() {
   const dl = $('helperDownload');
   const note = $('helperOsNote');
   if (!dl) return;
+  const label = dl.querySelector('.dl-label') || dl;
   const helper = (info && info.helper) || {};
   const os = osKind();
   const asset = HELPER_ASSETS[os];
   if (helper.downloadBase && asset) {
     dl.href = `${helper.downloadBase}/${asset}`;
-    dl.textContent = os === 'mac' ? 'Download for macOS' : 'Download for Windows';
+    label.textContent = os === 'mac' ? 'Download for macOS' : 'Download for Windows';
     note.textContent = os === 'mac'
-      ? 'macOS: open the .dmg and drag the app to Applications. First launch: right-click the app ▸ Open.'
-      : 'Windows: run the installer. First launch: More info ▸ Run anyway.';
+      ? 'macOS: open the .dmg and drag the app to Applications. First launch: right-click the app then Open.'
+      : 'Windows: run the installer. First launch: More info then Run anyway.';
   } else {
     dl.href = helper.releasesPage || '#';
-    dl.textContent = 'Download the helper';
+    label.textContent = 'Download the helper';
     note.textContent = 'Pick the file for your operating system.';
   }
 }
