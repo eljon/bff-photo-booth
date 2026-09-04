@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.45 — 2026-09-04
+
+**Shorter pairing code — 4 characters.** The Connect-a-printer code is now 4 chars
+(from the same unambiguous alphabet) instead of 8, so it's quicker to read and type.
+It stays single-use and expiring; the per-IP claim lockout is what keeps a short code
+safe from guessing, and a code is normally redeemed within seconds anyway.
+
 ## 1.73.44 — 2026-09-04
 
 **The printer helper app (no terminal).** A desktop app under `helper/` that the

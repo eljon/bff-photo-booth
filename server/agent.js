@@ -47,7 +47,7 @@ const PRINT_MS = Number(process.env.PRINT_MS) || 30 * 1000;
 if (!RELAY_URL || (!BOOTH_TOKEN && !PAIR_CODE)) {
   console.error('The agent needs RELAY_URL and either BOOTH_TOKEN or PAIR_CODE.');
   console.error('  RELAY_URL=https://your-booth.example.com BOOTH_TOKEN=… npm run agent');
-  console.error('  …or pair with a code from the host screen: PAIR_CODE=XXXXXXXX');
+  console.error('  …or pair with a code from the host screen: PAIR_CODE=XXXX');
   process.exit(1);
 }
 

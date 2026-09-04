@@ -333,10 +333,13 @@ function noteWrongCode(req) { recentMisses(req).push(Date.now()); }
 
 // Pairing: let the printer helper connect without the operator pasting BOOTH_TOKEN.
 // The host screen (already authed) mints a short-lived, single-use code; the helper
-// exchanges it for the booth token. Codes are 8 chars from a 30-char unambiguous
-// alphabet (~6.5e11 combos), expire fast, and claim attempts are rate-limited, so a
-// code is not worth guessing. Relay mode only — a local booth prints on its own Mac.
+// exchanges it for the booth token. Codes are 4 chars from a 30-char unambiguous
+// alphabet (~810k combos) and are easy to read off the screen. A code is normally
+// claimed within seconds and is single-use; what keeps a short code safe is the
+// per-IP claim lockout below (a handful of wrong tries triggers a cool-off), not the
+// combo count. Relay mode only — a local booth prints on its own Mac.
 const PAIR_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PAIR_LEN = 4;
 const PAIR_TTL_MS = 10 * 60 * 1000;
 const pairings = new Map(); // code -> { expires }
 function sweepPairings() {
@@ -344,9 +347,9 @@ function sweepPairings() {
   for (const [code, p] of pairings) if (p.expires <= now) pairings.delete(code);
 }
 function newPairCode() {
-  const bytes = crypto.randomBytes(8);
+  const bytes = crypto.randomBytes(PAIR_LEN);
   let out = '';
-  for (let i = 0; i < 8; i += 1) out += PAIR_ALPHABET[bytes[i] % PAIR_ALPHABET.length];
+  for (let i = 0; i < PAIR_LEN; i += 1) out += PAIR_ALPHABET[bytes[i] % PAIR_ALPHABET.length];
   return out;
 }
 // A wrong pairing code is brute-force material too — same cool-off treatment as vouchers.

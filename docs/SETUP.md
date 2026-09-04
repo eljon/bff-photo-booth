@@ -74,7 +74,7 @@ it one of two ways.
 2. Start the agent. Pair with the code from the host screen (no token to copy):
 
    ```bash
-   RELAY_URL=https://<your-url> PAIR_CODE=XXXXXXXX npm run agent
+   RELAY_URL=https://<your-url> PAIR_CODE=XXXX npm run agent
    ```
 
    (Or use `BOOTH_TOKEN=…` instead of `PAIR_CODE`.) Prefix with `caffeinate -dims` to

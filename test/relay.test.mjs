@@ -129,12 +129,12 @@ test('pairing: minting needs the host token; claiming needs a valid code', async
 
   const minted = await (await fetch(`${booth.base}/api/pair/new`, { method: 'POST', headers: host })).json();
   assert.equal(minted.ok, true);
-  assert.match(minted.code, /^[A-Z0-9]{8}$/, 'an 8-char code is minted');
+  assert.match(minted.code, /^[A-Z0-9]{4}$/, 'a 4-char code is minted');
 
   // A wrong code is rejected without leaking the token.
   const bad = await fetch(`${booth.base}/api/pair/claim`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ code: 'ZZZZZZZZ' }),
+    body: JSON.stringify({ code: 'ZZZZ' }),
   });
   assert.equal(bad.status, 404);
   assert.equal((await bad.json()).token, undefined);
