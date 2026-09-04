@@ -6,13 +6,18 @@
 <title>Hawak Mo ang Booth (temporary name)</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/saas.css">
+<script>try{var t=localStorage.getItem('bff-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="wrap">
   <nav class="nav">
     <div class="brand"><span class="dot"></span> Hawak Mo ang Booth <span class="brand-temp">🚧 Temporary name</span></div>
-    <a class="btn ghost" href="#auth" id="navSignin">Sign in</a>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="theme-toggle" data-theme-toggle type="button"></button>
+      <a class="btn ghost" href="#auth" id="navSignin">Sign in</a>
+    </div>
   </nav>
+  <script type="module" src="/js/theme.mjs"></script>
 
   <section class="hero">
     <div>

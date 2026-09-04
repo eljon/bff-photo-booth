@@ -7,6 +7,7 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/style.css">
 <link rel="stylesheet" href="/css/host.css">
+<script>try{var t=localStorage.getItem('bff-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body class="host">
 <header class="host-top">
@@ -15,8 +16,10 @@
     <span class="pill hidden" id="agentPill">…</span>
     <span class="pill" id="modePill">…</span>
     <span class="pill quiet" id="versionPill" title="Booth version">…</span>
+    <button class="theme-toggle" data-theme-toggle type="button"></button>
   </div>
 </header>
+<script type="module" src="/js/theme.mjs"></script>
 
 <div class="overlay hidden" id="signin" role="dialog" aria-modal="true">
   <div class="result-card">

@@ -9,7 +9,7 @@ body.host { padding: 0 0 40px; }
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: #15111bf2;
+  background: var(--header-bg);
   backdrop-filter: blur(8px);
   z-index: 5;
 }
@@ -107,13 +107,13 @@ body.host { padding: 0 0 40px; }
 .gallery img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; background: #fff; }
 
 .host-pills { display: flex; gap: 8px; align-items: center; }
-.url code, .result-card code { background: #ffffff14; padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }
+.url code, .result-card code { background: var(--surface); padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }
 #rotateKey { margin-top: 12px; }
 
 /* Connect a printer computer — download the helper, pair, auto-detect. */
 .connect-card {
   border: 1px solid var(--line);
-  background: #ffffff08;
+  background: var(--surface);
   border-radius: 12px;
   padding: 16px 18px;
   margin-bottom: 16px;

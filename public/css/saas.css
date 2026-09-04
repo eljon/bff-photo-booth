@@ -1,10 +1,13 @@
+/* Light is the base palette. Dark applies on a dark device (unless the viewer forced light)
+   and on an explicit dark choice. */
 :root {
   --bg: #faf7fb; --card: #ffffff; --ink: #1a141f; --dim: #6b6472; --line: #e7e2ec;
   --accent: #ff5c7a; --accent2: #8b5cf6; --ok: #1e7f4d; --warn: #8a6d1a; --shadow: 0 10px 40px #1a141f14;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #15111b; --card: #1c1b21; --ink: #f6f1ef; --dim: #b3a7bd; --line: #2e2c36; --shadow: 0 10px 40px #0006; }
+  :root:not([data-theme="light"]) { --bg: #15111b; --card: #1c1b21; --ink: #f6f1ef; --dim: #b3a7bd; --line: #2e2c36; --shadow: 0 10px 40px #0006; }
 }
+:root[data-theme="dark"] { --bg: #15111b; --card: #1c1b21; --ink: #f6f1ef; --dim: #b3a7bd; --line: #2e2c36; --shadow: 0 10px 40px #0006; }
 * { box-sizing: border-box; }
 body { margin: 0; font: 15px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
 a { color: var(--accent); }
@@ -109,3 +112,13 @@ a { color: var(--accent); }
 .modal-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .hidden { display: none !important; }
+
+/* Light/dark theme toggle button. */
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 38px; height: 38px; flex: none;
+  border-radius: 50%; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink);
+  cursor: pointer; padding: 0; vertical-align: middle;
+}
+.theme-toggle:hover { border-color: var(--dim); }

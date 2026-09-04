@@ -15,6 +15,23 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.75.0 - 2026-09-04
+
+**App-wide light mode.** Every interactive surface (guest app, host screen, all-photos gallery,
+landing, dashboard) now supports light and dark:
+
+- The theme follows the device by default (prefers-color-scheme). A light/dark toggle on the
+  host, gallery, landing and dashboard lets the viewer pin either one, remembered per device.
+- The guest app follows the guest's own phone setting automatically (no toggle there, to keep
+  the walk-up screen and its wordmark uncluttered).
+- The guest/host dark theme is unchanged; light is a new palette layered on semantic tokens
+  (`--bg-glow`, `--surface`, `--input-bg`, `--overlay`, `--header-bg`, ...) so both themes stay
+  consistent. The commercial pages now honor an explicit choice as well as the system setting.
+- A small inline script in each page applies the saved theme before first paint (no flash),
+  and `public/js/theme.mjs` wires the toggle.
+
+The "Booth Board" display page (`view.html`) stays dark by design, as a projected signage screen.
+
 ## 1.74.20 - 2026-09-04
 
 **Guest widget now shows the printer name too.** The collapsed round status widget previously

@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#0c0c0f">
+<meta name="theme-color" content="#0c0c0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f2f8" media="(prefers-color-scheme: light)">
+<script>try{var t=localStorage.getItem('bff-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Photo Booth</title>
@@ -11,6 +13,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <style>
+/* Dark is the app's native look and stays the base palette. Light overrides live in the two
+   blocks below: system-light (unless the viewer forced dark) and an explicit light choice. */
 :root {
   --bg: #0c0c0f;
   --bg-soft: #16161a;
@@ -27,6 +31,34 @@
   /* the primary CTA / accent gradient, shared by the Print button and the step guide */
   --g3: #ff4d97;
   --grad: linear-gradient(115deg, #6a5cff 0%, #a24bff 32%, #ff4d97 64%, #ff7a4d 100%);
+  /* Semantic tokens for the surfaces that must flip between themes. */
+  --bg-glow: #1a1a20;       /* the soft glow behind the page */
+  --surface: #ffffff12;     /* raised controls: ghost buttons, chips, icon buttons */
+  --input-bg: #0f0e13;      /* text inputs (e.g. the print code box) */
+  --input-line: #3a3745;
+  --overlay: #0c0c0fd9;     /* modal / sheet scrims */
+  --overlay-soft: #0c0c0fa6;
+  --scrim-full: #000000d9;  /* full-screen result overlay */
+  --header-bg: #15111bf2;   /* sticky host header */
+}
+
+/* Light palette, applied when the device is in light mode and the viewer has not forced dark. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f2f8; --bg-soft: #ffffff; --card: #ffffff; --line: #e6e2ec;
+    --ink: #1c1622; --ink-dim: #6b6472; --accent: #e5406a; --accent-ink: #ffffff;
+    --ok: #1e7f4d; --warn: #8a6d1a;
+    --bg-glow: #ece6f5; --surface: #1c162209; --input-bg: #f4f1f8; --input-line: #d9d3e0;
+    --overlay: #2a233073; --overlay-soft: #2a233045; --scrim-full: #f5f2f8f2; --header-bg: #ffffffe6;
+  }
+}
+/* Light palette, applied when the viewer explicitly chooses light. */
+:root[data-theme="light"] {
+  --bg: #f5f2f8; --bg-soft: #ffffff; --card: #ffffff; --line: #e6e2ec;
+  --ink: #1c1622; --ink-dim: #6b6472; --accent: #e5406a; --accent-ink: #ffffff;
+  --ok: #1e7f4d; --warn: #8a6d1a;
+  --bg-glow: #ece6f5; --surface: #1c162209; --input-bg: #f4f1f8; --input-line: #d9d3e0;
+  --overlay: #2a233073; --overlay-soft: #2a233045; --scrim-full: #f5f2f8f2; --header-bg: #ffffffe6;
 }
 
 * { box-sizing: border-box; }
@@ -44,7 +76,7 @@ html, body {
 body {
   min-height: 100dvh;
   background:
-    radial-gradient(120% 60% at 50% 0%, #1a1a20 0%, transparent 60%),
+    radial-gradient(120% 60% at 50% 0%, var(--bg-glow) 0%, transparent 60%),
     var(--bg);
 }
 
@@ -237,7 +269,7 @@ body {
   font-weight: 700;
   padding: 5px 10px;
   border-radius: 999px;
-  background: #ffffff12;
+  background: var(--surface);
   color: var(--ink);
 }
 .pill.quiet { background: transparent; border: 1px solid var(--line); color: var(--ink-dim); font-weight: 500; }
@@ -502,7 +534,7 @@ body.is-empty .stage > .step-guide { margin: 0 0 52px; }
   justify-content: center;
   padding: 14px;
   border-radius: 4px;
-  background: #0c0c0fa6;
+  background: var(--overlay-soft);
   backdrop-filter: blur(1.5px);
   transition: background 0.18s ease;
 }
@@ -527,7 +559,7 @@ body.is-empty .stage > .step-guide { margin: 0 0 52px; }
   padding: 9px 15px;
   font-size: 13px;
   border-radius: 999px;
-  background: #0c0c0fd9;
+  background: var(--overlay);
   color: var(--ink);
   backdrop-filter: blur(6px);
 }
@@ -628,9 +660,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 @media (prefers-reduced-motion: reduce) {
   .btn-primary { animation: none; }
 }
-.btn-ghost { background: #ffffff12; color: var(--ink); }
+.btn-ghost { background: var(--surface); color: var(--ink); }
 .btn-ghost.danger { color: var(--accent); }
-.btn-add { width: 100%; margin-top: 14px; background: #ffffff12; color: var(--ink); }
+.btn-add { width: 100%; margin-top: 14px; background: var(--surface); color: var(--ink); }
 .btn-icon { font-weight: 800; }
 .wide { width: 100%; margin-top: 12px; }
 
@@ -657,7 +689,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   font: 700 30px/1.1 ui-monospace, "SFMono-Regular", Menlo, monospace;
   letter-spacing: 0.28em; text-transform: uppercase;
   padding: 14px 12px; border-radius: 14px;
-  background: #0f0e13; color: var(--ink); border: 1px solid #3a3745;
+  background: var(--input-bg); color: var(--ink); border: 1px solid var(--input-line);
 }
 .code-input:focus { outline: none; border-color: var(--accent); }
 .code-input.bad { border-color: #ff5c7a; background: #2a1016; animation: codeShake 0.4s; }
@@ -938,7 +970,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 .sheet, .overlay {
   position: fixed;
   inset: 0;
-  background: #0b0810cc;
+  background: var(--overlay);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1036,7 +1068,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; }
 .sheet-head h2 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 0.1em; }
-.icon-btn { border: 0; background: #ffffff12; color: var(--ink); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+.icon-btn { border: 0; background: var(--surface); color: var(--ink); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; }
 
 .crop-wrap { display: flex; flex-direction: column; align-items: center; margin: 14px 0 6px; }
 #cropCanvas {
@@ -1092,7 +1124,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   left: 50%;
   bottom: calc(var(--bar-h) + env(safe-area-inset-bottom) + 16px);
   transform: translateX(-50%);
-  background: #000000d9;
+  background: var(--scrim-full);
   color: #fff;
   padding: 12px 18px;
   border-radius: 999px;
@@ -1107,6 +1139,18 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
 }
 
+/* Light/dark theme toggle button (guest + host). */
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 38px; height: 38px; flex: none;
+  border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink);
+  cursor: pointer; padding: 0;
+}
+.theme-toggle:hover { border-color: var(--ink-dim); }
+.topbar { position: relative; }
+.topbar-toggle { position: absolute; right: 0; top: 4px; }
+
 </style>
 </head>
 <body>
@@ -1116,7 +1160,9 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
       <h1 id="boothName">BFF Photo Booth</h1>
       <span class="app-version" id="version"></span>
     </div>
+    <button class="theme-toggle topbar-toggle" data-theme-toggle type="button"></button>
   </header>
+  <script type="module" src="/js/theme.mjs"></script>
 
   <section class="stage" aria-label="Print preview">
     <div class="step-guide" id="stepGuide">
