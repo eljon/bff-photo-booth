@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.7 — 2026-09-04
+
+**Fix: a guest's photo URL could 404 once the print reached a printer.** Tagging the saved
+file with the printer name (v1.73.49) renames it, which invalidated an already-issued
+guest/agent image URL — a race that showed up under load. The prints handler now resolves a
+`?t=` (per-job token) URL to the job's *current* file, so the link keeps working across the
+rename. Added a deterministic regression test.
+
 ## 1.74.6 — 2026-09-04
 
 **Fix commercial deploy on Render.** The repo's root `Dockerfile` is the booth relay, so

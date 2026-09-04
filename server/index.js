@@ -1630,7 +1630,18 @@ async function serveStatic(req, res, url) {
   const fromPrints = rel.startsWith('/prints/');
   const root = fromPrints ? PRINTS_DIR : PUBLIC_DIR;
   const relative = fromPrints ? rel.slice('/prints/'.length) : rel.slice(1);
-  const file = path.resolve(root, relative);
+  let file = path.resolve(root, relative);
+
+  // A per-job token (?t=) identifies the job, so serve its CURRENT file even if the name in
+  // the URL is stale — the file is renamed to fold in the printer once it lands on one, and
+  // an already-issued guest/agent URL must keep working across that rename.
+  if (fromPrints) {
+    const t = url.searchParams.get('t');
+    if (t) {
+      const owner = [...jobs.values()].find((j) => secretsMatch(t, j.token));
+      if (owner) file = path.resolve(owner.file);
+    }
+  }
 
   if (!file.startsWith(path.resolve(root))) {
     res.writeHead(403).end('Forbidden');

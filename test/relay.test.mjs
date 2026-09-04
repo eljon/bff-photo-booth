@@ -413,6 +413,25 @@ test('a guest can only fetch their own strip from a public booth', async (t) => 
   assert.equal(asHost.status, 200, 'the host can see every strip');
 });
 
+test('a guest image URL still resolves after the file is tagged with the printer', async (t) => {
+  const booth = await startRelay();
+  const agent = await startAgent(booth.base, TOKEN);
+  t.after(() => Promise.all([agent.close(), booth.close()]));
+
+  await until(async () => (await (await fetch(`${booth.base}/api/printers`)).json()).agentOnline);
+  const { data } = await printAsGuest(booth);
+  const originalUrl = data.job.image; // captured while pending, before the printer rename
+
+  // Wait until the agent has claimed/printed it (the stored file is renamed to add "__<printer>").
+  await until(async () => {
+    const j = (await (await fetch(`${booth.base}/api/job?id=${data.job.id}`)).json()).job;
+    return j && /__/.test(j.image) ? j : null;
+  });
+
+  const res = await fetch(`${booth.base}${originalUrl}`);
+  assert.equal(res.status, 200, 'the original token URL keeps working across the rename');
+});
+
 test('a LAN booth stays frictionless — no key, no token', async (t) => {
   const booth = await startServer(); // booth mode, DRY_RUN
   t.after(() => booth.close());
