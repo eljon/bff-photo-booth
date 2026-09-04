@@ -11,10 +11,12 @@ subdomain. Deploy it as its **own** service, separate from the single-tenant boo
 
 - **One web service** running `npm run saas` (dependency-free Node — no build step).
 - **A persistent disk** at `/data` (`SAAS_DATA=/data`) for accounts + each session's booth data.
-- **DNS with wildcard support**: `boothless.alphanauts.net` → the service, and a wildcard
-  `*.boothless.alphanauts.net` → the service (so each session's booth is reachable). The domain
-  is registered at Squarespace, whose DNS editor generally rejects wildcard (`*`) records, so
-  DNS is managed through **Cloudflare** (free) — see Stage 2.
+- **DNS with wildcard + the records Render lists**: `boothless.alphanauts.net` → the service, a
+  wildcard `*.boothless.alphanauts.net` → the service, and the `_acme-challenge` /
+  `_cf-custom-hostname` CNAMEs Render shows (these let Render issue the certificate). The domain
+  is at Squarespace, which *does* accept wildcard and these records — add them there directly.
+  Only if Squarespace rejects a record (e.g. an underscore-prefixed name) fall back to
+  **Cloudflare** — see Stage 2.
 - Optional: Stripe + OAuth keys (see `docs/COMMERCIAL-SETUP.md`). Without them the app still
   runs with email login and a dev "simulate purchase."
 
@@ -79,45 +81,34 @@ answers and routes to the correct internal booth. Until DNS + `SAAS_BASE_DOMAIN`
    Render tab open**; you'll copy those exact values next. (If Render shows a different target
    host than `hawak-mo-ang-booth.onrender.com`, use whatever it shows.)
 
-### Step 2.2 — move DNS to Cloudflare and add the records
+### Step 2.2 — add the records at Squarespace
 
-The domain is registered at **Squarespace**, whose DNS editor won't accept a wildcard (`*`)
-record — and the session subdomains need one. So manage `alphanauts.net`'s DNS through
-**Cloudflare** (free). This only moves *DNS*; the domain stays **registered** at Squarespace.
-(You could add the plain `boothless` record at Squarespace, but not `*.boothless`, so it's
-cleaner to move all of it to Cloudflare.)
+Squarespace **does** accept the wildcard and the underscore-prefixed records, so add everything
+Render lists directly in Squarespace DNS — no Cloudflare needed. Render asks for a set of
+**CNAME** records **per domain**; add every one it shows for BOTH `boothless.alphanauts.net`
+and `*.boothless.alphanauts.net`. There is no "proxy"/cloud setting in Squarespace — it's plain
+DNS, which is exactly what Render wants.
 
-1. Create a free account at **cloudflare.com** → **Add a site** → enter `alphanauts.net` → pick
-   the **Free** plan.
-2. Cloudflare scans and **imports your existing DNS**. Check the imported list still has whatever
-   runs your current website/email, so nothing breaks when DNS moves. Continue.
-3. Cloudflare shows **two nameservers** (like `xxx.ns.cloudflare.com`). Copy both.
-4. In **Squarespace**: open your **Domains** dashboard → click **alphanauts.net** → **DNS
-   Settings** (or **Nameservers**) → choose **Use custom nameservers** → paste Cloudflare's two
-   nameservers → **Save**. Nameserver changes take a few hours; Cloudflare emails you when the
-   domain is **Active**.
-5. When Cloudflare shows the site **Active**, open **DNS ▸ Records** → **Add record** (first one):
-   - **Type:** `CNAME`
-   - **Name:** `boothless`
-   - **Target:** `hawak-mo-ang-booth.onrender.com`  *(or the exact target Render showed)*
-   - **Proxy status:** **DNS only (grey cloud)** ← important, see the note below
-   - **Save**.
-6. **Add record** again — the **wildcard** (this is what makes every session subdomain resolve):
-   - **Type:** `CNAME`
-   - **Name:** `*.boothless`
-   - **Target:** `hawak-mo-ang-booth.onrender.com`
-   - **Proxy status:** **DNS only (grey cloud)**
-   - **Save**.
-7. On Render's **Custom Domains** screen (Step 2.1), each domain shows a verification/ACME record
-   — usually a CNAME, and for the wildcard an `_acme-challenge…` record. **Add each of those in
-   Cloudflare too**, exactly as shown, also **DNS only (grey cloud)**. These let Render verify the
-   domains and issue the certificates (including the wildcard).
+In Squarespace: **Domains → alphanauts.net → DNS → Add record**, once per row Render shows. For
+each, **Type = CNAME**, **Name = the Hostname Render shows** (e.g. `boothless`, `*.boothless`,
+`_acme-challenge.boothless`, `_cf-custom-hostname.boothless`), **Data = the Target** — use
+Render's **copy button** for the target, since the value is truncated on screen.
 
-> **Why grey cloud, not proxied:** sessions sit two levels deep
-> (`<slug>.boothless.alphanauts.net`). Cloudflare's *free* certificate only covers a **one-level**
-> wildcard (`*.alphanauts.net`), and proxying also hides Render's ACME challenge. Leaving the
-> records **DNS only** lets **Render** issue the two-level wildcard certificate itself, which it
-> can do at any depth and for free.
+Typical records (yours may differ slightly — always match Render's screen exactly):
+
+| Type  | Name (Hostname)                 | Data (Target — copy from Render)          |
+|-------|---------------------------------|-------------------------------------------|
+| CNAME | `boothless`                     | `hawak-mo-ang-booth.onrender.com`         |
+| CNAME | `*.boothless`                   | `hawak-mo-ang-booth.onrender.com`         |
+| CNAME | `_acme-challenge.boothless`     | `hawak-mo-ang-booth.verify.render.com…`   |
+| CNAME | `_cf-custom-hostname.boothless` | `hawak-mo-ang-booth.hostname…`            |
+
+The **`_acme-challenge` and `_cf-custom-hostname` records are what let Render issue the HTTPS
+certificate** — without them the domains resolve but never go secure. Add the base domain's own
+set too (click `boothless.alphanauts.net` in Render to see its records).
+
+**Only if Squarespace rejects a record** (some editors block underscore-prefixed names) move DNS
+to **Cloudflare** (free) instead — see the fallback at the end of this stage.
 
 ### Step 2.3 — wait for Render to verify and issue TLS
 
@@ -148,14 +139,23 @@ cleaner to move all of it to Cloudflare.)
 
 ### If a certificate won't issue
 
-- Make sure the Cloudflare records are **DNS only (grey cloud)**, not Proxied. A proxied record
-  hides Render's ACME challenge, and Cloudflare's free certificate doesn't cover the two-level
-  `*.boothless.alphanauts.net`.
-- Confirm you added the exact `_acme-challenge…` record Render showed for the **wildcard** domain.
-- The domain must show **Active** in Cloudflare first (nameserver moves take a few hours).
-- Still stuck on the wildcard specifically? Tell me — the options are Cloudflare's **Advanced
-  Certificate Manager** (paid; covers multi-level wildcards, then records can be Proxied) or
-  switching sessions to a one-level layout.
+- Make sure you added **all** the records Render lists for **both** domains — especially the
+  `_acme-challenge.boothless` and `_cf-custom-hostname.boothless` CNAMEs. Missing either is the
+  usual reason a domain resolves but never goes secure.
+- Match Render's **Target** values exactly (use its copy button — they're truncated on screen).
+- DNS changes take time (Squarespace TTL here is 4 hrs); give it a while, then re-check in Render.
+
+### Fallback — Cloudflare (only if Squarespace refuses a record)
+
+If Squarespace won't accept one of the records (some editors block underscore names), move DNS
+to Cloudflare — the domain stays registered at Squarespace:
+
+1. **cloudflare.com** → **Add a site** → `alphanauts.net` → Free plan. Let it import your records.
+2. Copy Cloudflare's **two nameservers**; in **Squarespace → Domains → alphanauts.net →
+   Nameservers**, choose **Use custom nameservers** and paste them.
+3. When Cloudflare shows the domain **Active**, add the same records (all of Render's) in
+   **DNS ▸ Records**, each **Proxy status: DNS only (grey cloud)** — proxying hides Render's
+   certificate challenge and Cloudflare's free cert doesn't cover the two-level wildcard.
 
 > Note on scale: each active session is its own process, so a Render **Starter** (512 MB)
 > comfortably runs a handful of simultaneous live sessions — enough for launch. Many concurrent

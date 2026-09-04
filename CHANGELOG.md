@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.11 — 2026-09-04
+
+**Deploy doc correction: Squarespace can host the records directly (no Cloudflare needed).**
+Squarespace's DNS accepts the wildcard and the underscore-prefixed CNAMEs, so Stage 2 now adds
+all of Render's records straight in Squarespace — including the `_acme-challenge` and
+`_cf-custom-hostname` CNAMEs that let Render issue the certificate. Cloudflare is now just a
+fallback for the rare case Squarespace refuses a record.
+
 ## 1.74.10 — 2026-09-04
 
 **Deploy doc: domain is at Squarespace → DNS via Cloudflare.** Corrected Stage 2 of
