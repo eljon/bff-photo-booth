@@ -5,17 +5,23 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { makePng } from './helpers.mjs';
 
 const require = createRequire(import.meta.url);
 const { createApp, Store } = require('../server/commercial/app.js');
+const { BoothManager } = require('../server/commercial/booths.js');
 const auth = require('../server/commercial/auth.js');
 
 async function startSaas() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'saas-'));
-  const server = http.createServer(createApp(new Store(dir)));
+  const booths = new BoothManager({ dir, idleMs: 60 * 60 * 1000 });
+  const server = http.createServer(createApp(new Store(dir), booths));
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
-  return { base, close: () => new Promise((r) => server.close(r)) };
+  return {
+    base,
+    close: async () => { booths.closeAll(); await new Promise((r) => server.close(r)); },
+  };
 }
 
 const cookieFrom = (res) => (res.headers.get('set-cookie') || '').split(';')[0];
@@ -95,6 +101,42 @@ test('buying a session needs sign-in and (dev mode) grants it immediately', asyn
   const other = cookieFrom(await post(s.base, '/api/auth/signup', { email: 'other@b.com', password: 'password123' }));
   const otherList = await j(await fetch(`${s.base}/api/sessions`, { headers: { cookie: other } }));
   assert.equal(otherList.data.sessions.length, 0, 'sessions are isolated per account');
+});
+
+test('each session opens its own isolated booth (separate queues)', async (t) => {
+  const s = await startSaas();
+  t.after(() => s.close());
+
+  const cookie = cookieFrom(await post(s.base, '/api/auth/signup', { email: 'iso@b.com', password: 'password123' }));
+  await post(s.base, '/api/sessions/buy', { name: 'Event A' }, cookie);
+  await post(s.base, '/api/sessions/buy', { name: 'Event B' }, cookie);
+  const list = (await j(await fetch(`${s.base}/api/sessions`, { headers: { cookie } }))).data.sessions;
+  assert.equal(list.length, 2);
+
+  // Open both booths — each is a separate relay process on its own port.
+  const openA = (await j(await post(s.base, `/api/sessions/${list[0].id}/open`, {}, cookie))).data;
+  const openB = (await j(await post(s.base, `/api/sessions/${list[1].id}/open`, {}, cookie))).data;
+  assert.ok(openA.hostUrl && openB.hostUrl, 'both booths came up');
+  const urlA = new URL(openA.hostUrl);
+  const urlB = new URL(openB.hostUrl);
+  assert.notEqual(urlA.port, urlB.port, 'the two booths run on different ports');
+  const baseA = `${urlA.protocol}//${urlA.host}`;
+  const baseB = `${urlB.protocol}//${urlB.host}`;
+  const tokenA = urlA.searchParams.get('token');
+  const tokenB = urlB.searchParams.get('token');
+  const keyA = new URL(openA.guestUrl).searchParams.get('k');
+
+  // A guest prints into booth A only.
+  const printed = await fetch(`${baseA}/api/print?layout=grid&k=${encodeURIComponent(keyA)}`, {
+    method: 'POST', headers: { 'content-type': 'image/png' }, body: makePng(8, 12),
+  });
+  assert.equal(printed.status, 200);
+
+  // Booth A has the photo; booth B has none — fully isolated.
+  const galleryA = await j(await fetch(`${baseA}/api/prints`, { headers: { 'x-booth-token': tokenA } }));
+  const galleryB = await j(await fetch(`${baseB}/api/prints`, { headers: { 'x-booth-token': tokenB } }));
+  assert.equal(galleryA.data.count, 1, 'the print landed in booth A');
+  assert.equal(galleryB.data.count, 0, 'booth B never saw it');
 });
 
 test('logout clears the session', async (t) => {

@@ -15,6 +15,16 @@ let lastPrinterData = null;  // the most recent /api/printers payload, for re-re
 
 function readToken() {
   try {
+    // Opened from the dashboard as /host?token=… — adopt it, then scrub it from the URL
+    // so the token isn't left sitting in the address bar.
+    const here = new URL(location.href);
+    const passed = here.searchParams.get('token');
+    if (passed) {
+      localStorage.setItem(TOKEN_STORAGE, passed);
+      here.searchParams.delete('token');
+      history.replaceState({}, '', here.pathname + here.search + here.hash);
+      return passed;
+    }
     return localStorage.getItem(TOKEN_STORAGE) || '';
   } catch {
     return '';

@@ -15,6 +15,27 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.1 — 2026-09-04
+
+**Per-session booths — each session is its own isolated booth.** From the dashboard,
+**Open host** now spins up that session's *own* booth: a separate relay process with its
+own data directory, config, print queue, photos, printers, pairing code, and guest QR —
+one session's prints/printers/settings never touch another's. The host screen is titled
+with the session name and **auto-unlocks** (the dashboard passes the session token, which
+is then scrubbed from the URL).
+
+- `server/commercial/booths.js` — a `BoothManager` that spawns/reuses a booth per session
+  on a loopback port (isolated `PRINTS_DIR`/config/token), waits for health, and stops
+  idle booths. Reuses the whole single-tenant booth — guest app, host, agent, gallery,
+  vouchers, reprint — with no duplication.
+- `POST /api/sessions/:id/open` (owner-only) returns the session's host + guest URLs.
+- Verified: two sessions → two booths on different ports with separate queues; a print in
+  one is invisible to the other.
+
+Local use reaches each booth directly at `127.0.0.1:<port>`; the cloud version fronts them
+with per-session subdomains (same mechanism, different addressing). Next: OAuth redirects
+and live Stripe.
+
 ## 1.74.0 — 2026-09-04
 
 **Commercial track begins (branch `claude/photo-booth-commercial`).** A new, self-contained

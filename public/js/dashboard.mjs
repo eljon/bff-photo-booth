@@ -38,16 +38,10 @@ function sessionCard(s) {
     <div class="meta">${when} · ${quota}</div>
     <div class="row"></div>`;
   const row = el.querySelector('.row');
-  if (s.status === 'active' && s.hostUrl) {
-    const a = document.createElement('a');
-    a.className = 'btn primary'; a.href = s.hostUrl; a.target = '_blank'; a.rel = 'noopener';
-    a.textContent = 'Open host';
-    row.appendChild(a);
-  } else if (s.status === 'active') {
+  if (s.status === 'active' && s.canOpen) {
     const b = document.createElement('button');
-    b.className = 'btn ghost'; b.textContent = 'Host (connect booth)';
-    b.title = 'A booth host will be linked to this session in the next step.';
-    b.disabled = true;
+    b.className = 'btn primary'; b.textContent = 'Open host';
+    b.addEventListener('click', () => openHost(s, b));
     row.appendChild(b);
   } else if (s.status === 'pending_payment') {
     const span = document.createElement('span');
@@ -68,6 +62,19 @@ async function load() {
   grid.innerHTML = '';
   $('empty').classList.toggle('hidden', list.length > 0);
   for (const s of list) grid.appendChild(sessionCard(s));
+}
+
+async function openHost(s, btn) {
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Starting booth…';
+  const { status, data } = await api(`/api/sessions/${s.id}/open`);
+  btn.disabled = false; btn.textContent = label;
+  if (status === 200 && data.ok) {
+    window.open(data.hostUrl, '_blank', 'noopener');
+    toast('Booth ready — the host screen has this session’s QR.');
+  } else {
+    toast(data.error || 'Could not start the booth.');
+  }
 }
 
 async function buy() {

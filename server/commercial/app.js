@@ -16,9 +16,9 @@ const path = require('node:path');
 const { Store } = require('./store');
 const auth = require('./auth');
 const payments = require('./payments');
+const { BoothManager } = require('./booths');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
-const BOOTH_ORIGIN = (process.env.BOOTH_ORIGIN || '').replace(/\/+$/, ''); // where /host lives; '' = not wired yet
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -51,11 +51,11 @@ function publicSession(s) {
   return {
     id: s.id, name: s.name, status: s.status,
     printQuota: s.printQuota, printsUsed: s.printsUsed, createdAt: s.createdAt,
-    hostUrl: s.status === 'active' && BOOTH_ORIGIN ? `${BOOTH_ORIGIN}/host` : null,
+    canOpen: s.status === 'active', // its own booth is spawned on demand via /open
   };
 }
 
-function createApp(store = new Store()) {
+function createApp(store = new Store(), booths = new BoothManager()) {
   const secret = store.secret;
 
   async function serveStatic(req, res, pathname) {
@@ -124,6 +124,26 @@ function createApp(store = new Store()) {
       return sendJson(res, 200, { ok: true, sessions: store.sessionsForUser(me.id).map(publicSession) });
     }
 
+    // Open (spawn if needed) this session's own isolated booth, and return its host + guest
+    // URLs. The host link carries the session's token so the owner's host screen unlocks.
+    const openMatch = /^\/api\/sessions\/([\w-]+)\/open$/.exec(url.pathname);
+    if (openMatch && req.method === 'POST') {
+      if (!requireAuth()) return undefined;
+      const session = store.sessionById(openMatch[1]);
+      if (!session || session.userId !== me.id) return sendJson(res, 404, { ok: false, error: 'Session not found.' });
+      if (session.status !== 'active') return sendJson(res, 402, { ok: false, error: 'This session is not active yet.' });
+      try {
+        const info = await booths.ensure(session);
+        return sendJson(res, 200, {
+          ok: true,
+          hostUrl: `${info.url}/host?token=${encodeURIComponent(session.boothToken)}`,
+          guestUrl: `${info.url}/?k=${encodeURIComponent(session.boothToken.slice(0, 12))}`,
+        });
+      } catch (err) {
+        return sendJson(res, 502, { ok: false, error: `Could not start the booth: ${err.message}` });
+      }
+    }
+
     // Buy a session. Live Stripe → returns a checkout URL to redirect to. Dev → creates the
     // session immediately and returns it (so the flow works with no Stripe account).
     if (url.pathname === '/api/sessions/buy' && req.method === 'POST') {
@@ -181,7 +201,7 @@ function createApp(store = new Store()) {
     return sendJson(res, 404, { ok: false, error: 'No such endpoint.' });
   }
 
-  return async function app(req, res) {
+  const app = async function app(req, res) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     try {
       if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
@@ -192,6 +212,9 @@ function createApp(store = new Store()) {
       else res.end();
     }
   };
+  app.booths = booths; // exposed for lifecycle management / tests
+  app.store = store;
+  return app;
 }
 
 module.exports = { createApp, Store };
