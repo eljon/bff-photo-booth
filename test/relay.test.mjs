@@ -147,6 +147,43 @@ test('the host can list every saved photo and download them all as a valid zip',
   assert.equal(eocd.readUInt16LE(10), 2, 'the zip contains both photos');
 });
 
+test('the gallery enriches photos with status/number and the host can reprint them', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  await printAsGuest(booth); // P1, no agent connected → queued
+
+  const before = await (await fetch(`${booth.base}/api/prints`, { headers: host })).json();
+  assert.equal(before.count, 1);
+  assert.ok(before.prints[0].printNo >= 1, 'the running number is exposed');
+  assert.equal(before.prints[0].status, 'pending', 'status reflects the live job');
+  const name = before.prints[0].name;
+
+  // Reprint needs the host token.
+  assert.equal((await fetch(`${booth.base}/api/prints/reprint`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ names: [name] }),
+  })).status, 401);
+
+  const r = await (await fetch(`${booth.base}/api/prints/reprint`, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...host },
+    body: JSON.stringify({ names: [name], priority: 'front' }),
+  })).json();
+  assert.equal(r.ok, true);
+  assert.equal(r.reprinted, 1);
+  assert.ok(r.jobs[0].printNo > before.prints[0].printNo, 'the reprint gets a fresh number');
+
+  const after = await (await fetch(`${booth.base}/api/prints`, { headers: host })).json();
+  assert.equal(after.count, 2, 'a new photo file is created for the reprint');
+
+  // A "front" reprint is queued ahead of the original.
+  const order = after.prints.map((p) => p.name);
+  assert.ok(order.length === 2);
+
+  // Selected-subset zip.
+  const zip = Buffer.from(await (await fetch(`${booth.base}/api/prints/download.zip?names=${encodeURIComponent(name)}&token=${encodeURIComponent(TOKEN)}`)).arrayBuffer());
+  assert.equal(zip.subarray(zip.length - 22).readUInt16LE(10), 1, 'the zip holds just the selected photo');
+});
+
 test('pairing: minting needs the host token; claiming needs a valid code', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());

@@ -1369,19 +1369,85 @@ async function handleApi(req, res, url) {
   if (url.pathname === '/api/prints' && req.method === 'GET') {
     if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const files = await listPrintFiles();
+    const byFile = jobsByFile();
+    const cfg = config.load();
     return sendJson(res, 200, {
       ok: true,
       count: files.length,
       totalBytes: files.reduce((n, f) => n + f.size, 0),
-      prints: files.map((f) => ({ name: f.name, size: f.size, mtime: f.mtime })),
+      prints: files.map((f) => enrichPrint(f, byFile, cfg)),
     });
   }
 
-  // All photos as one ZIP. Token rides in the query so a plain browser download is authorised.
+  // Reprint one or more saved photos. priority "front" jumps ahead of the queue; "queue"
+  // (default) joins the back. Host action — no voucher, no approval gate.
+  if (url.pathname === '/api/prints/reprint' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const body = await readJson(req);
+    const names = (Array.isArray(body.names) ? body.names : (body.name ? [body.name] : []))
+      .map((n) => path.basename(String(n)))
+      .filter((n) => GALLERY_EXT.has(path.extname(n).toLowerCase()));
+    if (!names.length) return sendJson(res, 400, { ok: false, error: 'No photos to reprint.' });
+    const front = body.priority === 'front';
+    const cfg = config.load();
+    const byFile = jobsByFile();
+    const actives = [...jobs.values()].filter((j) => ACTIVE.has(j.status));
+    const frontBase = (actives.length ? Math.min(...actives.map((j) => j.createdAt)) : Date.now()) - 1000;
+
+    const created = [];
+    let i = 0;
+    for (const name of names) {
+      let buf;
+      try { buf = await fsp.readFile(path.join(PRINTS_DIR, name)); } catch { continue; }
+      const kind = path.extname(name).slice(1).toLowerCase();
+      const orig = byFile.get(name);
+      const layout = (orig && orig.layout) || parsePrintName(name).layout || 'reprint';
+      const id = crypto.randomUUID();
+      const printNo = ++printSeq;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const file = path.join(PRINTS_DIR, `P${printNo}_${stamp}_${layout}_${id.slice(0, 8)}.${kind}`);
+      await fsp.writeFile(file, buf);
+      const photoPaper = cfg.media === 'Custom.4x6in' || cfg.media === 'Custom.6x4in';
+      jobs.set(id, {
+        id,
+        token: crypto.randomBytes(12).toString('hex'),
+        file,
+        layout,
+        guest: 'Reprint',
+        printNo,
+        copies: Math.max(1, Math.min(cfg.maxCopies, Number(body.copies) || 1)),
+        orient: (orig && orig.orient) || 'portrait',
+        printer: null,
+        agentId: null,
+        voucher: null,
+        media: (orig && orig.media) || (photoPaper ? ((orig && orig.orient) === 'landscape' ? 'Custom.6x4in' : 'Custom.4x6in') : null),
+        status: 'pending',
+        createdAt: front ? frontBase + i : Date.now() + i, // keep selection order; front sits ahead of the queue
+        claimedAt: 0,
+        cupsJobId: null,
+        error: null,
+      });
+      created.push(jobs.get(id));
+      i += 1;
+    }
+    while (jobs.size > MAX_JOB_HISTORY) jobs.delete(jobs.keys().next().value);
+    if (!created.length) return sendJson(res, 400, { ok: false, error: 'None of those photos could be reprinted.' });
+    await saveQueue();
+    await pumpPrinter();
+    return sendJson(res, 200, { ok: true, reprinted: created.length, jobs: created.map(publicJob) });
+  }
+
+  // All photos (or a selected subset via ?names=a,b,c) as one ZIP. Token rides in the query
+  // so a plain browser download is authorised.
   if (url.pathname === '/api/prints/download.zip' && req.method === 'GET') {
     const authed = hostAuthorised(req) || (BOOTH_TOKEN && secretsMatch(url.searchParams.get('token'), BOOTH_TOKEN));
     if (!authed) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
-    const files = await listPrintFiles();
+    let files = await listPrintFiles();
+    const wanted = url.searchParams.get('names');
+    if (wanted) {
+      const set = new Set(wanted.split(',').filter(Boolean).map((s) => path.basename(decodeURIComponent(s))));
+      files = files.filter((f) => set.has(f.name));
+    }
     res.writeHead(200, {
       'content-type': 'application/zip',
       'content-disposition': 'attachment; filename="booth-photos.zip"',
@@ -1415,6 +1481,40 @@ async function listPrintFiles() {
   out.sort((a, b) => b.mtime - a.mtime);
   return out;
 }
+
+/** Best-effort parse of the running number and printer tag out of a saved filename
+ *  (P12_<stamp>_<layout>_<id8>[__<printer>].png), for photos whose job has been pruned. */
+function parsePrintName(name) {
+  const no = /^P(\d+)_/.exec(name);
+  const tag = /__([^.]+)\.[^.]+$/.exec(name);
+  const layout = /_([a-z0-9-]+)_[0-9a-f]{8}/i.exec(name);
+  return {
+    printNo: no ? Number(no[1]) : null,
+    tag: tag ? tag[1].replace(/-/g, ' ') : null,
+    layout: layout ? layout[1] : null,
+  };
+}
+
+/** One gallery entry, enriched from the live job when we still have it, else from the
+ *  filename (the queue keeps only the most recent MAX_JOB_HISTORY jobs; files live longer). */
+function enrichPrint(f, jobByFile, cfg) {
+  const job = jobByFile.get(f.name);
+  const parsed = parsePrintName(f.name);
+  return {
+    name: f.name,
+    size: f.size,
+    mtime: f.mtime,
+    printNo: (job && job.printNo) || parsed.printNo || null,
+    printer: job ? printerLabelFor(cfg, job) : (parsed.tag || null),
+    status: job ? job.status : 'saved',
+    layout: (job && job.layout) || parsed.layout || null,
+    at: job ? (job.doneAt || job.printedAt || job.createdAt || f.mtime) : f.mtime,
+    computer: job && job.printer ? agentName(job.agentId) : null,
+    error: (job && job.error) || null,
+  };
+}
+
+const jobsByFile = () => new Map([...jobs.values()].map((j) => [path.basename(j.file), j]));
 
 function crc32(buf) {
   let c = ~0;

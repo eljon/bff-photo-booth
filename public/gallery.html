@@ -31,9 +31,38 @@
       <button class="btn btn-primary" id="signinBtn" type="button">Show photos</button>
     </div>
 
+    <!-- Appears when one or more photos are ticked -->
+    <div class="sel-bar hidden" id="selBar">
+      <span id="selCount">0 selected</span>
+      <div class="sel-actions">
+        <button class="btn btn-ghost" id="selDownload" type="button">Download</button>
+        <button class="btn btn-ghost" id="selReprint" type="button">Reprint → queue</button>
+        <button class="btn btn-ghost" id="selClear" type="button">Clear</button>
+      </div>
+    </div>
+
     <div class="gallery gallery-lg" id="grid"></div>
   </section>
 </main>
+
+<!-- Per-photo detail -->
+<div class="sheet hidden" id="detail">
+  <div class="detail-card">
+    <button class="detail-close" id="detailClose" type="button" aria-label="Close">✕</button>
+    <img id="detailImg" alt="">
+    <h2 id="detailName">Photo</h2>
+    <dl class="detail-meta">
+      <div><dt>Status</dt><dd><span class="badge" id="detailStatus">…</span></dd></div>
+      <div><dt>Printer</dt><dd id="detailPrinter">—</dd></div>
+      <div><dt>Time</dt><dd id="detailTime">—</dd></div>
+    </dl>
+    <div class="detail-actions">
+      <button class="btn btn-primary" id="reprintFront" type="button">Reprint now (front)</button>
+      <button class="btn btn-ghost" id="reprintQueue" type="button">Reprint → queue</button>
+      <a class="btn btn-ghost" id="detailDownload" download>Download</a>
+    </div>
+  </div>
+</div>
 
 <div class="toast hidden" id="toast"></div>
 <script type="module" src="/js/gallery.mjs"></script>

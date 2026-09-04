@@ -15,6 +15,21 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.51 — 2026-09-04
+
+**Gallery: photo details, reprint, and multi-select.** Tapping a photo in `/gallery`
+now opens a detail view with its number (P1, P2…), status (Queued / Printing / Printed
+/ Failed / …), printer, and time — plus **Reprint now (front)**, **Reprint → queue**,
+and **Download**. Reprint re-enqueues the saved image as a fresh job (a new number, no
+voucher/approval); "front" jumps ahead of the queue, "queue" joins the back. Tiles show
+a status badge and can be **multi-selected** (checkboxes) for **Download** (a zip of just
+those) or **Reprint → queue** in bulk.
+
+New host endpoints: `POST /api/prints/reprint` ({names, priority}); `/api/prints` now
+enriches each photo with number/status/printer/time; `/api/prints/download.zip` accepts
+`?names=` to zip a subset. Photos whose job has aged out of the queue still show their
+number/printer parsed from the filename.
+
 ## 1.73.50 — 2026-09-04
 
 **All-photos gallery with one-click download.** A new host-only page at **`/gallery`**
