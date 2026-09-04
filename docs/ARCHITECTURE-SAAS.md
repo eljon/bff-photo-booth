@@ -20,7 +20,7 @@ cloud server can print to it directly. Something *next to the printer* must reac
 
 | Bridge | Install on the printer machine? | Silent auto-print? | Control (media / borderless / copies) |
 | --- | --- | --- | --- |
-| **Browser tab** — open `<url>/print`, uses `window.print()` | Nothing | Only with Chrome `--kiosk-printing` (one-time) or a manual click | Weak — whatever the browser exposes |
+| **Browser tab** — `window.print()` (removed from the current build; could return for SaaS) | Nothing | Only with Chrome `--kiosk-printing` (one-time) or a manual click | Weak — whatever the browser exposes |
 | **Native helper** — a tiny signed tray/menubar app | One double-click | **Yes** | Full — talks to CUPS / `lp` |
 | **Commercial cloud-print API** (PrintNode, ezeep) | Their client | Yes | Full, but per-device cost + third party |
 
@@ -29,9 +29,11 @@ cloud server can print to it directly. Something *next to the printer* must reac
 > **and** "silent borderless 4×6" cannot both be true today — pick which one the
 > product promises.
 
-**Decision: ship a one-click signed native helper as the premium path, keep the
-browser `/print` tab as the zero-install fallback.** The helper is the "it just
-works" experience customers pay for, and **we have already built its hard half**
+**Decision: ship a one-click signed native helper as the premium path.** A browser
+`window.print()` bridge could return later as a zero-install fallback (it was
+removed from the current build to avoid confusing it with the agent), but the
+helper is the "it just works" experience customers pay for, and **we have already
+built its hard half**
 — `server/agent.js` is exactly this bridge: outbound-only long-poll, CUPS
 printing, a per-machine `x-agent-id`, and one job per local printer. The SaaS
 work is wrapping it in a signed, auto-updating app (Tauri or a small Electron/Go

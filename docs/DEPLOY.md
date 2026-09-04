@@ -2,9 +2,9 @@
 
 The relay is the public, always-on half of the booth: it serves the guest app and
 holds the print queue on disk until a printer collects it. It never touches a printer
-itself. **Nothing is installed on the machine that prints** — that computer just opens
-`<your-url>/print` in a browser (see the bottom of this doc). The one-time job below is
-standing up the relay in the cloud.
+itself. The machine that prints runs the small **agent** (`npm run agent`), which
+reaches out to the relay and drains the queue (see the bottom of this doc). The
+one-time job below is standing up the relay in the cloud.
 
 ## The easy way: deploy from the browser (no CLI, nothing installed locally)
 
@@ -20,9 +20,10 @@ pointing a host at this GitHub repo — no terminal, no `npm`, no CLI:
    service's **Environment** tab and copy the generated **`BOOTH_TOKEN`** — that's the
    printer/host password.
 
-That's the entire setup. Guests use the URL; the printer computer opens `<url>/print`
-and pastes the token once. (Railway works the same way — New Project → Deploy from repo
-→ it reads the Dockerfile → add a volume at `/data` and the two env vars.)
+That's the entire setup. Guests use the URL; the printer computer runs the agent
+(`RELAY_URL=<url> BOOTH_TOKEN=… npm run agent`) to drain the queue. (Railway works the
+same way — New Project → Deploy from repo → it reads the Dockerfile → add a volume at
+`/data` and the two env vars.)
 
 A note on cost: the durable queue and an always-awake connection need a small **paid**
 instance (Render's Starter, ~US$7/mo). Free tiers sleep and have no disk, which drops
@@ -81,25 +82,18 @@ docker run -d -p 8080:8080 -v booth-data:/data \
 
 ## Then, on the printing computer
 
-Pick **one** of these — both just pull jobs from the relay and print them. Guests
-submit to the relay either way, so a print is safe on the server even if this
-computer is asleep or offline; it drains the queue when it comes back.
-
-**A. Just open a URL (no install, no tunnel).** On the computer with the printer,
-open **`https://your-booth.example.com/print`** in Chrome, paste the `BOOTH_TOKEN`
-once, and leave the tab open. For hands-free printing, launch Chrome with
-`--kiosk-printing` and set the photo printer as the default — prints then come out
-with no dialog. This is the simplest setup.
-
-**B. Run the agent (prints through CUPS/`lp`).** If you want driver-level control
-of media, borderless, and copies:
+Run the **agent** on the computer with the printer. It pulls jobs from the relay
+and prints them through CUPS/`lp`, with full driver control of media, borderless,
+and copies. Guests submit to the relay, so a print is safe on the server even if
+this computer is asleep or offline — the queue drains when it comes back.
 
 ```bash
 RELAY_URL=https://your-booth.example.com BOOTH_TOKEN=… npm run agent
 ```
 
-Either way, confirm the host screen shows **booth mac: connected** (or the `/print`
-tab shows **Ready**) before the first guest arrives.
+This needs Node and a clone of the repo on the printer computer (see
+`docs/SETUP.md` for the step-by-step). Confirm the host screen shows the computer
+as **connected** before the first guest arrives.
 
 ## Notes
 

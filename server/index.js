@@ -127,7 +127,7 @@ const agentWaiters = new Set(); // long-poll resolvers waiting for work
 
 // Connected computers (agents), keyed by a stable agent id. One host can run several
 // printers by connecting several Macs/PCs — each runs `npm run agent` and reports its own
-// printers here. The browser /print page and a single-Mac setup use the id 'default'.
+// printers here. An agent that sends no id (e.g. a single-Mac setup) uses the id 'default'.
 const agents = new Map(); // id -> { id, name, printers:[{name,state,ready}], lastSeen, dryRun }
 
 /** Agents seen within the online window, most-recent first. */
@@ -817,7 +817,7 @@ async function handleAgentApi(req, res, url) {
 
   const cfg = config.load();
   // Which computer is calling. Several can connect at once; each carries a stable id.
-  // The browser /print page and a lone Mac send none, so they share the id 'default'.
+  // An agent that sends none (e.g. a lone Mac) falls back to the id 'default'.
   const agentId = String(req.headers['x-agent-id'] || 'default').slice(0, 80);
 
   /** Note this computer as seen, upserting its record. */
@@ -906,7 +906,7 @@ async function handleAgentApi(req, res, url) {
       //   done:true    — the printer really finished (the Mac agent watched CUPS). Trust it.
       //   started:true — it began printing; the real 'done' will follow. Show "Printing now"
       //                  and keep a long safety net so a crashed agent can't wedge it.
-      //   neither      — the browser /print page dispatched it and can't see completion, so
+      //   neither      — the agent dispatched it but can't report completion, so
       //                  fall back to finishing after the learned print time (an estimate).
       if (body.done) {
         completeJob(job); // learns the true duration and releases the next
@@ -1285,7 +1285,6 @@ async function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === '/') rel = '/index.html';
   if (rel === '/host') rel = '/host.html';
-  if (rel === '/print') rel = '/print.html'; // the browser-based host printer
   if (rel === '/view') rel = '/view.html';   // the big-screen queue board
 
   // A guest-only booth has no host screen, and its prints live on the upstream

@@ -4,8 +4,8 @@ Three pieces:
 
 - **Relay (cloud)** — always-on, public URL, holds the print queue on disk. You deploy
   this once, from a web browser.
-- **Printer computer** — the Mac/PC with the photo printer. It just opens a URL; nothing
-  is installed on it.
+- **Printer computer** — the Mac/PC with the photo printer. It runs the small agent
+  (`npm run agent`), which reaches out to the relay and prints the queue.
 - **Guests** — scan a QR / open the URL on their phones.
 
 ---
@@ -43,27 +43,33 @@ it onto the branch you'll deploy:
 
 ---
 
-## Part 2 — connect the printer computer (nothing installed)
+## Part 2 — connect the printer computer (run the agent)
 
 On the computer with the photo printer:
 
-1. Set that printer as the **system default**, and set its default paper to **4×6
-   borderless** (macOS: System Settings ▸ Printers). Browser printing uses the default
-   printer with its default settings, so borderless has to be the default here.
-2. Open the print page and connect:
-   - **Simple:** open `https://<your-url>/print` in Chrome, paste the `BOOTH_TOKEN`, click
-     **Connect**, leave the tab open. A print dialog opens for each photo (press Enter).
-   - **Hands-free (recommended for a booth):** quit Chrome, then relaunch it in
-     silent-print mode so prints come out with no dialog:
-     - macOS: `open -na "Google Chrome" --args --kiosk-printing "https://<your-url>/print"`
-     - Windows: `chrome.exe --kiosk-printing https://<your-url>/print`
+1. Make sure the printer works from that computer and its paper is set to **4×6
+   borderless** (macOS: System Settings ▸ Printers & Scanners).
+2. Get the code onto this computer (needs [Node](https://nodejs.org) installed):
 
-     Paste the token once. Done.
-3. The page shows **Ready**. On the relay, `/api/health` now reports `agentOnline:true`.
+   ```bash
+   cd ~/Downloads
+   git clone https://github.com/eljon/bff-photo-booth.git
+   cd bff-photo-booth
+   npm install
+   ```
+3. Start the **agent** — it reaches out to the relay and prints jobs through the
+   printer driver (borderless, media, and copies all under its control). Put your
+   real `BOOTH_TOKEN` in place of the `…`:
 
-*Alternative for driver-level control (guaranteed borderless/media/copies):* on a Mac,
-run `RELAY_URL=https://<your-url> BOOTH_TOKEN=… npm run agent` instead of the browser
-page. This one does need Node, but nothing else changes.
+   ```bash
+   RELAY_URL=https://<your-url> BOOTH_TOKEN=… npm run agent
+   ```
+
+   Leave that Terminal window open. To keep the Mac awake during an event, prefix it
+   with `caffeinate -dims`.
+4. On the relay, `/api/health` now reports `agentOnline:true`, and the host screen
+   shows the computer as **connected**. In `/host`, open **Choose printers**, tick
+   your printer, name it, then **Save settings**.
 
 ---
 
@@ -99,11 +105,10 @@ page. This one does need Node, but nothing else changes.
 
 ## If something's off
 
-- **Guest sees "booth is offline"** → the `/print` tab isn't connected. Open it and
-  Connect. (Prints still queue and come out once it connects.)
-- **Prints have white borders** → set the printer's default to 4×6 borderless (browser
-  kiosk can't choose it per job), or use the `npm run agent` option.
-- **Nothing prints silently** → Chrome must be launched with `--kiosk-printing`; a normal
-  tab shows the dialog each time.
+- **Guest sees "booth is offline"** → the agent isn't connected. Start it with
+  `npm run agent` on the printer computer. (Prints still queue and come out once it
+  connects.)
+- **Prints have white borders** → set the printer's default paper to 4×6 borderless, or
+  pick the borderless media size in `/host` after the agent connects.
 - **QR shows localhost** → you're looking at a local run's host screen, not the relay. Use
   `https://<your-url>/host`.

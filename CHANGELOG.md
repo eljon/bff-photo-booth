@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.42 — 2026-09-04
+
+**Removed the browser-printer page (`/print`).** It was added in v1.70.0 as a
+zero-install way to print, but running it alongside the `npm run agent` printer
+created two printing paths at once — and when no printer was explicitly chosen in
+`/host`, the relay's "use whatever's available" fallback would pull the browser
+printer in, so guests got auto-assigned to a printer the host never picked. The
+printer computer now connects one way: the agent. `/print` returns 404, the
+"Printer page" link is gone from the host screen, and the setup docs describe the
+agent path only. No change to how guests print or to the queue.
+
 ## 1.73.41 — 2026-09-04
 
 **Groundwork for the paid, multi-tenant service (docs only — no app change).**
