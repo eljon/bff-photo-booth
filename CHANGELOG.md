@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.76.3 - 2026-09-04
+
+**Guest app is always dark again.** Removed light mode from the guest photo app: the page is
+pinned to `data-theme="dark"` and no longer follows the device's light setting or reads a stored
+theme, so the guest capture experience keeps its art-directed dark look on every phone. The host,
+gallery, landing and dashboard keep their light/dark toggle and system-follow behaviour.
+
 ## 1.76.2 - 2026-09-04
 
 **Host "Screens" links are now app-style tiles.** The plain "Screens: Queue board · All photos"
