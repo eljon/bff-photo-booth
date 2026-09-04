@@ -15,6 +15,12 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.5 — 2026-09-04
+
+**"Temporary name" is now a caution-tape badge.** Next to the brand on the landing page and
+dashboard, the temporary-name note renders as a tilted yellow "🚧 TEMPORARY NAME" badge with
+black hazard-stripe edges — a clear work-in-progress signal.
+
 ## 1.74.4 — 2026-09-04
 
 **Renamed the commercial app to "Hawak Mo ang Booth (temporary name)."** Landing page,
