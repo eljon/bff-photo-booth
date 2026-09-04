@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const http = require('node:http');
 
 const { Store } = require('./store');
 const auth = require('./auth');
@@ -54,12 +55,31 @@ function cookieVal(req, name) {
   return '';
 }
 
+// In the cloud each session's booth is reached at <slug>.<SAAS_BASE_DOMAIN>, proxied by this
+// app to the session's local booth process. Unset (local) → sessions link to 127.0.0.1:<port>.
+const baseDomain = () => (process.env.SAAS_BASE_DOMAIN || '').toLowerCase();
+
+/** Stream a request through to a session's local booth process, preserving host + scheme so
+ *  the booth builds correct public (subdomain) URLs for its guest QR. */
+function proxyTo(req, res, port) {
+  return new Promise((resolve) => {
+    const headers = { ...req.headers, 'x-forwarded-host': req.headers.host, 'x-forwarded-proto': isHttps(req) ? 'https' : 'http' };
+    const up = http.request({ hostname: '127.0.0.1', port, path: req.url, method: req.method, headers }, (upRes) => {
+      res.writeHead(upRes.statusCode || 502, upRes.headers);
+      upRes.pipe(res);
+      upRes.on('end', resolve);
+    });
+    up.on('error', () => { if (!res.headersSent) res.writeHead(502, { 'content-type': 'text/plain' }); res.end('Booth unavailable'); resolve(); });
+    req.pipe(up);
+  });
+}
+
 function publicUser(u) {
   return u && { id: u.id, email: u.email, name: u.name, provider: u.provider };
 }
 function publicSession(s) {
   return {
-    id: s.id, name: s.name, status: s.status,
+    id: s.id, slug: s.slug, name: s.name, status: s.status,
     printQuota: s.printQuota, printsUsed: s.printsUsed, createdAt: s.createdAt,
     canOpen: s.status === 'active', // its own booth is spawned on demand via /open
   };
@@ -174,10 +194,13 @@ function createApp(store = new Store(), booths = new BoothManager()) {
       if (session.status !== 'active') return sendJson(res, 402, { ok: false, error: 'This session is not active yet.' });
       try {
         const info = await booths.ensure(session);
+        const boothBase = baseDomain()
+          ? `${isHttps(req) ? 'https' : 'http'}://${session.slug}.${baseDomain()}`
+          : info.url; // local: reach the booth directly on its port
         return sendJson(res, 200, {
           ok: true,
-          hostUrl: `${info.url}/host?token=${encodeURIComponent(session.boothToken)}`,
-          guestUrl: `${info.url}/?k=${encodeURIComponent(session.boothToken.slice(0, 12))}`,
+          hostUrl: `${boothBase}/host?token=${encodeURIComponent(session.boothToken)}`,
+          guestUrl: `${boothBase}/?k=${encodeURIComponent(session.boothToken.slice(0, 12))}`,
         });
       } catch (err) {
         return sendJson(res, 502, { ok: false, error: `Could not start the booth: ${err.message}` });
@@ -244,6 +267,18 @@ function createApp(store = new Store(), booths = new BoothManager()) {
   const app = async function app(req, res) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     try {
+      // Cloud: a request to <slug>.<base-domain> is proxied to that session's booth.
+      const hostname = (req.headers.host || '').split(':')[0].toLowerCase();
+      const domain = baseDomain();
+      if (domain && hostname.endsWith(`.${domain}`)) {
+        const slug = hostname.slice(0, hostname.length - domain.length - 1);
+        const session = store.sessionBySlug(slug);
+        if (!session || session.status !== 'active') { res.writeHead(404, { 'content-type': 'text/plain' }).end('Unknown or inactive booth.'); return; }
+        const info = await booths.ensure(session);
+        await proxyTo(req, res, info.port);
+        return;
+      }
+
       if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
       else if (req.method === 'GET' || req.method === 'HEAD') await serveStatic(req, res, url.pathname);
       else res.writeHead(405).end('Method not allowed');

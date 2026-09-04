@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.3 — 2026-09-04
+
+**Cloud routing + deploy for the commercial app.** Each session's booth is now reachable at
+its own **subdomain** — `<slug>.<SAAS_BASE_DOMAIN>` — proxied by the commercial app to that
+session's own process, with host + scheme forwarded so the booth's guest QR points at the
+right public URL. Set `SAAS_BASE_DOMAIN` to switch from local loopback ports to subdomains;
+each session gets a DNS-safe `slug`.
+
+- `render-saas.yaml` — a Render blueprint for the commercial service (`npm run saas`, a
+  `/data` disk, and the Stripe/OAuth/domain env vars).
+- `docs/DEPLOY-COMMERCIAL.md` — how to deploy it and set up the wildcard domain (the one
+  infra step), redirect URIs, and the scale note.
+
+Verified: a request carrying a session's booth Host header is proxied to that session's
+isolated booth; unknown subdomains 404.
+
 ## 1.74.2 — 2026-09-04
 
 **Real social sign-in + live Stripe (commercial).** The Google / Facebook / Apple buttons

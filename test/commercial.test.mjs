@@ -219,6 +219,29 @@ test('oauth: a full Google callback signs the user in (mocked token endpoint)', 
   assert.match(bad.headers.location, /error=/);
 });
 
+test('cloud: a session booth is reachable at its subdomain (proxied to its own process)', async (t) => {
+  process.env.SAAS_BASE_DOMAIN = 'booth.test';
+  t.after(() => { delete process.env.SAAS_BASE_DOMAIN; });
+  const s = await startSaas();
+  t.after(() => s.close());
+
+  const cookie = cookieFrom(await post(s.base, '/api/auth/signup', { email: 'cloud@b.com', password: 'password123' }));
+  const buy = (await j(await post(s.base, '/api/sessions/buy', { name: 'Cloud Event' }, cookie))).data;
+  const slug = buy.session.slug;
+  assert.match(slug, /^b[0-9a-f]+$/, 'the session has a DNS-safe slug');
+
+  const open = (await j(await post(s.base, `/api/sessions/${buy.session.id}/open`, {}, cookie))).data;
+  assert.match(open.hostUrl, new RegExp(`^http://${slug}\\.booth\\.test/host`), 'the host URL uses the subdomain');
+
+  // A request carrying the booth's Host header is proxied to that booth's own process.
+  const health = await rawGet(s.base, '/api/health', { host: `${slug}.booth.test` });
+  assert.equal(health.status, 200);
+  assert.match(health.body, /"mode":"relay"/, 'the subdomain reaches the isolated booth');
+
+  // An unknown subdomain is refused.
+  assert.equal((await rawGet(s.base, '/api/health', { host: 'nope.booth.test' })).status, 404);
+});
+
 test('logout clears the session', async (t) => {
   const s = await startSaas();
   t.after(() => s.close());

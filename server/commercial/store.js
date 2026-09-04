@@ -95,17 +95,24 @@ class Store {
       .sort((a, b) => b.createdAt - a.createdAt);
   }
   sessionById(id) { return this.data.sessions[id] || null; }
+  sessionBySlug(slug) {
+    if (!slug) return null;
+    return Object.values(this.data.sessions).find((s) => s.slug === slug) || null;
+  }
 
   createSession({ userId, name, printQuota = null, status = 'active' }) {
     const id = `ses_${crypto.randomBytes(9).toString('hex')}`;
     const session = {
       id,
       userId,
+      // A DNS-safe label (letters+digits, no underscore) used for this session's booth
+      // subdomain in the cloud: <slug>.<SAAS_BASE_DOMAIN>.
+      slug: `b${crypto.randomBytes(5).toString('hex')}`,
       name: name || 'Untitled event',
       status, // active | expired | exhausted | cancelled
       printQuota, // null = unlimited within the plan
       printsUsed: 0,
-      boothToken: crypto.randomBytes(24).toString('hex'), // reserved for per-session booth wiring
+      boothToken: crypto.randomBytes(24).toString('hex'),
       createdAt: Date.now(),
     };
     this.data.sessions[id] = session;

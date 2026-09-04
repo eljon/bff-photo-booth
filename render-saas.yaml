@@ -1,0 +1,51 @@
+# Render blueprint for the COMMERCIAL app (accounts, dashboard, payments, and the
+# per-session booths). Deploy this as its OWN Render service, separate from the booth relay.
+#
+# How to use: on the `claude/photo-booth-commercial` branch, either rename this file to
+# `render.yaml` and apply it as a Blueprint, or create a Web Service manually with the
+# start command below. The app is dependency-free (pure Node), so there is no build step.
+#
+# Per-session booths are reached at  <slug>.<SAAS_BASE_DOMAIN>  and proxied by this service
+# to the session's own booth process. That needs a WILDCARD domain pointed at this service
+# (e.g. *.booth.example.com) with wildcard TLS — see docs/DEPLOY-COMMERCIAL.md.
+services:
+  - type: web
+    name: bff-booth-accounts
+    runtime: node
+    plan: starter            # stays awake; spawns a booth process per active session
+    startCommand: npm run saas
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # Render provides PORT automatically; saas.js binds it.
+      - key: SAAS_DATA
+        value: /data          # accounts + per-session booth data on the persistent disk
+      # The wildcard domain whose subdomains are individual session booths.
+      - key: SAAS_BASE_DOMAIN
+        sync: false           # e.g. booth.example.com
+      # Payments (leave unset to use the dev simulate-purchase).
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      # Social sign-in (each provider activates when its keys are present).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+      - key: APPLE_CLIENT_ID
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_PRIVATE_KEY
+        sync: false
+    disk:
+      name: saas-data
+      mountPath: /data
+      sizeGB: 1
