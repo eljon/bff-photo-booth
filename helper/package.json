@@ -1,0 +1,38 @@
+{
+  "name": "bff-booth-helper",
+  "productName": "BFF Booth Helper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Connects the printer computer to a BFF Photo Booth relay and prints the queue — no terminal needed.",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.7.6",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.bffphotobooth.helper",
+    "productName": "BFF Booth Helper",
+    "files": ["main.js", "preload.js", "renderer/**"],
+    "extraResources": [
+      { "from": "../server", "to": "server" },
+      { "from": "../package.json", "to": "package.json" }
+    ],
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities",
+      "artifactName": "BFF-Booth-Helper.${ext}"
+    },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "BFF-Booth-Helper-Setup.${ext}"
+    },
+    "nsis": { "oneClick": true, "perMachine": false }
+  }
+}

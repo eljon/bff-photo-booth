@@ -15,6 +15,28 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.44 — 2026-09-04
+
+**The printer helper app (no terminal).** A desktop app under `helper/` that the
+operator downloads from the host screen, opens, and pairs with the code — then it
+prints the queue from the menu bar. It reuses `server/agent.js` verbatim (forked as
+a Node child), so pairing, printing, and the long-poll have one source of truth; it
+makes only outbound HTTPS calls.
+
+- **Built by CI, no developer account needed.** `.github/workflows/helper-release.yml`
+  builds **unsigned** installers on GitHub's macOS and Windows runners on a `helper-v*`
+  tag and attaches them as `BFF-Booth-Helper.dmg` / `BFF-Booth-Helper-Setup.exe` — the
+  exact names the host screen links to. First launch is a one-time right-click ▸ Open
+  (macOS) / More info ▸ Run anyway (Windows); add signing certs later to remove it.
+- **macOS-first.** Printing uses CUPS, so macOS prints out of the box; the Windows
+  build connects but needs a Windows print backend before it prints.
+- Updated `docs/SETUP.md` to lead with the helper app, terminal agent as the
+  alternative.
+
+_Note: the Electron app is built and tested by CI on real macOS/Windows runners; it
+can't be exercised in this repo's Node test suite. The server/host pairing it relies
+on is covered by tests (v1.73.43)._
+
 ## 1.73.43 — 2026-09-04
 
 **Seamless printer pairing — "Connect a printer" on the host screen.** Groundwork

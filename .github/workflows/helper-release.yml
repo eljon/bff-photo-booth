@@ -1,0 +1,55 @@
+name: Build helper app
+
+# Builds the BFF Booth Helper installers (unsigned) and attaches them to a GitHub
+# Release, with the exact filenames the host screen links to
+# (BFF-Booth-Helper.dmg / BFF-Booth-Helper-Setup.exe).
+#
+# No Apple/Windows signing certificate is required — the apps are UNSIGNED, so on
+# first launch the operator does a one-time right-click ▸ Open (macOS) or
+# More info ▸ Run anyway (Windows). Add signing secrets later to remove that step.
+#
+# Trigger: push a tag like `helper-v1.0.0`. The tag becomes the release.
+
+on:
+  push:
+    tags: ['helper-v*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: dist:mac
+          - os: windows-latest
+            script: dist:win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install helper dependencies
+        working-directory: helper
+        run: npm install
+
+      - name: Build installer (unsigned)
+        working-directory: helper
+        env:
+          # Skip code-signing — no developer certificate needed for the trial.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run ${{ matrix.script }}
+
+      - name: Attach installer to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            helper/dist/*.dmg
+            helper/dist/*.exe

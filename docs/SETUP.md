@@ -43,33 +43,45 @@ it onto the branch you'll deploy:
 
 ---
 
-## Part 2 — connect the printer computer (run the agent)
+## Part 2 — connect the printer computer
 
-On the computer with the photo printer:
+On the computer with the photo printer, make sure the printer works and its paper is
+set to **4×6 borderless** (macOS: System Settings ▸ Printers & Scanners). Then connect
+it one of two ways.
 
-1. Make sure the printer works from that computer and its paper is set to **4×6
-   borderless** (macOS: System Settings ▸ Printers & Scanners).
-2. Get the code onto this computer (needs [Node](https://nodejs.org) installed):
+### Recommended: the helper app (no terminal)
+
+1. On the **host screen** (`/host`), under **Printer**, use **Connect a printer** to
+   download the **BFF Booth Helper** and note the **pairing code**.
+2. Open the app on the printer computer. First launch is a one-time right-click ▸
+   **Open** (macOS) / More info ▸ **Run anyway** (Windows) — it's unsigned.
+3. Enter the booth's web address and the pairing code, click **Connect**. The host
+   screen flips to **connected** and its printer list fills in — pick your printer,
+   name it, **Save settings**. The app lives in the menu bar and prints the queue.
+
+> The installer is published by CI (tag `helper-v*`); until the first release exists,
+> use the terminal path below, which does the identical thing.
+
+### Alternative: the terminal agent (no download, needs Node)
+
+1. Get the code onto the printer computer (needs [Node](https://nodejs.org)):
 
    ```bash
    cd ~/Downloads
    git clone https://github.com/eljon/bff-photo-booth.git
-   cd bff-photo-booth
-   npm install
+   cd bff-photo-booth && npm install
    ```
-3. Start the **agent** — it reaches out to the relay and prints jobs through the
-   printer driver (borderless, media, and copies all under its control). Put your
-   real `BOOTH_TOKEN` in place of the `…`:
+2. Start the agent. Pair with the code from the host screen (no token to copy):
 
    ```bash
-   RELAY_URL=https://<your-url> BOOTH_TOKEN=… npm run agent
+   RELAY_URL=https://<your-url> PAIR_CODE=XXXXXXXX npm run agent
    ```
 
-   Leave that Terminal window open. To keep the Mac awake during an event, prefix it
-   with `caffeinate -dims`.
-4. On the relay, `/api/health` now reports `agentOnline:true`, and the host screen
-   shows the computer as **connected**. In `/host`, open **Choose printers**, tick
-   your printer, name it, then **Save settings**.
+   (Or use `BOOTH_TOKEN=…` instead of `PAIR_CODE`.) Prefix with `caffeinate -dims` to
+   keep the Mac awake. Leave the window open.
+3. On the relay, `/api/health` now reports `agentOnline:true` and the host screen
+   shows the computer as **connected**. Open **Choose printers**, tick your printer,
+   name it, then **Save settings**.
 
 ---
 
