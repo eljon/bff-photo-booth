@@ -11,7 +11,7 @@ const crypto = require('node:crypto');
 
 const SECRET = process.env.STRIPE_SECRET_KEY || '';
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const PRICE_CENTS = Number(process.env.SESSION_PRICE_CENTS) || 2900; // $29 default
+const PRICE_CENTS = Number(process.env.SESSION_PRICE_CENTS) || 599; // $5.99 default
 const CURRENCY = process.env.SESSION_CURRENCY || 'usd';
 
 const isLive = () => Boolean(SECRET);
@@ -23,6 +23,9 @@ async function createCheckout({ sessionId, userEmail, successUrl, cancelUrl }) {
   form.set('success_url', successUrl);
   form.set('cancel_url', cancelUrl);
   if (userEmail) form.set('customer_email', userEmail);
+  // Show the "Add promotion code" field on Stripe Checkout so customers can redeem
+  // discount codes (create these as Promotion codes in the Stripe dashboard).
+  form.set('allow_promotion_codes', 'true');
   form.set('client_reference_id', sessionId);
   form.set('metadata[sessionId]', sessionId);
   form.set('line_items[0][quantity]', '1');

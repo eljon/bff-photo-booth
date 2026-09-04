@@ -27,7 +27,7 @@ SAAS_BASE_DOMAIN=boothless.alphanauts.net   # enables per-session subdomains; se
 # ── Stripe (LIVE) ────────────────────────────────────────────────
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-SESSION_PRICE_CENTS=2900                  # optional — $29.00 default
+SESSION_PRICE_CENTS=599                   # optional - $5.99 default
 SESSION_CURRENCY=usd                      # optional
 
 # ── Google ───────────────────────────────────────────────────────
@@ -93,6 +93,29 @@ Callback paths per provider: `/api/auth/oauth/google/callback`,
 
 With `STRIPE_SECRET_KEY` set, **Buy** opens Stripe Checkout; on payment Stripe calls the webhook
 and the session flips to active. Verify one real (small) transaction end-to-end after go-live.
+
+### Discount codes
+
+Checkout shows an **"Add promotion code"** field automatically (the app sets
+`allow_promotion_codes`), so you do not need to change any code to run a promo. You create the
+codes in Stripe. A code has two parts: a **Coupon** (the discount rule) and a **Promotion code**
+(the customer-facing string that points at that coupon).
+
+1. In the Stripe dashboard (Live mode, so the code works on real checkouts): go to **Product
+   catalog → Coupons → New / Create coupon**.
+2. Set the discount: **Percentage** (e.g. 100% for a free session, 50% off) or a **fixed amount**
+   (e.g. $2.00 off). Optionally set **Duration** (for one-off session purchases "Once" is right),
+   a **redemption limit** (max total uses), and an **expiry date**. Create it.
+3. On the coupon, click **Create promotion code** (or **Product catalog → Coupons →** your coupon
+   **→ Add promotion code**). Enter the **code customers type**, for example `LAUNCH50` or
+   `FREEBOOTH`. Optional limits here: **first-time customers only**, **per-customer limit**,
+   **minimum order amount**, and its own **expiry**.
+4. Share the code. At checkout the customer clicks **Add promotion code**, types it, and the
+   total updates. A 100%-off code makes the total $0 and still completes checkout, so the webhook
+   fires and the session activates normally.
+
+Notes: promotion codes are **mode-specific** - a code made in Test mode will not work on a live
+checkout, so create the real ones in Live mode. You can deactivate a code any time on its page.
 
 ---
 

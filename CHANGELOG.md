@@ -15,6 +15,17 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.17 - 2026-09-04
+
+**Session price set to $5.99, and discount codes enabled at checkout.**
+
+- Default `SESSION_PRICE_CENTS` is now `599` ($5.99) instead of `2900`. Override with the env
+  var as before.
+- Stripe Checkout now shows the "Add promotion code" field (`allow_promotion_codes`), so
+  customers can redeem discount codes. Create the codes in the Stripe dashboard as a Coupon plus
+  a Promotion code; steps are in `docs/COMMERCIAL-SETUP.md`. A 100%-off code makes a session free
+  while still completing checkout so the webhook fires and the session activates.
+
 ## 1.74.16 - 2026-09-04
 
 **Facebook sign-in button hidden for now.** Google is the only visible social button while
