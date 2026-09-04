@@ -109,7 +109,7 @@ const CLAIM_TIMEOUT_MS = 2 * 60 * 1000; // an agent that goes quiet loses its jo
 const AGENT_ONLINE_MS = 90 * 1000;
 
 if (MODE === 'relay' && !BOOTH_TOKEN) {
-  console.error('MODE=relay needs BOOTH_TOKEN set — the booth agent and the host screen sign in with it.');
+  console.error('MODE=relay needs BOOTH_TOKEN set - the booth agent and the host screen sign in with it.');
   console.error('Generate one with:  node -e "console.log(require(\'crypto\').randomBytes(24).toString(\'hex\'))"');
   process.exit(1);
 }
@@ -220,7 +220,7 @@ function loadQueue() {
   }
   if (restored) {
     const waiting = [...jobs.values()].filter((j) => j.status === 'pending' || j.status === 'awaiting-approval').length;
-    console.log(`  ↺ restored ${restored} job${restored === 1 ? '' : 's'} from disk — ${waiting} still to print${requeued ? `, ${requeued} re-queued` : ''}.`);
+    console.log(`  ↺ restored ${restored} job${restored === 1 ? '' : 's'} from disk - ${waiting} still to print${requeued ? `, ${requeued} re-queued` : ''}.`);
   }
 }
 
@@ -1286,7 +1286,7 @@ async function handleApi(req, res, url) {
     const online = MODE === 'relay' ? agentOnline() : true;
     if (MODE === 'relay' && !online && job.status !== 'awaiting-approval') {
       const waiting = [...jobs.values()].filter((j) => j.status === 'pending').length;
-      console.log(`  ⏳ queued job ${id.slice(0, 8)} — the booth Mac is offline; ${waiting} waiting for it to reconnect`);
+      console.log(`  ⏳ queued job ${id.slice(0, 8)} - the booth Mac is offline; ${waiting} waiting for it to reconnect`);
     }
 
     if (!cfg.requireApproval) await pumpPrinter();
@@ -1707,17 +1707,17 @@ function banner() {
   } else if (!publicUrl) {
     console.log('');
     console.log('  Guests must be on the same Wi-Fi as this Mac.');
-    console.log('  To let them join from anywhere — mobile data, another network —');
+    console.log('  To let them join from anywhere - mobile data, another network -');
     console.log('  stop this with Control-C and run:  npm run tunnel');
   }
 
   if (MODE === 'relay') console.log('  Waiting for the booth Mac to connect (npm run agent).');
-  if (DRY_RUN) console.log('  DRY_RUN=1 — composites are saved but never sent to a printer.');
+  if (DRY_RUN) console.log('  DRY_RUN=1 - composites are saved but never sent to a printer.');
 
   if (GUEST_ONLY) {
     console.log(PRINT_HOST
-      ? `  Guest-only booth — prints go to the booth host at ${PRINT_HOST}`
-      : '  Guest-only booth — no printer here, so guests save/share to their phones.');
+      ? `  Guest-only booth - prints go to the booth host at ${PRINT_HOST}`
+      : '  Guest-only booth - no printer here, so guests save/share to their phones.');
     console.log('  Pass --print-host=<booth url> to send prints to a booth Mac.');
   }
 
@@ -1741,8 +1741,8 @@ server.listen(PORT, HOST, async () => {
         }
         if (event.event === 'restarting') {
           console.log(event.fixed
-            ? `  Tunnel dropped — reconnecting in ${event.inSeconds}s. The guest link does not change.`
-            : `  Tunnel dropped — reconnecting in ${event.inSeconds}s. A quick tunnel gets a NEW guest link;\n  open the host screen again for the new QR code.`);
+            ? `  Tunnel dropped - reconnecting in ${event.inSeconds}s. The guest link does not change.`
+            : `  Tunnel dropped - reconnecting in ${event.inSeconds}s. A quick tunnel gets a NEW guest link;\n  open the host screen again for the new QR code.`);
         }
         if (event.event === 'url' && event.previous) {
           console.log(`  New guest link: ${event.url}${guestKeyRequired() ? `/?k=${config.load().accessKey}` : ''}`);
@@ -1753,7 +1753,7 @@ server.listen(PORT, HOST, async () => {
       tunnelFailed = true;
       console.log(`  Tunnel unavailable: ${result.error}`);
     } else {
-      console.log(`  ${result.label}${tunnel.isPersistent() ? '' : ' — this address changes every launch'}`);
+      console.log(`  ${result.label}${tunnel.isPersistent() ? '' : ' - this address changes every launch'}`);
     }
   }
 
@@ -1775,7 +1775,7 @@ server.listen(PORT, HOST, async () => {
   if (publicUrl && WANT_TUNNEL) {
     tunnel.waitUntilLive(publicUrl, { timeoutMs: TUNNEL_WAIT_MS }).then(({ live, attempts }) => {
       console.log(live
-        ? `  Guest link answered after ${attempts}s — ready to scan.`
+        ? `  Guest link answered after ${attempts}s - ready to scan.`
         : '  Could not reach the guest link from this Mac. That is usually local DNS catching up;\n  try it on a phone, and give it a minute before worrying.');
     });
   }
@@ -1791,7 +1791,7 @@ process.on('unhandledRejection', (err) => {
 // the supervisor (npm start → server/booth.js) brings up a clean one right away,
 // instead of sitting there wedged.
 process.on('uncaughtException', (err) => {
-  console.error('  ⚠ fatal error — restarting the booth:', err && err.stack ? err.stack : err);
+  console.error('  ⚠ fatal error - restarting the booth:', err && err.stack ? err.stack : err);
   try { tunnel.close(); } catch { /* ignore */ }
   process.exit(1);
 });

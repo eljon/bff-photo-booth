@@ -78,6 +78,8 @@ a { color: var(--accent); }
 .social[data-provider="apple"]:hover { background: #1a1a1a; }
 .social[data-provider="facebook"] .soon,
 .social[data-provider="apple"] .soon { color: rgba(255,255,255,.75); }
+/* The hidden attribute must win over the display:flex above (higher specificity). */
+.social[hidden] { display: none !important; }
 .divider { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 13px; margin: 6px 0 16px; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .err { color: var(--accent); font-size: 13px; min-height: 18px; margin: 2px 0 8px; }

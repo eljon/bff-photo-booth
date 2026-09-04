@@ -22,6 +22,14 @@ Notes (implementation, not extra rules): the sticker asset is
 so the optimizer chooses the sheet orientation (4×6 portrait vs 6×4 landscape) by which
 maximizes space — it does not assume portrait.
 
+## Writing style (hard rule)
+Never use an em dash (the "—" character) in any user-facing text: HTML page content,
+button labels, on-screen microcopy, error/status messages shown to a person, console
+banners the operator reads, and titles. Use a spaced hyphen " - ", a comma, a colon, or
+two sentences instead. This applies to every new string you add and to any string you
+touch. Code comments are not user-facing, but prefer avoiding em dashes there too so none
+ever leak into the product.
+
 ## Shipping a change
 Every change ships as a version bump: update `package.json` version, add a `CHANGELOG.md`
 entry for that version, run `node --test test/*.test.mjs`, run `node scripts/build-site.mjs`,

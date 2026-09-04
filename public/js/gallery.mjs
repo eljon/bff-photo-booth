@@ -34,7 +34,7 @@ function human(bytes) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-const when = (ms) => (ms ? new Date(ms).toLocaleString() : '—');
+const when = (ms) => (ms ? new Date(ms).toLocaleString() : '-');
 const withToken = (p) => `${p}${p.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
 const imgUrl = (name) => withToken(`/prints/${encodeURIComponent(name)}`);
 const nameOf = (p) => (p.printNo ? `P${p.printNo}` : p.name);
@@ -117,7 +117,7 @@ function openDetail(p) {
   $('detailName').textContent = nameOf(p);
   const st = $('detailStatus');
   st.textContent = label; st.className = `badge ${cls}`;
-  $('detailPrinter').textContent = p.printer ? `${p.printer}${p.computer && p.computer !== 'This Mac' ? ` (${p.computer})` : ''}` : '—';
+  $('detailPrinter').textContent = p.printer ? `${p.printer}${p.computer && p.computer !== 'This Mac' ? ` (${p.computer})` : ''}` : '-';
   $('detailTime').textContent = when(p.at);
   $('detailDownload').href = imgUrl(p.name);
   $('detailDownload').setAttribute('download', p.name);

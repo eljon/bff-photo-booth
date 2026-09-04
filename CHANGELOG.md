@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.15 — 2026-09-04
+
+**Apple button now actually hidden, and em dashes removed from user-facing text.**
+
+- Fixed the Apple sign-in button still showing: the `hidden` attribute was being
+  overridden by the branded `.social { display: flex }` rule (higher specificity won).
+  Added `.social[hidden] { display: none !important }` so the attribute wins. Apple is
+  gone from the page until its keys are set; re-enabling is still just removing `hidden`.
+- Removed every em dash from user-facing text (landing, dashboard, host, gallery pages and
+  their client strings, plus operator-facing console banners and error messages), replacing
+  them with a spaced hyphen. Code comments were left as-is since they never reach the product.
+- Added a hard rule to CLAUDE.md: never use an em dash in user-facing text.
+
 ## 1.74.14 — 2026-09-04
 
 **Branded social sign-in buttons.** The Google / Facebook / Apple buttons on the landing page

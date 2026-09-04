@@ -127,7 +127,7 @@ function isBorderlessMedia(id) {
 
 /**
  * Parse `lpoptions -p PRINTER -l` output for the PageSize choices the driver
- * exposes. Each option line is "Keyword/Label: a b *default c" — the "*" marks the
+ * exposes. Each option line is "Keyword/Label: a b *default c" - the "*" marks the
  * current default, and each token is a machine id we can pass straight to `lp`.
  */
 function parseMediaOptions(stdout) {

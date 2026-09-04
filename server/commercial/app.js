@@ -143,7 +143,7 @@ function createApp(store = new Store(), booths = new BoothManager()) {
     const startMatch = /^\/api\/auth\/oauth\/(google|facebook|apple)$/.exec(url.pathname);
     if (startMatch && req.method === 'GET') {
       const provider = startMatch[1];
-      if (!oauth.configured(provider)) return sendJson(res, 501, { ok: false, error: `${provider} sign-in isn't set up yet — use email for now.` });
+      if (!oauth.configured(provider)) return sendJson(res, 501, { ok: false, error: `${provider} sign-in isn't set up yet - use email for now.` });
       const nonce = crypto.randomBytes(16).toString('hex');
       res.setHeader('Set-Cookie', `oauth_state=${provider}:${nonce}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${isHttps(req) ? '; Secure' : ''}`);
       const redirectUri = `${originOf(req)}/api/auth/oauth/${provider}/callback`;

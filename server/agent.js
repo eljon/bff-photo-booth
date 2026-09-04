@@ -126,7 +126,7 @@ async function printJob(job) {
   const file = await downloadJob(job);
 
   if (DRY_RUN) {
-    log(`dry run — saved ${path.basename(file)} instead of printing`);
+    log(`dry run - saved ${path.basename(file)} instead of printing`);
     return { ok: true, cupsJobId: `dry-run-${job.id.slice(0, 6)}`, printer: 'Dry-Run-Printer' };
   }
 
@@ -203,7 +203,7 @@ async function runJob(job) {
     }
     if (DRY_RUN) {
       await report(job, { ...outcome, done: true }); // nothing real to wait for
-      log('  → dry run — reported done');
+      log('  → dry run - reported done');
       return;
     }
     // Two phases: tell the relay it STARTED (so the guest sees "Printing now"), then
@@ -225,7 +225,7 @@ async function main() {
   if (!BOOTH_TOKEN && PAIR_CODE) {
     try {
       await redeemPairCode();
-      log('paired with the host — token received');
+      log('paired with the host - token received');
     } catch (err) {
       console.error(`  pairing failed: ${err.message}`);
       process.exit(1);
@@ -236,7 +236,7 @@ async function main() {
   console.log(`  ${AGENT_NAME}  v${build.label}`);
   console.log(`  relay:    ${RELAY_URL}`);
   console.log(`  printers: ${(await localPrinters()).map((p) => p.name).join(', ') || 'none found'}`);
-  if (DRY_RUN) console.log('  DRY_RUN=1 — jobs are downloaded but never printed.');
+  if (DRY_RUN) console.log('  DRY_RUN=1 - jobs are downloaded but never printed.');
   console.log('');
 
   // How many prints this computer runs at once — one per printer it has (at least 1). The
@@ -248,7 +248,7 @@ async function main() {
     try {
       if (Date.now() - lastHello > HELLO_EVERY_MS) {
         const printers = await sayHello();
-        if (!printers.length) log('warning: this computer reports no printers — add one in System Settings');
+        if (!printers.length) log('warning: this computer reports no printers - add one in System Settings');
       }
       if (inFlight.size >= maxConcurrent) { await wait(1000); continue; } // all printers busy
 
@@ -264,7 +264,7 @@ async function main() {
         runJob(job).finally(() => inFlight.delete(job.id)); // concurrent — do not await
       }
     } catch (err) {
-      log(`${err.message} — retrying in ${Math.round(backoff / 1000)}s`);
+      log(`${err.message} - retrying in ${Math.round(backoff / 1000)}s`);
       await wait(backoff);
       backoff = Math.min(30_000, backoff * 2);
       lastHello = 0; // re-announce ourselves once we are back

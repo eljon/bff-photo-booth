@@ -25,7 +25,7 @@ server.listen(PORT, HOST, () => {
   console.log(`  ---------------------------------------------`);
   console.log(`  Landing:    http://localhost:${PORT}/`);
   console.log(`  Dashboard:  http://localhost:${PORT}/dashboard`);
-  console.log(`  Payments:   ${process.env.STRIPE_SECRET_KEY ? 'Stripe (live keys set)' : 'dev — simulate purchase (set STRIPE_SECRET_KEY for real)'}`);
+  console.log(`  Payments:   ${process.env.STRIPE_SECRET_KEY ? 'Stripe (live keys set)' : 'dev - simulate purchase (set STRIPE_SECRET_KEY for real)'}`);
   console.log('');
 });
 

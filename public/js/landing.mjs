@@ -66,6 +66,6 @@ for (const btn of document.querySelectorAll('.social')) {
   btn.addEventListener('click', () => {
     const provider = btn.dataset.provider;
     if (providers[provider]) { location.href = `/api/auth/oauth/${provider}`; return; } // real redirect flow
-    $('err').textContent = `${provider[0].toUpperCase() + provider.slice(1)} sign-in isn't set up yet — use email for now.`;
+    $('err').textContent = `${provider[0].toUpperCase() + provider.slice(1)} sign-in isn't set up yet - use email for now.`;
   });
 }
