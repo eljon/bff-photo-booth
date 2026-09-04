@@ -15,6 +15,24 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.12 — 2026-09-04
+
+**OAuth + Stripe setup doc rewritten for the real deployment.** `docs/COMMERCIAL-SETUP.md`
+now uses the actual hostnames (`hawak-mo-ang-booth.onrender.com` today,
+`boothless.alphanauts.net` once DNS verifies) instead of `<your-saas-host>` placeholders,
+and spells out the gotchas that block first-time logins:
+
+- **Register both callback URLs** per provider (onrender + custom domain), since the app
+  derives each redirect URI from the host you sign in from.
+- **Google:** the "Testing" consent screen only admits listed test users — add your Gmail or
+  Publish the app.
+- **Facebook:** Development mode only admits app roles; going Live needs a Privacy Policy URL.
+- **Stripe:** test-mode keys + webhook now, with the live-mode swap (second webhook) noted.
+- **Apple:** marked deferred/optional — it needs the paid Apple Developer Program ($99/yr);
+  its button stays "soon" until keys are set, with no code change required to add it later.
+
+No code change — documentation only.
+
 ## 1.74.11 — 2026-09-04
 
 **Deploy doc correction: Squarespace can host the records directly (no Cloudflare needed).**
