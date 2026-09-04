@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.75.3 - 2026-09-04
+
+**Fix: the setup gate could show with blank address and pin.** The gate's `.connect-gate`
+rule used `display: flex`, which overrode the `hidden` attribute (class specificity beats the
+`[hidden]` UA rule), so the gate stayed visible even when the code marked it hidden, showing its
+placeholder "…" / "····" without ever populating. Added `.connect-gate[hidden] { display: none
+!important; }` so the attribute wins, and the booth address is now filled in at startup (it never
+changes) so it can never be blank.
+
 ## 1.75.2 - 2026-09-04
 
 **Host first-use: a setup gate that makes installing the helper unmissable.** On a cloud booth

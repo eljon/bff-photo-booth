@@ -694,6 +694,7 @@ function start() {
 }
 
 bind();
+setBoothAddress(); // the booth address never changes, so fill it in immediately
 try {
   await loadConfig();
   await loadPrinters();
