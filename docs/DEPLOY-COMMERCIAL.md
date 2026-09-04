@@ -55,29 +55,99 @@ default branch and crashed — the relay exits without `BOOTH_TOKEN`), just fix 
 
 ---
 
-## Stage 2 — point boothless.alphanauts.net at it (HostGator DNS)
+## Stage 2 — connect boothless.alphanauts.net so sessions are reachable
 
-1. In Render → your service → **Settings ▸ Custom Domains** → **Add** `boothless.alphanauts.net`,
-   then **Add** `*.boothless.alphanauts.net`. Render shows the target host (an `onrender.com`
-   hostname) and any verification record it needs.
-2. In **HostGator** (cPanel → **Zone Editor** for `alphanauts.net`), add **CNAME** records:
-   - Name `boothless` → value `hawak-mo-ang-booth.onrender.com`
-   - Name `*.boothless` → value `hawak-mo-ang-booth.onrender.com`  *(wildcard — this is what
-     makes every session's subdomain resolve)*
-   - Plus any **verification CNAME/TXT** Render told you to add (paste it exactly).
-3. Back in Render, wait for the domains to verify (green) and TLS to issue. Wildcard TLS can
-   take a few minutes.
-4. Render → **Environment** → add `SAAS_BASE_DOMAIN=boothless.alphanauts.net` → save (redeploys).
+### Why this stage exists
 
-**Now:** the app is at `https://boothless.alphanauts.net`, and **Open host** on a session opens
-`https://<slug>.boothless.alphanauts.net/host` — that session's real booth with its own QR that
-guests can scan from anywhere.
+Each session's booth runs as its own process **inside** the Render container, on a private
+`127.0.0.1:<port>` address. That address is unreachable from the internet, so every session is
+published at its own subdomain — `<slug>.boothless.alphanauts.net` — that your Render service
+answers and routes to the correct internal booth. Until DNS + `SAAS_BASE_DOMAIN` are set,
+**Open host** has no public address to hand out. This stage sets that up.
 
-> **If HostGator won't issue/verify wildcard TLS smoothly** (some shared plans are fussy about
-> wildcard records or ACME): put **Cloudflare** in front — add `alphanauts.net` to a free
-> Cloudflare account, switch the domain's nameservers to Cloudflare, add the two CNAMEs above
-> as **Proxied**, and Cloudflare provides the wildcard TLS. Point Render's custom domain at the
-> same host. This is the most reliable wildcard path.
+### Step 2.1 — add the two domains in Render
+
+1. Go to the Render dashboard and open your **`hawak-mo-ang-booth`** service.
+2. In the left menu click **Settings**, then scroll to **Custom Domains**.
+3. Click **Add Custom Domain**, type `boothless.alphanauts.net`, and confirm.
+4. Click **Add Custom Domain** again, type `*.boothless.alphanauts.net` (the wildcard — the
+   `*` is literal), and confirm.
+5. Render now lists both domains as **unverified** and shows, for each, the DNS record it wants
+   — usually a **CNAME** pointing at a host like `hawak-mo-ang-booth.onrender.com`. **Leave this
+   Render tab open**; you'll copy those exact values next. (If Render shows a different target
+   host than `hawak-mo-ang-booth.onrender.com`, use whatever it shows.)
+
+### Step 2.2 — add the DNS records at HostGator
+
+1. Log in at **portal.hostgator.com**.
+2. Open **Hosting** → your plan → **cPanel** (or the "Manage" / "cPanel Admin" button).
+3. In cPanel, under the **Domains** section, click **Zone Editor**.
+4. Find **alphanauts.net** in the list and click **Manage**.
+5. Click **+ Add Record** (or the **CNAME Record** button) and create the **first** record:
+   - **Type:** `CNAME`
+   - **Name:** `boothless`  *(cPanel adds `.alphanauts.net` automatically. If it demands the
+     full name, enter `boothless.alphanauts.net.` — with the trailing dot.)*
+   - **TTL:** leave the default (e.g. `14400`), or `3600`.
+   - **Record / CNAME / Points to:** `hawak-mo-ang-booth.onrender.com`  *(or the exact target
+     Render showed in Step 2.1)*
+   - **Save**.
+6. Click **+ Add Record** again and create the **second (wildcard)** record — this is the one
+   that makes every session subdomain work:
+   - **Type:** `CNAME`
+   - **Name:** `*.boothless`  *(if cPanel won't accept `*`, enter the full
+     `*.boothless.alphanauts.net.` with the trailing dot)*
+   - **Record / Points to:** `hawak-mo-ang-booth.onrender.com`
+   - **Save**.
+7. If Render's Custom Domains screen listed an **extra verification record** (a second CNAME, or
+   a TXT for the wildcard certificate — often named like `_acme-challenge…`), add that too,
+   exactly as shown: same Zone Editor, **+ Add Record**, matching **Type**, **Name**, and value.
+
+### Step 2.3 — wait for Render to verify and issue TLS
+
+1. Return to the Render **Custom Domains** screen and give it a few minutes (DNS can take
+   5–30 min to propagate; wildcard certificates a little longer).
+2. Click **Verify** / **Refresh** if there's a button. Both `boothless.alphanauts.net` and
+   `*.boothless.alphanauts.net` should turn **green / Verified**, and Render should show a
+   **certificate issued**. Don't continue until the wildcard shows a certificate — that's what
+   secures the session subdomains.
+
+### Step 2.4 — tell the app its domain
+
+1. In Render → your service → **Environment**.
+2. Click **Add Environment Variable**:
+   - **Key:** `SAAS_BASE_DOMAIN`
+   - **Value:** `boothless.alphanauts.net`  *(base only — no `https://`, no `*`)*
+3. **Save Changes.** Render redeploys automatically (~1–2 min).
+
+### Step 2.5 — check it works
+
+1. Open **`https://boothless.alphanauts.net`** → the landing page loads over HTTPS.
+2. Sign in → dashboard → open a session → **Open host**. It should now open
+   **`https://<slug>.boothless.alphanauts.net/host`** — the session's own host screen with its
+   own QR, auto-unlocked.
+3. Scan that QR on your phone (on cellular, to prove it's public), build a strip, tap Print —
+   it queues on that session's booth. Connect a printer to it with the helper app / `npm run
+   agent`, using the pairing code shown on that session's host screen.
+
+### If the wildcard certificate won't issue at HostGator
+
+Some HostGator shared plans can't complete the ACME **DNS challenge** a wildcard certificate
+needs. If Render's `*.boothless.alphanauts.net` stays stuck on "issuing certificate," move DNS
+to **Cloudflare** (free), which handles wildcard TLS cleanly:
+
+1. Create a free account at **cloudflare.com**, **Add a site** → `alphanauts.net`.
+2. Cloudflare imports your existing records — check your website/email records came across.
+3. Cloudflare gives you **two nameservers**; set them as `alphanauts.net`'s nameservers in the
+   HostGator domain settings (this moves DNS control to Cloudflare; existing records keep working
+   as long as they imported).
+4. In Cloudflare **DNS**, add the same two CNAMEs (`boothless` and `*.boothless` →
+   `hawak-mo-ang-booth.onrender.com`), **Proxy status: Proxied (orange cloud)**. Cloudflare now
+   provides wildcard TLS at the edge.
+5. Keep `SAAS_BASE_DOMAIN=boothless.alphanauts.net` in Render. Done.
+
+> Note on scale: each active session is its own process, so a Render **Starter** (512 MB)
+> comfortably runs a handful of simultaneous live sessions — enough for launch. Many concurrent
+> booths need a larger instance or the Postgres refactor in `docs/ARCHITECTURE-SAAS.md`.
 
 ---
 

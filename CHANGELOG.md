@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.9 — 2026-09-04
+
+**Detailed Stage 2 deploy steps.** `docs/DEPLOY-COMMERCIAL.md` now walks the whole domain
+setup click-by-click — adding both custom domains in Render, adding the `boothless` and
+`*.boothless` CNAMEs in HostGator cPanel Zone Editor, waiting for wildcard TLS, setting
+`SAAS_BASE_DOMAIN`, and testing — plus a note that per-session isolation already works on the
+current Render service (it only needs the wildcard domain to be reachable) and the Cloudflare
+fallback for wildcard TLS.
+
 ## 1.74.8 — 2026-09-04
 
 **Clearer message when opening a host before the booth domain is set.** In the cloud, a
