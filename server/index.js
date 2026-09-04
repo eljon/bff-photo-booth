@@ -126,7 +126,7 @@ try {
 /** jobId -> job record. See publicJob() for the shape guests and hosts see. */
 const jobs = new Map();
 let printSeq = 0; // hands each print a running number: P1, P2, P3… (survives restarts)
-const MAX_JOB_HISTORY = 500; // a long party should not grow the map forever
+const MAX_JOB_HISTORY = 1500; // a long party should not grow the map forever
 const PRINT_MS = Number(process.env.PRINT_MS) || 30 * 1000; // seed estimate of one print's time; refined from real runs
 const MAX_PRINT_MS = 5 * 60 * 1000; // a print stuck longer than this is treated as done
 const DRY_PRINT_MS = Number(process.env.DRY_PRINT_MS) || PRINT_MS; // simulated print time (dry run)

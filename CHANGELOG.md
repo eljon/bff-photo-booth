@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.52 — 2026-09-04
+
+**Longer job history — 1,500 prints.** The in-memory queue/history cap
+(`MAX_JOB_HISTORY`) went from 500 to 1,500, so the rich status/printer/time detail is
+kept for far more prints before the oldest fall back to filename-derived info. Photos on
+disk were never capped; this only affects how far back live job metadata is retained.
+
 ## 1.73.51 — 2026-09-04
 
 **Gallery: photo details, reprint, and multi-select.** Tapping a photo in `/gallery`
