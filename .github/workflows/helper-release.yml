@@ -13,7 +13,12 @@ name: Build helper app
 on:
   push:
     tags: ['helper-v*']
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to create and attach the installers to'
+        default: 'helper-v1.0.0'
+        required: true
 
 permissions:
   contents: write
@@ -47,9 +52,13 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run ${{ matrix.script }}
 
-      - name: Attach installer to the release
+      # On a tag push, attach to that tag's release. On a manual run, create (or reuse)
+      # the release named by the tag_name input — so the build works without pushing a tag.
+      - name: Publish installer to a release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: ${{ github.event.inputs.tag_name || github.ref_name }}
           files: |
             helper/dist/*.dmg
             helper/dist/*.exe

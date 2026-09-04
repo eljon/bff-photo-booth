@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.46 — 2026-09-04
+
+**Helper build can be kicked off without pushing a tag.** The release workflow now
+takes a `tag_name` input on manual (`workflow_dispatch`) runs and creates that
+release itself, so the installer can be built via the GitHub API — no local tag push
+needed. Tag-push builds still work as before.
+
 ## 1.73.45 — 2026-09-04
 
 **Shorter pairing code — 4 characters.** The Connect-a-printer code is now 4 chars
