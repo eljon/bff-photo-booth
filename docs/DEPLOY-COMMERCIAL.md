@@ -5,14 +5,16 @@ and it runs each purchased session's booth as its own process, reachable at a pe
 subdomain. Deploy it as its **own** service, separate from the single-tenant booth relay.
 
 **This guide uses the real target:** app at **`boothless.alphanauts.net`**, session booths at
-**`<slug>.boothless.alphanauts.net`**, domain `alphanauts.net` managed at **HostGator**.
+**`<slug>.boothless.alphanauts.net`**, domain `alphanauts.net` registered at **Squarespace**.
 
 ## What it needs
 
 - **One web service** running `npm run saas` (dependency-free Node — no build step).
 - **A persistent disk** at `/data` (`SAAS_DATA=/data`) for accounts + each session's booth data.
-- **DNS** at HostGator: `boothless.alphanauts.net` → the service, and a wildcard
-  `*.boothless.alphanauts.net` → the service (so each session's booth is reachable).
+- **DNS with wildcard support**: `boothless.alphanauts.net` → the service, and a wildcard
+  `*.boothless.alphanauts.net` → the service (so each session's booth is reachable). The domain
+  is registered at Squarespace, whose DNS editor generally rejects wildcard (`*`) records, so
+  DNS is managed through **Cloudflare** (free) — see Stage 2.
 - Optional: Stripe + OAuth keys (see `docs/COMMERCIAL-SETUP.md`). Without them the app still
   runs with email login and a dev "simulate purchase."
 
@@ -77,30 +79,45 @@ answers and routes to the correct internal booth. Until DNS + `SAAS_BASE_DOMAIN`
    Render tab open**; you'll copy those exact values next. (If Render shows a different target
    host than `hawak-mo-ang-booth.onrender.com`, use whatever it shows.)
 
-### Step 2.2 — add the DNS records at HostGator
+### Step 2.2 — move DNS to Cloudflare and add the records
 
-1. Log in at **portal.hostgator.com**.
-2. Open **Hosting** → your plan → **cPanel** (or the "Manage" / "cPanel Admin" button).
-3. In cPanel, under the **Domains** section, click **Zone Editor**.
-4. Find **alphanauts.net** in the list and click **Manage**.
-5. Click **+ Add Record** (or the **CNAME Record** button) and create the **first** record:
+The domain is registered at **Squarespace**, whose DNS editor won't accept a wildcard (`*`)
+record — and the session subdomains need one. So manage `alphanauts.net`'s DNS through
+**Cloudflare** (free). This only moves *DNS*; the domain stays **registered** at Squarespace.
+(You could add the plain `boothless` record at Squarespace, but not `*.boothless`, so it's
+cleaner to move all of it to Cloudflare.)
+
+1. Create a free account at **cloudflare.com** → **Add a site** → enter `alphanauts.net` → pick
+   the **Free** plan.
+2. Cloudflare scans and **imports your existing DNS**. Check the imported list still has whatever
+   runs your current website/email, so nothing breaks when DNS moves. Continue.
+3. Cloudflare shows **two nameservers** (like `xxx.ns.cloudflare.com`). Copy both.
+4. In **Squarespace**: open your **Domains** dashboard → click **alphanauts.net** → **DNS
+   Settings** (or **Nameservers**) → choose **Use custom nameservers** → paste Cloudflare's two
+   nameservers → **Save**. Nameserver changes take a few hours; Cloudflare emails you when the
+   domain is **Active**.
+5. When Cloudflare shows the site **Active**, open **DNS ▸ Records** → **Add record** (first one):
    - **Type:** `CNAME`
-   - **Name:** `boothless`  *(cPanel adds `.alphanauts.net` automatically. If it demands the
-     full name, enter `boothless.alphanauts.net.` — with the trailing dot.)*
-   - **TTL:** leave the default (e.g. `14400`), or `3600`.
-   - **Record / CNAME / Points to:** `hawak-mo-ang-booth.onrender.com`  *(or the exact target
-     Render showed in Step 2.1)*
+   - **Name:** `boothless`
+   - **Target:** `hawak-mo-ang-booth.onrender.com`  *(or the exact target Render showed)*
+   - **Proxy status:** **DNS only (grey cloud)** ← important, see the note below
    - **Save**.
-6. Click **+ Add Record** again and create the **second (wildcard)** record — this is the one
-   that makes every session subdomain work:
+6. **Add record** again — the **wildcard** (this is what makes every session subdomain resolve):
    - **Type:** `CNAME`
-   - **Name:** `*.boothless`  *(if cPanel won't accept `*`, enter the full
-     `*.boothless.alphanauts.net.` with the trailing dot)*
-   - **Record / Points to:** `hawak-mo-ang-booth.onrender.com`
+   - **Name:** `*.boothless`
+   - **Target:** `hawak-mo-ang-booth.onrender.com`
+   - **Proxy status:** **DNS only (grey cloud)**
    - **Save**.
-7. If Render's Custom Domains screen listed an **extra verification record** (a second CNAME, or
-   a TXT for the wildcard certificate — often named like `_acme-challenge…`), add that too,
-   exactly as shown: same Zone Editor, **+ Add Record**, matching **Type**, **Name**, and value.
+7. On Render's **Custom Domains** screen (Step 2.1), each domain shows a verification/ACME record
+   — usually a CNAME, and for the wildcard an `_acme-challenge…` record. **Add each of those in
+   Cloudflare too**, exactly as shown, also **DNS only (grey cloud)**. These let Render verify the
+   domains and issue the certificates (including the wildcard).
+
+> **Why grey cloud, not proxied:** sessions sit two levels deep
+> (`<slug>.boothless.alphanauts.net`). Cloudflare's *free* certificate only covers a **one-level**
+> wildcard (`*.alphanauts.net`), and proxying also hides Render's ACME challenge. Leaving the
+> records **DNS only** lets **Render** issue the two-level wildcard certificate itself, which it
+> can do at any depth and for free.
 
 ### Step 2.3 — wait for Render to verify and issue TLS
 
@@ -129,21 +146,16 @@ answers and routes to the correct internal booth. Until DNS + `SAAS_BASE_DOMAIN`
    it queues on that session's booth. Connect a printer to it with the helper app / `npm run
    agent`, using the pairing code shown on that session's host screen.
 
-### If the wildcard certificate won't issue at HostGator
+### If a certificate won't issue
 
-Some HostGator shared plans can't complete the ACME **DNS challenge** a wildcard certificate
-needs. If Render's `*.boothless.alphanauts.net` stays stuck on "issuing certificate," move DNS
-to **Cloudflare** (free), which handles wildcard TLS cleanly:
-
-1. Create a free account at **cloudflare.com**, **Add a site** → `alphanauts.net`.
-2. Cloudflare imports your existing records — check your website/email records came across.
-3. Cloudflare gives you **two nameservers**; set them as `alphanauts.net`'s nameservers in the
-   HostGator domain settings (this moves DNS control to Cloudflare; existing records keep working
-   as long as they imported).
-4. In Cloudflare **DNS**, add the same two CNAMEs (`boothless` and `*.boothless` →
-   `hawak-mo-ang-booth.onrender.com`), **Proxy status: Proxied (orange cloud)**. Cloudflare now
-   provides wildcard TLS at the edge.
-5. Keep `SAAS_BASE_DOMAIN=boothless.alphanauts.net` in Render. Done.
+- Make sure the Cloudflare records are **DNS only (grey cloud)**, not Proxied. A proxied record
+  hides Render's ACME challenge, and Cloudflare's free certificate doesn't cover the two-level
+  `*.boothless.alphanauts.net`.
+- Confirm you added the exact `_acme-challenge…` record Render showed for the **wildcard** domain.
+- The domain must show **Active** in Cloudflare first (nameserver moves take a few hours).
+- Still stuck on the wildcard specifically? Tell me — the options are Cloudflare's **Advanced
+  Certificate Manager** (paid; covers multi-level wildcards, then records can be Proxied) or
+  switching sessions to a one-level layout.
 
 > Note on scale: each active session is its own process, so a Render **Starter** (512 MB)
 > comfortably runs a handful of simultaneous live sessions — enough for launch. Many concurrent

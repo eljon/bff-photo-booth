@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.10 — 2026-09-04
+
+**Deploy doc: domain is at Squarespace → DNS via Cloudflare.** Corrected Stage 2 of
+`docs/DEPLOY-COMMERCIAL.md`: `alphanauts.net` is registered at Squarespace (whose DNS editor
+won't take wildcard records), so DNS moves to Cloudflare (free, domain stays registered at
+Squarespace). Records are added **DNS-only (grey cloud)** so **Render** issues the certificate
+— important because sessions are two levels deep (`<slug>.boothless.alphanauts.net`) and
+Cloudflare's free cert only covers one-level wildcards. Includes the Squarespace nameserver
+change and a cert-troubleshooting section.
+
 ## 1.74.9 — 2026-09-04
 
 **Detailed Stage 2 deploy steps.** `docs/DEPLOY-COMMERCIAL.md` now walks the whole domain
