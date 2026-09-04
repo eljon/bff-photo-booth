@@ -119,6 +119,59 @@ test('/print is gone — the browser-printer path was removed', async (t) => {
   assert.equal((await fetch(`${booth.base}/print`)).status, 404, '/print no longer serves a page');
 });
 
+test('pairing: minting needs the host token; claiming needs a valid code', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  // Minting a code is a host action.
+  const unauth = await fetch(`${booth.base}/api/pair/new`, { method: 'POST' });
+  assert.equal(unauth.status, 401, 'no host token, no code');
+
+  const minted = await (await fetch(`${booth.base}/api/pair/new`, { method: 'POST', headers: host })).json();
+  assert.equal(minted.ok, true);
+  assert.match(minted.code, /^[A-Z0-9]{8}$/, 'an 8-char code is minted');
+
+  // A wrong code is rejected without leaking the token.
+  const bad = await fetch(`${booth.base}/api/pair/claim`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code: 'ZZZZZZZZ' }),
+  });
+  assert.equal(bad.status, 404);
+  assert.equal((await bad.json()).token, undefined);
+
+  // The real code trades for the booth token exactly once.
+  const claim = await (await fetch(`${booth.base}/api/pair/claim`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code: minted.code }),
+  })).json();
+  assert.equal(claim.ok, true);
+  assert.equal(claim.token, TOKEN, 'the helper receives the booth token');
+
+  const reuse = await fetch(`${booth.base}/api/pair/claim`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code: minted.code }),
+  });
+  assert.equal(reuse.status, 404, 'a code is single-use');
+});
+
+test('pairing: an agent started with only a code connects and reports its printers', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  const minted = await (await fetch(`${booth.base}/api/pair/new`, { method: 'POST', headers: host })).json();
+
+  // The helper knows only the relay URL and the pairing code — no booth token.
+  const agent = await startAgent(booth.base, '', { PAIR_CODE: minted.code });
+  t.after(() => agent.close());
+
+  const online = await until(async () => {
+    const data = await (await fetch(`${booth.base}/api/printers`)).json();
+    return data.agentOnline ? data : null;
+  });
+  assert.equal(online.agentOnline, true, 'the paired agent shows as connected');
+  assert.ok(online.printers.length >= 1, 'and the host can now see its printers');
+});
+
 test('a print submitted while the Mac is offline drains once it reconnects', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());

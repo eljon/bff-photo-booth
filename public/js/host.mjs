@@ -182,10 +182,8 @@ function primaryPrinter() {
   return sel.length ? sel[0].name : (config.printer || (availablePrinters[0] && availablePrinters[0].name) || '');
 }
 
-async function loadPrinters() {
-  const data = await (await fetch('/api/printers')).json();
-  availablePrinters = data.printers || [];
-
+/** The connected-computer pill, shared by the full load and the lightweight connect poll. */
+function renderAgentPill(data) {
   const state = $('agentState');
   if (data.remote) {
     const n = (data.agents || []).length;
@@ -195,6 +193,89 @@ async function loadPrinters() {
     state.textContent = data.dryRun ? 'dry run' : 'this mac';
     state.className = 'pill quiet';
   }
+}
+
+// ── Connect a printer computer (download the helper, pair, auto-detect) ──────────
+let pairCode = '';
+let pairPending = false;
+let lastAgentOnline = null;
+const HELPER_ASSETS = { mac: 'BFF-Booth-Helper.dmg', win: 'BFF-Booth-Helper-Setup.exe' };
+
+function osKind() {
+  const ua = navigator.userAgent || '';
+  const plat = navigator.platform || '';
+  if (/Mac/i.test(ua) || /Mac/i.test(plat)) return 'mac';
+  if (/Win/i.test(ua) || /Win/i.test(plat)) return 'win';
+  return 'other';
+}
+
+function renderHelperDownload() {
+  const dl = $('helperDownload');
+  const note = $('helperOsNote');
+  if (!dl) return;
+  const helper = (info && info.helper) || {};
+  const os = osKind();
+  const asset = HELPER_ASSETS[os];
+  if (helper.downloadBase && asset) {
+    dl.href = `${helper.downloadBase}/${asset}`;
+    dl.textContent = os === 'mac' ? 'Download for macOS' : 'Download for Windows';
+    note.textContent = os === 'mac'
+      ? 'macOS: open the .dmg and drag the app to Applications. First launch: right-click the app ▸ Open.'
+      : 'Windows: run the installer. First launch: More info ▸ Run anyway.';
+  } else {
+    dl.href = helper.releasesPage || '#';
+    dl.textContent = 'Download the helper';
+    note.textContent = 'Pick the file for your operating system.';
+  }
+}
+
+/** Fetch a fresh pairing code to show in the card (idempotent unless forced). */
+async function ensurePairCode(force = false) {
+  if (pairPending || (pairCode && !force)) return;
+  pairPending = true;
+  try {
+    const r = await post('/api/pair/new', {});
+    pairCode = r.code || '';
+    $('pairCode').textContent = pairCode || '····';
+  } catch {
+    /* leave the placeholder; the refresh button can retry */
+  } finally {
+    pairPending = false;
+  }
+}
+
+/** Show/hide the connect card from a /api/printers payload, and celebrate a new connection. */
+function renderConnect(data) {
+  renderAgentPill(data);
+  const card = $('connectCard');
+  if (!card) return;
+  const online = Boolean(data.agentOnline);
+  const showCard = Boolean(data.remote) && !online;
+  card.hidden = !showCard;
+  if (showCard) { renderHelperDownload(); ensurePairCode(); }
+  if (lastAgentOnline === false && online) {
+    toast('Printer connected! 🎉');
+    pairCode = ''; // spent its purpose; a later disconnect mints a fresh one
+    loadPrinters(); // a computer arrived — populate the picker
+  }
+  lastAgentOnline = online;
+}
+
+/** Lightweight poll (does NOT touch the printer selection) so the card reacts live. */
+async function pollConnect() {
+  try {
+    const data = await (await fetch('/api/printers')).json();
+    renderConnect(data);
+  } catch {
+    /* transient — try again next tick */
+  }
+}
+
+async function loadPrinters() {
+  const data = await (await fetch('/api/printers')).json();
+  availablePrinters = data.printers || [];
+
+  renderAgentPill(data);
 
   // Seed the selection from what's saved: the chosen printers, else the legacy single
   // printer. Nothing saved => nothing pre-ticked (the booth still prints to the default),
@@ -210,6 +291,15 @@ async function loadPrinters() {
   lastPrinterData = data;
   renderPrinterSummary();
   renderPrinterList(data);
+
+  // Initial connect-card state (visibility only; pollConnect handles live transitions).
+  const card = $('connectCard');
+  if (card) {
+    const showCard = Boolean(data.remote) && !data.agentOnline;
+    card.hidden = !showCard;
+    if (showCard) { renderHelperDownload(); ensurePairCode(); }
+    if (lastAgentOnline === null) lastAgentOnline = Boolean(data.agentOnline);
+  }
 }
 
 /** The compact default view: just the printers currently chosen (with their names/numbers),
@@ -475,6 +565,8 @@ function bind() {
     loadVouchers();
   });
 
+  $('pairRefresh').addEventListener('click', () => ensurePairCode(true));
+
   $('choosePrinters').addEventListener('click', () => {
     const list = $('printerList');
     const open = list.hidden;
@@ -537,7 +629,8 @@ function bind() {
 function start() {
   clearInterval(timer);
   refreshQueue();
-  timer = setInterval(refreshQueue, 3000);
+  pollConnect();
+  timer = setInterval(() => { refreshQueue(); pollConnect(); }, 3000);
 }
 
 bind();

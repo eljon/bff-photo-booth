@@ -46,6 +46,23 @@
 
   <section class="panel">
     <h2>Printer <span class="pill quiet" id="agentState">…</span></h2>
+
+    <div class="connect-card" id="connectCard" hidden>
+      <p class="connect-lead">No printer connected yet. Install the free BFF Booth Helper on the computer with the printer — it lets this screen see and use its printers.</p>
+      <ol class="connect-steps">
+        <li>
+          <a class="btn btn-primary connect-dl" id="helperDownload" href="#" target="_blank" rel="noopener">Download the helper</a>
+          <span class="hint" id="helperOsNote"></span>
+        </li>
+        <li>
+          Open it, then enter this pairing code:
+          <div class="pair-code" id="pairCode">····</div>
+          <span class="hint">The code lasts 10 minutes. <button type="button" class="linklike" id="pairRefresh">Get a new code</button></span>
+        </li>
+        <li><span id="connectWaiting" class="connect-waiting">Waiting for the helper to connect…</span></li>
+      </ol>
+    </div>
+
     <div class="field"><span>Printers to use</span>
       <div id="printerSummary" class="printer-summary"></div>
       <button class="btn btn-ghost" id="choosePrinters" type="button">Choose printers</button>

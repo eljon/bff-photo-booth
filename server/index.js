@@ -93,6 +93,14 @@ const TUNNEL_WAIT_MS = Number(process.env.TUNNEL_WAIT_MS) || 30_000;
 let tunnelFailed = false;
 const PUBLIC_URL = process.env.PUBLIC_URL || null;
 
+// Where the host screen sends operators to download the printer helper app. Point this at
+// wherever CI publishes the installers (GitHub Releases by default). Per-OS filenames are
+// resolved by the host page from the release tag; override the base for a private mirror.
+const HELPER_DOWNLOAD_BASE = process.env.HELPER_DOWNLOAD_BASE
+  || 'https://github.com/eljon/bff-photo-booth/releases/latest/download';
+const HELPER_RELEASES_PAGE = process.env.HELPER_RELEASES_PAGE
+  || 'https://github.com/eljon/bff-photo-booth/releases/latest';
+
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const PRINTS_DIR = process.env.PRINTS_DIR || path.join(__dirname, '..', 'prints');
 const MAX_BODY = 32 * 1024 * 1024; // 32 MB — a 300 DPI 4x6 page lands well under this
@@ -322,6 +330,35 @@ function recentMisses(req) {
 }
 const codeLockedOut = (req) => recentMisses(req).length >= CODE_MISS_MAX;
 function noteWrongCode(req) { recentMisses(req).push(Date.now()); }
+
+// Pairing: let the printer helper connect without the operator pasting BOOTH_TOKEN.
+// The host screen (already authed) mints a short-lived, single-use code; the helper
+// exchanges it for the booth token. Codes are 8 chars from a 30-char unambiguous
+// alphabet (~6.5e11 combos), expire fast, and claim attempts are rate-limited, so a
+// code is not worth guessing. Relay mode only — a local booth prints on its own Mac.
+const PAIR_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PAIR_TTL_MS = 10 * 60 * 1000;
+const pairings = new Map(); // code -> { expires }
+function sweepPairings() {
+  const now = Date.now();
+  for (const [code, p] of pairings) if (p.expires <= now) pairings.delete(code);
+}
+function newPairCode() {
+  const bytes = crypto.randomBytes(8);
+  let out = '';
+  for (let i = 0; i < 8; i += 1) out += PAIR_ALPHABET[bytes[i] % PAIR_ALPHABET.length];
+  return out;
+}
+// A wrong pairing code is brute-force material too — same cool-off treatment as vouchers.
+const pairMisses = new Map(); // ip -> [timestamps]
+function recentPairMisses(req) {
+  const ip = clientIp(req);
+  const arr = (pairMisses.get(ip) || []).filter((t) => Date.now() - t < CODE_MISS_WINDOW);
+  pairMisses.set(ip, arr);
+  return arr;
+}
+const pairLockedOut = (req) => recentPairMisses(req).length >= CODE_MISS_MAX;
+function notePairMiss(req) { recentPairMisses(req).push(Date.now()); }
 
 function readBody(req, limit = MAX_BODY) {
   return new Promise((resolve, reject) => {
@@ -1049,6 +1086,7 @@ async function handleApi(req, res, url) {
       pinned: config.pinnedKeys(),
       urls: joinUrls(req),
       stickers: config.listStickers(),
+      helper: { downloadBase: HELPER_DOWNLOAD_BASE, releasesPage: HELPER_RELEASES_PAGE },
     });
   }
 
@@ -1056,6 +1094,33 @@ async function handleApi(req, res, url) {
     if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
     const patch = await readJson(req);
     return sendJson(res, 200, { config: config.save(patch) });
+  }
+
+  // Pairing — the host mints a short-lived code the printer helper redeems for the
+  // booth token, so the operator never copies a secret by hand. Relay only.
+  if (url.pathname === '/api/pair/new' && req.method === 'POST') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    if (MODE !== 'relay') return sendJson(res, 400, { ok: false, error: 'Pairing is only for the cloud relay.' });
+    sweepPairings();
+    const code = newPairCode();
+    pairings.set(code, { expires: Date.now() + PAIR_TTL_MS });
+    return sendJson(res, 200, { ok: true, code, expiresInMs: PAIR_TTL_MS });
+  }
+
+  // Redeemed by the helper (no host token — the code IS the credential). Single-use,
+  // expiring, and rate-limited against guessing. Returns the booth token on success.
+  if (url.pathname === '/api/pair/claim' && req.method === 'POST') {
+    if (MODE !== 'relay') return sendJson(res, 400, { ok: false, error: 'Pairing is only for the cloud relay.' });
+    if (pairLockedOut(req)) return sendJson(res, 429, { ok: false, error: 'Too many attempts. Wait a few minutes and get a fresh code.' });
+    const body = await readJson(req);
+    const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+    sweepPairings();
+    if (!code || !pairings.has(code)) {
+      notePairMiss(req);
+      return sendJson(res, 404, { ok: false, error: 'That code is invalid or has expired. Get a fresh one from the host screen.' });
+    }
+    pairings.delete(code); // single-use
+    return sendJson(res, 200, { ok: true, token: BOOTH_TOKEN, boothName: cfg.boothName || 'BFF Photo Booth' });
   }
 
   // Print codes (vouchers). The host generates a batch, hands them out, and downloads the

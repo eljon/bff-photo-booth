@@ -15,6 +15,25 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.43 — 2026-09-04
+
+**Seamless printer pairing — "Connect a printer" on the host screen.** Groundwork
+for the one-click helper app: the host screen now has a **Connect a printer** card
+(shown in relay mode until a computer is connected) that offers a download and a
+**pairing code**, then **auto-detects** the moment the helper connects — flipping to
+"Printer connected 🎉" and revealing the printer picker, with no page reload.
+
+- **Pairing, so no token is ever pasted.** The host mints a short-lived, single-use
+  code (`POST /api/pair/new`); the helper redeems it for the booth token
+  (`POST /api/pair/claim`). Codes are 8 chars from a 30-char unambiguous alphabet,
+  expire in 10 minutes, and claim attempts are rate-limited against guessing.
+- **The agent can pair with a code.** `PAIR_CODE=XXXXXXXX RELAY_URL=… npm run agent`
+  now works with no `BOOTH_TOKEN` — it trades the code for the token on start-up. The
+  coming helper app uses this same path.
+- The download button points at wherever CI publishes the installer
+  (`HELPER_DOWNLOAD_BASE`, default the repo's GitHub Releases); the app itself lands
+  in the next version.
+
 ## 1.73.42 — 2026-09-04
 
 **Removed the browser-printer page (`/print`).** It was added in v1.70.0 as a

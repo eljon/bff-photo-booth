@@ -109,3 +109,41 @@ body.host { padding: 0 0 40px; }
 .host-pills { display: flex; gap: 8px; align-items: center; }
 .url code, .result-card code { background: #ffffff14; padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }
 #rotateKey { margin-top: 12px; }
+
+/* Connect a printer computer — download the helper, pair, auto-detect. */
+.connect-card {
+  border: 1px solid var(--line);
+  background: #ffffff08;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.connect-lead { margin: 0 0 12px; color: var(--ink-dim); font-size: 14px; line-height: 1.45; }
+.connect-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 14px; }
+.connect-steps li { line-height: 1.5; }
+.connect-dl { display: inline-block; margin-bottom: 6px; }
+.pair-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 30px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  color: var(--ink);
+  user-select: all;
+}
+.connect-waiting { color: var(--ink-dim); font-size: 14px; }
+.connect-waiting::before {
+  content: '';
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: connectPulse 1.2s ease-in-out infinite;
+  vertical-align: baseline;
+}
+@keyframes connectPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+.linklike {
+  background: none; border: none; padding: 0;
+  color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline;
+}

@@ -24,7 +24,11 @@ const cups = require('./cups');
 const build = require('./version');
 
 const RELAY_URL = (process.env.RELAY_URL || '').replace(/\/+$/, '');
-const BOOTH_TOKEN = process.env.BOOTH_TOKEN || '';
+// A pasted booth token, OR a one-time pairing code from the host screen that the agent
+// redeems for the token on start-up (see redeemPairCode). The helper app uses the code
+// path so the operator never copies a secret by hand.
+let BOOTH_TOKEN = process.env.BOOTH_TOKEN || '';
+const PAIR_CODE = (process.env.PAIR_CODE || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const DRY_RUN = process.env.DRY_RUN === '1';
 const PRINTS_DIR = process.env.PRINTS_DIR || path.join(__dirname, '..', 'prints');
 const AGENT_NAME = process.env.AGENT_NAME || `${os.hostname()} booth`;
@@ -40,13 +44,30 @@ const HELLO_EVERY_MS = 60_000;
 // the next job too soon and the printer's own queue fills up. Tune to your printer.
 const PRINT_MS = Number(process.env.PRINT_MS) || 30 * 1000;
 
-if (!RELAY_URL || !BOOTH_TOKEN) {
-  console.error('The agent needs RELAY_URL and BOOTH_TOKEN.');
+if (!RELAY_URL || (!BOOTH_TOKEN && !PAIR_CODE)) {
+  console.error('The agent needs RELAY_URL and either BOOTH_TOKEN or PAIR_CODE.');
   console.error('  RELAY_URL=https://your-booth.example.com BOOTH_TOKEN=… npm run agent');
+  console.error('  …or pair with a code from the host screen: PAIR_CODE=XXXXXXXX');
   process.exit(1);
 }
 
 fs.mkdirSync(PRINTS_DIR, { recursive: true });
+
+/** Trade a one-time pairing code for the booth token, so the helper never needs the
+ *  operator to paste a secret. No-op when a token was supplied directly. */
+async function redeemPairCode() {
+  if (BOOTH_TOKEN || !PAIR_CODE) return;
+  const response = await fetch(`${RELAY_URL}/api/pair/claim`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code: PAIR_CODE }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.token) {
+    throw new Error(data.error || `pairing failed (${response.status})`);
+  }
+  BOOTH_TOKEN = data.token;
+}
 
 /** A stable per-computer id: the pinned AGENT_ID, else the machine's hostname. Distinct
  *  machines get distinct ids automatically; set AGENT_ID to run two agents on one machine. */
@@ -54,7 +75,8 @@ function resolveAgentId() {
   return String(process.env.AGENT_ID || os.hostname() || 'agent').slice(0, 80);
 }
 
-const headers = { 'x-booth-token': BOOTH_TOKEN, 'x-agent-id': AGENT_ID };
+// Built fresh each call — the token may only arrive after redeemPairCode() runs.
+const authHeaders = () => ({ 'x-booth-token': BOOTH_TOKEN, 'x-agent-id': AGENT_ID });
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const stamp = () => new Date().toLocaleTimeString();
 const log = (message) => console.log(`  ${stamp()}  ${message}`);
@@ -65,7 +87,7 @@ let backoff = 1000;
 async function relay(pathname, options = {}) {
   const response = await fetch(`${RELAY_URL}${pathname}`, {
     ...options,
-    headers: { ...headers, ...(options.headers || {}) },
+    headers: { ...authHeaders(), ...(options.headers || {}) },
   });
   if (response.status === 401) throw new Error('the relay rejected BOOTH_TOKEN');
   return response;
@@ -200,6 +222,15 @@ async function runJob(job) {
 }
 
 async function main() {
+  if (!BOOTH_TOKEN && PAIR_CODE) {
+    try {
+      await redeemPairCode();
+      log('paired with the host — token received');
+    } catch (err) {
+      console.error(`  pairing failed: ${err.message}`);
+      process.exit(1);
+    }
+  }
   const localCount = (await localPrinters()).length;
   console.log('');
   console.log(`  ${AGENT_NAME}  v${build.label}`);
