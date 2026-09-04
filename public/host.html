@@ -36,7 +36,7 @@
   </div>
 </div>
 
-<main class="host-grid">
+<main class="host-grid setup-grid">
   <section class="panel join">
     <h2>Guests join here</h2>
     <canvas id="qr" aria-label="QR code for the booth URL"></canvas>
@@ -47,27 +47,10 @@
     <p class="hint screens">Screens: <a href="/view" target="_blank" rel="noopener">Queue board</a> · <a href="/gallery" target="_blank" rel="noopener">All photos</a></p>
   </section>
 
+  <div class="setup-col" id="setupCol">
+  <div class="setup-panels">
   <section class="panel">
     <h2>Printer <span class="pill quiet" id="agentState">…</span></h2>
-
-    <div class="connect-card" id="connectCard" hidden>
-      <p class="connect-lead">No printer connected yet. Install the free BFF Booth Helper on the computer with the printer. It lets this screen see and use its printers.</p>
-      <ol class="connect-steps">
-        <li>
-          <a class="btn btn-primary connect-dl" id="helperDownload" href="#" target="_blank" rel="noopener">
-            <svg class="dl-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-            <span class="dl-label">Download the helper</span>
-          </a>
-          <span class="hint" id="helperOsNote"></span>
-        </li>
-        <li>
-          Open it, then enter this pairing code:
-          <div class="pair-code" id="pairCode">····</div>
-          <span class="hint">The code lasts 10 minutes. <button type="button" class="linklike" id="pairRefresh">Get a new code</button></span>
-        </li>
-        <li><span id="connectWaiting" class="connect-waiting">Waiting for the helper to connect…</span></li>
-      </ol>
-    </div>
 
     <div class="field"><span>Printers to use</span>
       <div id="printerSummary" class="printer-summary"></div>
@@ -131,6 +114,38 @@
     <h2 class="spaced">Recent strips</h2>
     <div id="recent" class="gallery"></div>
   </section>
+  </div><!-- .setup-panels -->
+
+  <div class="connect-gate" id="connectGate" hidden>
+    <div class="connect-modal">
+      <h2>First, connect your printer</h2>
+      <p class="connect-lead">This booth prints through a small helper app on the computer with the printer. Install it, pair it with the two items below, and this panel unlocks the moment it connects.</p>
+      <ol class="connect-steps">
+        <li><b>Download and open the helper.</b>
+          <a class="btn btn-primary connect-dl" id="helperDownload" href="#" target="_blank" rel="noopener">
+            <svg class="dl-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+            <span class="dl-label">Download the helper</span>
+          </a>
+          <span class="hint" id="helperOsNote"></span>
+        </li>
+        <li><b>Paste the booth address.</b>
+          <div class="copy-field">
+            <code id="boothAddress">…</code>
+            <button class="btn btn-ghost copy-btn" type="button" data-copy="boothAddress">Copy</button>
+          </div>
+        </li>
+        <li><b>Enter the pairing code.</b>
+          <div class="copy-field">
+            <span class="pair-code" id="pairCode">····</span>
+            <button class="btn btn-ghost copy-btn" type="button" data-copy="pairCode">Copy</button>
+          </div>
+          <span class="hint" id="pairTimer">…</span>
+        </li>
+      </ol>
+      <div class="connect-waiting" id="connectWaiting">Waiting for the helper to connect…</div>
+    </div>
+  </div>
+  </div><!-- .setup-col -->
 </main>
 
 <div class="toast hidden" id="toast"></div>

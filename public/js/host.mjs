@@ -240,33 +240,69 @@ function renderHelperDownload() {
   }
 }
 
-/** Fetch a fresh pairing code to show in the card (idempotent unless forced). */
+let pairExpiresAt = 0;
+let pairTicker = null;
+
+/** The booth's own web address, which the operator pastes into the helper app. */
+function setBoothAddress() {
+  const el = $('boothAddress');
+  if (el) el.textContent = location.origin;
+}
+
+/** Fetch a fresh pairing code (idempotent unless forced or the current one expired). */
 async function ensurePairCode(force = false) {
-  if (pairPending || (pairCode && !force)) return;
+  if (pairPending || (pairCode && !force && Date.now() < pairExpiresAt)) return;
   pairPending = true;
   try {
     const r = await post('/api/pair/new', {});
     pairCode = r.code || '';
+    pairExpiresAt = Date.now() + (r.expiresInMs || 10 * 60 * 1000);
     $('pairCode').textContent = pairCode || '····';
+    startPairTimer();
   } catch {
-    /* leave the placeholder; the refresh button can retry */
+    /* leave the placeholder; the next poll retries */
   } finally {
     pairPending = false;
   }
 }
 
+/** Count the pairing code down; when it expires, mint a fresh one automatically. */
+function startPairTimer() {
+  clearInterval(pairTicker);
+  updatePairTimer();
+  pairTicker = setInterval(updatePairTimer, 1000);
+}
+
+function updatePairTimer() {
+  const el = $('pairTimer');
+  const gate = $('connectGate');
+  if (!el || !gate || gate.hidden) { clearInterval(pairTicker); return; }
+  const ms = pairExpiresAt - Date.now();
+  if (ms <= 0) {
+    el.textContent = 'Code expired. Getting a new one…';
+    clearInterval(pairTicker);
+    ensurePairCode(true); // auto-generate a new pin after it expires
+    return;
+  }
+  const total = Math.round(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, '0');
+  el.textContent = `This code expires in ${m}:${s}. A new one is generated automatically.`;
+}
+
 /** Show/hide the connect card from a /api/printers payload, and celebrate a new connection. */
 function renderConnect(data) {
   renderAgentPill(data);
-  const card = $('connectCard');
-  if (!card) return;
+  const gate = $('connectGate');
+  if (!gate) return;
   const online = Boolean(data.agentOnline);
-  const showCard = Boolean(data.remote) && !online;
-  card.hidden = !showCard;
-  if (showCard) { renderHelperDownload(); ensurePairCode(); }
+  const showGate = Boolean(data.remote) && !online;
+  gate.hidden = !showGate;
+  if (showGate) { renderHelperDownload(); setBoothAddress(); ensurePairCode(); }
+  else { clearInterval(pairTicker); }
   if (lastAgentOnline === false && online) {
     toast('Printer connected! 🎉');
-    pairCode = ''; // spent its purpose; a later disconnect mints a fresh one
+    pairCode = ''; pairExpiresAt = 0; // spent its purpose; a later disconnect mints a fresh one
     loadPrinters(); // a computer arrived — populate the picker
   }
   lastAgentOnline = online;
@@ -303,12 +339,12 @@ async function loadPrinters() {
   renderPrinterSummary();
   renderPrinterList(data);
 
-  // Initial connect-card state (visibility only; pollConnect handles live transitions).
-  const card = $('connectCard');
-  if (card) {
-    const showCard = Boolean(data.remote) && !data.agentOnline;
-    card.hidden = !showCard;
-    if (showCard) { renderHelperDownload(); ensurePairCode(); }
+  // Initial connect-gate state (visibility only; pollConnect handles live transitions).
+  const gate = $('connectGate');
+  if (gate) {
+    const showGate = Boolean(data.remote) && !data.agentOnline;
+    gate.hidden = !showGate;
+    if (showGate) { renderHelperDownload(); setBoothAddress(); ensurePairCode(); }
     if (lastAgentOnline === null) lastAgentOnline = Boolean(data.agentOnline);
   }
 }
@@ -576,7 +612,20 @@ function bind() {
     loadVouchers();
   });
 
-  $('pairRefresh').addEventListener('click', () => ensurePairCode(true));
+  // Copy buttons in the connect gate (booth address, pairing code).
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('.copy-btn');
+    if (!btn) return;
+    const target = $(btn.dataset.copy);
+    const text = target ? target.textContent.trim() : '';
+    if (!text || !navigator.clipboard) { toast('Long-press to copy.'); return; }
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1200);
+    }).catch(() => toast('Could not copy. Long-press to copy.'));
+  });
 
   $('choosePrinters').addEventListener('click', () => {
     const list = $('printerList');

@@ -221,3 +221,45 @@ body.host { padding: 0 0 40px; }
 .detail-meta dd { margin: 0; text-align: right; font-weight: 600; }
 .detail-actions { display: flex; flex-direction: column; gap: 8px; }
 .detail-actions .btn { width: 100%; text-align: center; }
+
+/* First-use setup: two columns (QR left, settings right) with a gate over the right
+   side until the printer helper connects. Scoped to the host page (.setup-grid) so the
+   gallery's .host-grid keeps its own auto-fit layout. */
+.setup-grid { grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); }
+.setup-col { position: relative; min-width: 0; }
+.setup-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .setup-grid { grid-template-columns: 1fr; } }
+
+.connect-gate {
+  /* Cover the settings column. min-height:100% (not inset:0) so a short column still
+     gives the modal full room instead of clipping it. */
+  position: absolute; top: 0; left: 0; right: 0; min-height: 100%; z-index: 6;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 6px; box-sizing: border-box;
+  background: var(--overlay); backdrop-filter: blur(6px);
+  border-radius: 16px;
+}
+.connect-modal {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 22px 22px 20px; max-width: 460px; width: 100%;
+  box-shadow: 0 24px 60px -24px #000a;
+}
+.connect-modal h2 { margin: 0 0 8px; font-size: 20px; text-transform: none; letter-spacing: 0; }
+.connect-modal .connect-steps { padding-left: 20px; }
+.connect-modal .connect-steps li { line-height: 1.5; }
+/* Block-level so the OS note always sits on its own line below the button, snug to content. */
+.connect-modal .connect-dl { display: flex; width: fit-content; margin: 8px 0 6px; }
+
+.copy-field { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.copy-field code, .copy-field .pair-code { flex: 1; min-width: 0; margin: 0; }
+.copy-field code {
+  background: var(--surface); border: 1px solid var(--line);
+  padding: 10px 12px; border-radius: 10px; font-size: 13px; word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.copy-field .pair-code {
+  padding: 6px 12px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; text-align: center; font-size: 26px;
+}
+.copy-btn { flex: none; padding: 9px 14px; font-size: 13px; }
+.copy-btn.copied { color: var(--ok); border-color: var(--ok); }

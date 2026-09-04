@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.75.2 - 2026-09-04
+
+**Host first-use: a setup gate that makes installing the helper unmissable.** On a cloud booth
+with no printer computer connected yet, the host page now blocks the settings side (everything
+to the right of the QR panel) with a modal that walks the operator through connecting the printer:
+
+- Step 1: download and open the helper (the branded download button, with the OS note below it).
+- Step 2: the booth address to paste into the helper, shown with a one-tap Copy button.
+- Step 3: the pairing code, shown large with its own Copy button, a live countdown, and automatic
+  regeneration when it expires (the 10-minute pin no longer goes stale silently).
+- A "waiting for the helper to connect" indicator; the whole gate disappears the moment the
+  helper connects, revealing the settings.
+
+The host layout is now two columns (QR left, settings right) so the gate can cover just the
+settings; the guest QR stays visible throughout. The gallery page is unaffected.
+
 ## 1.75.1 - 2026-09-04
 
 **Replaced the spaced-hyphen "dashes" in user-facing text with real punctuation.** The earlier
