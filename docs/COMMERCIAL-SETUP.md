@@ -117,6 +117,16 @@ codes in Stripe. A code has two parts: a **Coupon** (the discount rule) and a **
 Notes: promotion codes are **mode-specific** - a code made in Test mode will not work on a live
 checkout, so create the real ones in Live mode. You can deactivate a code any time on its page.
 
+**100%-off (free) codes:** Stripe only allows a no-cost order (total $0) when the Checkout
+Session is created on **API version 2023-08-16 or later**. The app pins that version on the
+checkout request (`stripe-version` header in `server/commercial/payments.js`), so free codes
+redeem even on older accounts. Without that pin, a 100%-off code shows "This code is invalid."
+
+**Partial-discount minimum:** a code that leaves a total **between about $0.01 and the ~$0.50
+minimum charge** is rejected as invalid. So a partial discount must leave **more than ~$1.00**,
+or be 100% off. At the $5.99 price that means any single code up to about 83% off is fine; above
+that, use 100%.
+
 ---
 
 ## 2. Google — published (production) sign-in

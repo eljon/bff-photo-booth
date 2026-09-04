@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.18 - 2026-09-04
+
+**Fix: 100%-off promotion codes were rejected as "This code is invalid" at checkout.**
+
+Stripe only processes a no-cost order (a 100%-off code that brings the total to $0) when the
+Checkout Session is created on **API version 2023-08-16 or later**. Accounts older than that
+default to an earlier version, so free codes failed. The checkout request now pins
+`stripe-version: 2023-08-16` (in `server/commercial/payments.js`), enabling no-cost orders
+without changing the account-wide API version.
+
+Also documented in `docs/COMMERCIAL-SETUP.md`: a partial-discount code that leaves a total
+between about $0.01 and the ~$0.50 minimum charge is also invalid, so partial codes must leave
+more than ~$1.00 or be 100% off.
+
 ## 1.74.17 - 2026-09-04
 
 **Session price set to $5.99, and discount codes enabled at checkout.**

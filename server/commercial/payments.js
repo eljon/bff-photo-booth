@@ -38,6 +38,11 @@ async function createCheckout({ sessionId, userEmail, successUrl, cancelUrl }) {
     headers: {
       authorization: `Bearer ${SECRET}`,
       'content-type': 'application/x-www-form-urlencoded',
+      // No-cost orders (a 100%-off promotion code that brings the total to $0) require
+      // Stripe API version 2023-08-16 or later. Pin it here so free codes redeem even on
+      // accounts whose default API version predates that, without changing the account-wide
+      // version. https://docs.stripe.com/payments/checkout/no-cost-orders
+      'stripe-version': '2023-08-16',
     },
     body: form.toString(),
   });
