@@ -57,7 +57,9 @@ test('the changelog documents the version that is running', async () => {
   const version = createRequire(import.meta.url)('../package.json').version;
   const changelog = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
 
-  assert.match(changelog, new RegExp(`^## ${version.replace(/\./g, '\\.')} — `, 'm'),
-    `CHANGELOG.md has no entry for ${version} — bump one or the other`);
+  // Accept either an em dash (older entries) or a spaced hyphen (new entries, per the
+  // no-em-dash-in-user-facing-text rule) as the version/date separator.
+  assert.match(changelog, new RegExp(`^## ${version.replace(/\./g, '\\.')} [—-] `, 'm'),
+    `CHANGELOG.md has no entry for ${version}: bump one or the other`);
   assert.match(changelog, /npm run update/, 'the changelog should say how to update');
 });

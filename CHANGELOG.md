@@ -15,6 +15,12 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.16 - 2026-09-04
+
+**Facebook sign-in button hidden for now.** Google is the only visible social button while
+Facebook's app finishes going Live. The Facebook button carries a `hidden` attribute (same as
+Apple); re-enabling it is just removing that attribute once the app is Live and its keys are set.
+
 ## 1.74.15 — 2026-09-04
 
 **Apple button now actually hidden, and em dashes removed from user-facing text.**
