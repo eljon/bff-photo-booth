@@ -301,7 +301,7 @@ function renderConnect(data) {
   if (showGate) { renderHelperDownload(); setBoothAddress(); ensurePairCode(); }
   else { clearInterval(pairTicker); }
   if (lastAgentOnline === false && online) {
-    toast('Printer connected! 🎉');
+    toast('Printer connected!');
     pairCode = ''; pairExpiresAt = 0; // spent its purpose; a later disconnect mints a fresh one
     loadPrinters(); // a computer arrived — populate the picker
   }

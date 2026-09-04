@@ -1133,3 +1133,14 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   cursor: pointer; padding: 0;
 }
 .theme-toggle:hover { border-color: var(--ink-dim); }
+
+/* SVG icons in place of emoji. */
+.icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; }
+.result-card { position: relative; }
+.result-emoji { color: var(--ink); line-height: 0; }
+.result-emoji svg { width: 54px; height: 54px; }
+.qw-icon svg { width: 22px; height: 22px; display: block; }
+
+/* Confetti burst for the celebratory "all done" result. */
+.confetti-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; z-index: 3; }
+.confetti-bit { position: absolute; width: 8px; height: 13px; border-radius: 2px; will-change: transform, opacity; }

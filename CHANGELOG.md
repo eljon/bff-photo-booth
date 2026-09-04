@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.76.0 - 2026-09-04
+
+**Emoji replaced with proper SVG icons app-wide, and the celebrate emoji is now a confetti
+burst.** A new `public/js/icons.mjs` provides a line-style icon set (stroke follows the text
+colour, so it works in light and dark):
+
+- Guest result screen: the per-state emoji (waiting, in queue, printing, failed, skipped,
+  cancelled, done, saved, offline, could-not-build, no-code, key, signal) are now icons, and the
+  collapsed status widget uses icons too.
+- The "all done" state fires a real confetti burst from the result card (Web Animations API,
+  suppressed under reduce-motion and in dry-run), replacing the party emoji.
+- Host sign-in lock, the "temporary name" badge on landing/dashboard, the print-code sheet
+  ticket, close and star buttons, and the landing checkmarks are all icons now.
+- The queue board (`view.html`) uses icons for its now-printing / starting / waiting tags and the
+  fullscreen control; server console banners drop their decorative emoji.
+
 ## 1.75.3 - 2026-09-04
 
 **Fix: the setup gate could show with blank address and pin.** The gate's `.connect-gate`

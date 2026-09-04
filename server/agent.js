@@ -198,12 +198,12 @@ async function runJob(job) {
     const outcome = await printJob(job);
     if (!outcome.ok) {
       await report(job, outcome);
-      log(`  → failed: ${outcome.error}`);
+      log(`  failed: ${outcome.error}`);
       return;
     }
     if (DRY_RUN) {
       await report(job, { ...outcome, done: true }); // nothing real to wait for
-      log('  → dry run: reported done');
+      log('  dry run: reported done');
       return;
     }
     // Two phases: tell the relay it STARTED (so the guest sees "Printing now"), then
@@ -211,13 +211,13 @@ async function runJob(job) {
     // holds this printer busy for one real print and teaches the relay the true duration.
     const startedAt = Date.now();
     await report(job, { ...outcome, started: true });
-    log(`  → printing (CUPS ${outcome.cupsJobId || 'accepted'})`);
+    log(`  printing (CUPS ${outcome.cupsJobId || 'accepted'})`);
     await waitForCupsDone(outcome.cupsJobId, startedAt);
     await report(job, { ...outcome, done: true });
-    log('  → done');
+    log('  done');
   } catch (err) {
     await report(job, { ok: false, error: err.message }).catch(() => {});
-    log(`  → failed: ${err.message}`);
+    log(`  failed: ${err.message}`);
   }
 }
 

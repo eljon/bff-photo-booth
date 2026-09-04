@@ -188,7 +188,7 @@ async function saveQueue() {
     await fsp.writeFile(tmp, data);
     await fsp.rename(tmp, QUEUE_FILE);
   } catch (err) {
-    console.error('  ⚠ could not save the queue:', err.message);
+    console.error('  could not save the queue:', err.message);
   }
 }
 
@@ -220,7 +220,7 @@ function loadQueue() {
   }
   if (restored) {
     const waiting = [...jobs.values()].filter((j) => j.status === 'pending' || j.status === 'awaiting-approval').length;
-    console.log(`  ↺ restored ${restored} job${restored === 1 ? '' : 's'} from disk, ${waiting} still to print${requeued ? `, ${requeued} re-queued` : ''}.`);
+    console.log(`  restored ${restored} job${restored === 1 ? '' : 's'} from disk, ${waiting} still to print${requeued ? `, ${requeued} re-queued` : ''}.`);
   }
 }
 
@@ -614,8 +614,8 @@ function notifyAgents() {
 // The server owns the print queue. Jobs wait here as 'pending' and are dispatched
 // to the printer one at a time; the next is released only once the printer reports
 // the current one finished — so a guest's position reflects the real printer, not
-// a stopwatch. Statuses: awaiting-approval → pending → printing (booth) / claimed
-// (relay agent) → done | failed | rejected.
+// a stopwatch. Statuses: awaiting-approval pending printing (booth) / claimed
+// (relay agent) done | failed | rejected.
 let avgPrintMs = PRINT_MS;   // rolling estimate, learned from real print durations
 let dispatching = false;     // guard so we never dispatch two jobs at once
 let printerWatch = null;     // interval polling CUPS until the current print finishes
@@ -642,9 +642,9 @@ function completeJob(job) {
   job.doneAt = Date.now();
   recordDuration(job.doneAt - (jobStartedAt(job) || job.doneAt));
   persist();
-  console.log(`  ✓ finished job ${job.id.slice(0, 8)}${job.cupsJobId ? ` (CUPS ${job.cupsJobId})` : ''}`);
+  console.log(`  finished job ${job.id.slice(0, 8)}${job.cupsJobId ? ` (CUPS ${job.cupsJobId})` : ''}`);
   // Fire-and-forget: releasing the next job must never crash the booth if it trips.
-  pumpPrinter().catch((err) => console.error('  ⚠ could not release the next print:', err.message));
+  pumpPrinter().catch((err) => console.error('  could not release the next print:', err.message));
 }
 
 /** Send one job to a local printer and mark it printing (booth mode). `assigned` names the
@@ -667,7 +667,7 @@ async function dispatchToPrinter(job, assigned = null) {
     job.status = 'failed';
     job.error = error;
     refundVoucher(job);
-    console.error(`  ✗ print failed for job ${job.id.slice(0, 8)}: ${error}`);
+    console.error(`  print failed for job ${job.id.slice(0, 8)}: ${error}`);
     return;
   }
 
@@ -680,7 +680,7 @@ async function dispatchToPrinter(job, assigned = null) {
     try {
       const { options: sizes } = await cups.mediaOptions(name);
       const bl = cups.borderlessFor(sizes, media);
-      if (bl) { console.log(`  · borderless: ${media} → ${bl}`); media = bl; }
+      if (bl) { console.log(`  · borderless: ${media} ${bl}`); media = bl; }
     } catch { /* fall back to the requested size */ }
   }
 
@@ -689,7 +689,7 @@ async function dispatchToPrinter(job, assigned = null) {
     job.status = 'failed';
     job.error = result.error;
     refundVoucher(job);
-    console.error(`  ✗ print failed for job ${job.id.slice(0, 8)} on ${name}: ${result.error}`);
+    console.error(`  print failed for job ${job.id.slice(0, 8)} on ${name}: ${result.error}`);
     return;
   }
   job.status = 'printing';
@@ -698,7 +698,7 @@ async function dispatchToPrinter(job, assigned = null) {
   job.cupsJobId = result.jobId;
   job.printedAt = Date.now();
   job.seenActive = false;
-  console.log(`  → printing job ${job.id.slice(0, 8)} on ${name}${result.jobId ? ` (CUPS ${result.jobId})` : ''}`);
+  console.log(`  printing job ${job.id.slice(0, 8)} on ${name}${result.jobId ? ` (CUPS ${result.jobId})` : ''}`);
   startPrinterWatch();
 }
 
@@ -775,7 +775,7 @@ function imageUrl(job) {
 
 // The FIFO schedule over the jobs actually in the queue right now — the one on the
 // printer plus everything waiting behind it (real state, not a stopwatch). Returns
-// those jobs oldest-first and a map of job id → epoch ms it will finish printing.
+// those jobs oldest-first and a map of job id epoch ms it will finish printing.
 // The job on the printer is anchored to when it really started (so its remaining
 // time counts down for real); each waiting job takes one avgPrintMs slot after.
 function printSchedule(now) {
@@ -1286,7 +1286,7 @@ async function handleApi(req, res, url) {
     const online = MODE === 'relay' ? agentOnline() : true;
     if (MODE === 'relay' && !online && job.status !== 'awaiting-approval') {
       const waiting = [...jobs.values()].filter((j) => j.status === 'pending').length;
-      console.log(`  ⏳ queued job ${id.slice(0, 8)}, the booth Mac is offline; ${waiting} waiting for it to reconnect`);
+      console.log(`  queued job ${id.slice(0, 8)}, the booth Mac is offline; ${waiting} waiting for it to reconnect`);
     }
 
     if (!cfg.requireApproval) await pumpPrinter();
@@ -1784,14 +1784,14 @@ server.listen(PORT, HOST, async () => {
 // A booth runs unattended through a whole party. An isolated promise rejection
 // (a flaky lpstat, a printer that vanishes mid-job) is safe to log and shrug off.
 process.on('unhandledRejection', (err) => {
-  console.error('  ⚠ unhandled rejection (booth kept running):', err && err.message ? err.message : err);
+  console.error('  unhandled rejection (booth kept running):', err && err.message ? err.message : err);
 });
 // An uncaught exception, though, can leave the process in a broken state that
 // still "runs" but serves nothing — the dead-but-alive booth. Log it and EXIT so
-// the supervisor (npm start → server/booth.js) brings up a clean one right away,
+// the supervisor (npm start server/booth.js) brings up a clean one right away,
 // instead of sitting there wedged.
 process.on('uncaughtException', (err) => {
-  console.error('  ⚠ fatal error, restarting the booth:', err && err.stack ? err.stack : err);
+  console.error('  fatal error, restarting the booth:', err && err.stack ? err.stack : err);
   try { tunnel.close(); } catch { /* ignore */ }
   process.exit(1);
 });

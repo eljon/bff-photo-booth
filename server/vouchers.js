@@ -79,7 +79,7 @@ class VoucherStore {
       if (!v.used && !isClean(code)) { this.codes.delete(code); removed += 1; }
     }
     if (removed) {
-      console.log(`  ⚠ removed ${removed} print code${removed === 1 ? '' : 's'} that spelled something off; regenerate to top up.`);
+      console.log(`  removed ${removed} print code${removed === 1 ? '' : 's'} that spelled something off; regenerate to top up.`);
       this._save();
     }
   }
@@ -91,7 +91,7 @@ class VoucherStore {
       await fsp.writeFile(tmp, data);
       await fsp.rename(tmp, this.file);
     } catch (err) {
-      console.error('  ⚠ could not save vouchers:', err.message);
+      console.error('  could not save vouchers:', err.message);
     }
   }
 

@@ -1149,6 +1149,17 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 }
 .theme-toggle:hover { border-color: var(--ink-dim); }
 
+/* SVG icons in place of emoji. */
+.icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; }
+.result-card { position: relative; }
+.result-emoji { color: var(--ink); line-height: 0; }
+.result-emoji svg { width: 54px; height: 54px; }
+.qw-icon svg { width: 22px; height: 22px; display: block; }
+
+/* Confetti burst for the celebratory "all done" result. */
+.confetti-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; z-index: 3; }
+.confetti-bit { position: absolute; width: 8px; height: 13px; border-radius: 2px; will-change: transform, opacity; }
+
 </style>
 </head>
 <body>
@@ -1248,7 +1259,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 <!-- Print-code (voucher) prompt: shown before a print when the booth requires a code. -->
 <div class="sheet hidden" id="codeSheet" role="dialog" aria-modal="true" aria-label="Enter print code">
   <div class="sheet-card code-card">
-    <h2 class="code-title">🎟️ Enter your print code</h2>
+    <h2 class="code-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 6v2M13 11v2M13 16v2"/></svg> Enter your print code</h2>
     <p class="code-note">Type the code from your voucher to print.</p>
     <input id="codeInput" class="code-input" type="text" inputmode="text" autocomplete="off"
            autocapitalize="characters" spellcheck="false" maxlength="6" aria-label="Print code">
@@ -1264,7 +1275,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
   <div class="sheet-card">
     <div class="sheet-head">
       <h2>Adjust photo <span id="editorIndex" class="pill"></span></h2>
-      <button class="icon-btn" id="editorClose" type="button" aria-label="Close">✕</button>
+      <button class="icon-btn" id="editorClose" type="button" aria-label="Close"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="crop-wrap">
       <canvas id="cropCanvas"></canvas>
@@ -1278,7 +1289,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
       <button class="btn btn-ghost danger" id="removeBtn" type="button">Remove</button>
     </div>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="makeHero" type="button">★ Make this the big one</button>
+      <button class="btn btn-ghost" id="makeHero" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 22l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></svg> Make this the big one</button>
     </div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="moveLeft" type="button">← Move back</button>
@@ -1292,7 +1303,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 <div class="overlay hidden" id="result" role="dialog" aria-modal="true">
   <div class="result-card">
     <div class="result-tag hidden" id="resultTag" aria-label="Your print number"></div>
-    <div class="result-emoji" id="resultEmoji">🖨️</div>
+    <div class="result-emoji" id="resultEmoji"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg></div>
     <h2 id="resultTitle">Sending to the printer…</h2>
     <p id="resultBody">Hold tight.</p>
     <img id="resultImage" alt="Your print" class="result-image hidden">
@@ -1312,7 +1323,7 @@ body.is-empty .stage { min-height: 56vh; justify-content: center; }
 <div id="pinchLayer" aria-hidden="true"></div>
 
 <button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
-  <span class="qw-icon" id="qwIcon">🖨️</span>
+  <span class="qw-icon" id="qwIcon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg></span>
   <span class="qw-title" id="qwTitle"></span>
   <span class="qw-sub" id="qwSub"></span>
 </button>
@@ -3698,7 +3709,7 @@ function onPrinter(job) {
 function showJob(job) {
   if (job.status === 'awaiting-approval') {
     return showResult({
-      emoji: '👀',
+      icon: 'eye',
       title: 'Waiting for the host',
       body: 'Your print is in the queue. The booth host taps print. Stay close to the tray.',
       image: job.image,
@@ -3707,7 +3718,7 @@ function showJob(job) {
   }
   if (job.status === 'pending') {
     return showResult({
-      emoji: '⏳',
+      icon: 'hourglass',
       title: 'In the queue',
       body: 'Your print is lined up. Hang tight.',
       image: job.image,
@@ -3716,7 +3727,7 @@ function showJob(job) {
   }
   if (job.status === 'printing' || job.status === 'claimed') {
     return showResult({
-      emoji: '🖨️',
+      icon: 'printer',
       title: session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       body: session.dryRun
         ? 'Dry-run mode. Nothing is sent to a real printer.'
@@ -3727,7 +3738,7 @@ function showJob(job) {
   }
   if (job.status === 'failed') {
     return showResult({
-      emoji: '🙃',
+      icon: 'frown',
       title: 'The printer said no',
       body: `${job.error || 'Printing failed.'} You can still save the photo to your phone.`,
       image: job.image,
@@ -3735,7 +3746,7 @@ function showJob(job) {
   }
   if (job.status === 'rejected') {
     return showResult({
-      emoji: '🤷',
+      icon: 'skip',
       title: 'The host skipped this one',
       body: 'Ask them why. You can still save it to your phone.',
       image: job.image,
@@ -3743,7 +3754,7 @@ function showJob(job) {
   }
   if (job.status === 'cancelled') {
     return showResult({
-      emoji: '🚫',
+      icon: 'ban',
       title: 'Print cancelled',
       body: 'The host cancelled this print. You can still save it to your phone.',
       image: job.image,
@@ -3751,7 +3762,8 @@ function showJob(job) {
   }
   // 'done' (or the legacy 'queued'): the print has finished.
   return showResult({
-    emoji: '🎉',
+    icon: 'success',
+    celebrate: !session.dryRun,
     title: session.dryRun ? 'Saved (dry run)' : 'All done!',
     body: session.dryRun
       ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
@@ -3789,7 +3801,7 @@ function stillWaiting(job) {
 function showQueue(job) {
   if (job.agentOnline === false) {
     showResult({
-      emoji: '🧾',
+      icon: 'receipt',
       title: 'Saved to the print queue',
       body: "The booth is offline right now. Your print is safe in the queue and will come out the moment it's back online. Tap Done to keep browsing.",
       image: job.image,
@@ -3799,7 +3811,7 @@ function showQueue(job) {
   const q = job.queue;
   const seconds = Math.max(0, Math.round((q.readyAt - Date.now()) / 1000));
   showResult({
-    emoji: '🧾',
+    icon: 'receipt',
     title: q.position <= 1 ? "You're next in line" : `You're number ${q.position} in the queue`,
     body: `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing. We'll keep your place.`,
     image: job.image,
@@ -3816,9 +3828,9 @@ function compactEta(seconds) {
 /** Fill the collapsed round queue widget (icon + place + ETA). */
 function updateQueuePill(job) {
   // Print number leads (the guest's ticket); the sub line carries place in line + ETA.
-  let icon = '🖨️', title = printTag(job) || 'Print', sub = '';
+  let iconName = 'printer', title = printTag(job) || 'Print', sub = '';
   if (stillWaiting(job)) {
-    icon = '🖨️';
+    iconName = 'printer';
     if (job.agentOnline === false) {
       sub = 'queued';
     } else {
@@ -3827,18 +3839,18 @@ function updateQueuePill(job) {
       sub = `${place} · ${compactEta(seconds)}`;
     }
   } else if (isActiveJob(job)) {
-    icon = '🖨️';
+    iconName = 'printer';
     // Show the host-set printer name here too (not only in the expanded card), so it stays
     // visible when the status is collapsed to the widget.
     sub = job.printerLabel ? `on ${job.printerLabel}` : 'printing';
   } else if (job && (job.status === 'failed' || job.status === 'rejected')) {
-    icon = '⚠️';
+    iconName = 'alert';
     sub = 'issue';
   } else {
-    icon = '🎉';
+    iconName = 'success';
     sub = 'ready';
   }
-  $('qwIcon').textContent = icon;
+  $('qwIcon').innerHTML = renderIcon(iconName);
   $('qwTitle').textContent = title;
   $('qwSub').textContent = sub;
 }
@@ -3857,7 +3869,7 @@ function renderJob(job) {
   // flicker between "Sending" and "Printing now".
   if (sendRaf != null && (job.status === 'printing' || job.status === 'claimed')) {
     setAnimPhase('printing');
-    setResultText('🖨️', session.dryRun ? 'Printing (dry run)' : 'Printing now!',
+    setResultText('printer', session.dryRun ? 'Printing (dry run)' : 'Printing now!',
       session.dryRun
         ? 'Dry-run mode. Nothing goes to a real printer.'
         : `${copies(['Your copy is', `Your ${job.copies} copies are`])} printing now${onPrinter(job)}. Hang tight, we'll tell you the moment it's ready.`);
@@ -3866,10 +3878,11 @@ function renderJob(job) {
   }
   if (sendRaf != null && (job.status === 'done' || job.status === 'queued')) {
     setAnimPhase('done');
-    setResultText('🎉', session.dryRun ? 'Saved (dry run)' : 'All done!',
+    setResultText('success', session.dryRun ? 'Saved (dry run)' : 'All done!',
       session.dryRun
         ? 'The booth is in dry-run mode, so nothing was sent to a real printer.'
         : `${copies(['Your print is', 'Your prints are'])} ready. ${session.remote ? 'Collect it from the booth.' : 'Grab it from the tray.'}`);
+    if (!session.dryRun) burstConfetti();
     $('resultDone').disabled = false;
     return;
   }
@@ -3877,11 +3890,11 @@ function renderJob(job) {
     // Waiting behind other prints — same canvas, the print held in line.
     setAnimPhase('queue');
     if (job.agentOnline === false) {
-      setResultText('🧾', 'Saved to the print queue',
+      setResultText('receipt', 'Saved to the print queue',
         "The booth is offline right now. Your print is queued and will come out the moment it's back online.");
     } else {
       const seconds = Math.max(0, Math.round((job.queue.readyAt - Date.now()) / 1000));
-      setResultText('🧾',
+      setResultText('receipt',
         job.queue.position <= 1 ? "You're next in line" : `You're number ${job.queue.position} in the queue`,
         `Your print will be ready ${etaText(seconds)}. Tap Done to keep browsing. We'll keep your place.`);
     }
@@ -3960,9 +3973,10 @@ function trackQueue(job) {
   }, 2500);
 }
 
-function showResult({ emoji, title, body, image, busy }) {
+function showResult({ icon: iconName, title, body, image, busy, celebrate }) {
   stopSendAnim(); // any non-sending result screen ends the transmit animation
-  $('resultEmoji').textContent = emoji;
+  $('resultEmoji').innerHTML = renderIcon(iconName);
+  if (celebrate) burstConfetti();
   $('resultTitle').textContent = title;
   $('resultBody').textContent = body;
   $('result').classList.remove('hidden');
@@ -3976,6 +3990,45 @@ function showResult({ emoji, title, body, image, busy }) {
   }
 }
 
+// A confetti burst for the celebratory "all done" state (replaces the old party emoji).
+let lastConfetti = 0;
+function burstConfetti() {
+  const card = document.querySelector('#result .result-card');
+  if (!card || reduceMotion()) return;
+  const now = Date.now();
+  if (now - lastConfetti < 2500) return; // one burst per finish, not per poll tick
+  lastConfetti = now;
+  const colors = ['#6a5cff', '#a24bff', '#ff4d97', '#ff7a4d', '#ffd23f', '#4aa8c9'];
+  const layer = document.createElement('div');
+  layer.className = 'confetti-layer';
+  card.appendChild(layer);
+  const rect = card.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = Math.min(rect.height * 0.3, 130);
+  for (let i = 0; i < 44; i += 1) {
+    const bit = document.createElement('i');
+    bit.className = 'confetti-bit';
+    bit.style.background = colors[i % colors.length];
+    bit.style.left = `${cx}px`;
+    bit.style.top = `${cy}px`;
+    layer.appendChild(bit);
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 50 + Math.random() * 150;
+    const dx = Math.cos(ang) * dist;
+    const dy = Math.sin(ang) * dist - 30; // bias upward at first
+    const fall = rect.height * 0.7 + Math.random() * 90;
+    bit.animate(
+      [
+        { transform: 'translate(-50%,-50%) rotate(0deg)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) rotate(${Math.random() * 360}deg)`, opacity: 1, offset: 0.35 },
+        { transform: `translate(calc(-50% + ${dx * 1.1}px),calc(-50% + ${dy + fall}px)) rotate(${Math.random() * 720}deg)`, opacity: 0 },
+      ],
+      { duration: 1100 + Math.random() * 700, easing: 'cubic-bezier(.2,.6,.2,1)' },
+    ).onfinish = () => bit.remove();
+  }
+  setTimeout(() => layer.remove(), 2200);
+}
+
 // ---- "sending to the printer" animation: the print dissolves into streaming
 // 1/0 bits that fly into a little printer, which glows as it receives them.
 let sendRaf = null;
@@ -3983,8 +4036,8 @@ let sendUrl = null;
 let animPhase = 'sending'; // sending → queue → printing → done, all in one canvas
 
 /** Update just the modal's text, leaving the live canvas in place (no swap). */
-function setResultText(emoji, title, body) {
-  $('resultEmoji').textContent = emoji;
+function setResultText(iconName, title, body) {
+  $('resultEmoji').innerHTML = renderIcon(iconName);
   $('resultTitle').textContent = title;
   $('resultBody').textContent = body;
   $('result').classList.remove('hidden');
@@ -4246,7 +4299,7 @@ function startSendAnim(img) {
 /** Enter the "sending" screen with the transmit animation (or a static image if
  *  the guest prefers reduced motion). */
 function beginSending(blob) {
-  $('resultEmoji').textContent = '📡';
+  $('resultEmoji').innerHTML = renderIcon('offline');
   $('resultTitle').textContent = 'Sending to the booth…';
   $('resultBody').textContent = 'Beaming your photo over.';
   $('result').classList.remove('hidden');
@@ -4329,7 +4382,7 @@ async function doPrint() {
   queueMinimized = false;
   setResultTag(null); // clear any previous print's number until the server assigns this one's
   $('queuePill').classList.add('hidden');
-  showResult({ emoji: '🖨️', title: 'Building your print…', body: 'Rendering at 600 DPI.', busy: true });
+  showResult({ icon: 'printer', title: 'Building your print…', body: 'Rendering at 600 DPI.', busy: true });
 
   let result;
   try {
@@ -4339,7 +4392,7 @@ async function doPrint() {
     // the photos in a touch so borderless edge-overscan trims the watercolor, not them.
     result = await exportPrint(state, { rotateForPaper: true, safeInset: PRINT_SAFE_INSET });
   } catch (err) {
-    showResult({ emoji: '😵', title: 'Could not build the print', body: err.message });
+    showResult({ icon: 'error', title: 'Could not build the print', body: err.message });
     return;
   }
 
@@ -4368,7 +4421,7 @@ async function doPrint() {
     while (status === 402 && data && data.codeError) {
       printCode = await askForCode(data.error || 'That code did not work. Try another.', printCode);
       if (!printCode) {
-        showResult({ emoji: '🎫', title: 'Print cancelled', body: 'No code entered. You can still save the photo to your phone.' });
+        showResult({ icon: 'ticket', title: 'Print cancelled', body: 'No code entered. You can still save the photo to your phone.' });
         return;
       }
       ({ status, data } = await send());
@@ -4382,7 +4435,7 @@ async function doPrint() {
         /* nothing to clear */
       }
       showResult({
-        emoji: '🔑',
+        icon: 'key',
         title: 'Scan the booth QR code',
         body: 'This booth only prints for guests who came in through its QR code. Scan it and try again, and your photos stay put.',
       });
@@ -4391,7 +4444,7 @@ async function doPrint() {
 
     if (status < 200 || status >= 300 || !data.ok) {
       showResult({
-        emoji: '🙃',
+        icon: 'frown',
         title: 'The printer said no',
         body: `${data.error || 'Printing failed.'} You can still save the photo to your phone.`,
       });
@@ -4402,7 +4455,7 @@ async function doPrint() {
     trackQueue(data.job);
   } catch (err) {
     showResult({
-      emoji: '📶',
+      icon: 'wifi',
       title: err.message === 'network' ? 'Lost the connection' : 'Something went wrong',
       body: 'Check your signal and try again, or save the photo to your phone.',
     });

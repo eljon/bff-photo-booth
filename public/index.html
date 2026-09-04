@@ -114,7 +114,7 @@
 <!-- Print-code (voucher) prompt: shown before a print when the booth requires a code. -->
 <div class="sheet hidden" id="codeSheet" role="dialog" aria-modal="true" aria-label="Enter print code">
   <div class="sheet-card code-card">
-    <h2 class="code-title">🎟️ Enter your print code</h2>
+    <h2 class="code-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 6v2M13 11v2M13 16v2"/></svg> Enter your print code</h2>
     <p class="code-note">Type the code from your voucher to print.</p>
     <input id="codeInput" class="code-input" type="text" inputmode="text" autocomplete="off"
            autocapitalize="characters" spellcheck="false" maxlength="6" aria-label="Print code">
@@ -130,7 +130,7 @@
   <div class="sheet-card">
     <div class="sheet-head">
       <h2>Adjust photo <span id="editorIndex" class="pill"></span></h2>
-      <button class="icon-btn" id="editorClose" type="button" aria-label="Close">✕</button>
+      <button class="icon-btn" id="editorClose" type="button" aria-label="Close"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="crop-wrap">
       <canvas id="cropCanvas"></canvas>
@@ -144,7 +144,7 @@
       <button class="btn btn-ghost danger" id="removeBtn" type="button">Remove</button>
     </div>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="makeHero" type="button">★ Make this the big one</button>
+      <button class="btn btn-ghost" id="makeHero" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 22l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></svg> Make this the big one</button>
     </div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="moveLeft" type="button">← Move back</button>
@@ -158,7 +158,7 @@
 <div class="overlay hidden" id="result" role="dialog" aria-modal="true">
   <div class="result-card">
     <div class="result-tag hidden" id="resultTag" aria-label="Your print number"></div>
-    <div class="result-emoji" id="resultEmoji">🖨️</div>
+    <div class="result-emoji" id="resultEmoji"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg></div>
     <h2 id="resultTitle">Sending to the printer…</h2>
     <p id="resultBody">Hold tight.</p>
     <img id="resultImage" alt="Your print" class="result-image hidden">
@@ -178,7 +178,7 @@
 <div id="pinchLayer" aria-hidden="true"></div>
 
 <button class="queue-widget hidden" id="queuePill" type="button" aria-label="Show print status">
-  <span class="qw-icon" id="qwIcon">🖨️</span>
+  <span class="qw-icon" id="qwIcon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg></span>
   <span class="qw-title" id="qwTitle"></span>
   <span class="qw-sub" id="qwSub"></span>
 </button>

@@ -34,12 +34,12 @@ function start() {
     if (Date.now() - startedAt > 60_000) restarts = 0;
     restarts += 1;
     const delay = Math.min(30_000, 1000 * 2 ** Math.min(restarts, 5));
-    console.error(`\n  ⚠ booth server stopped (${signal || 'exit ' + code}). Restarting in ${Math.round(delay / 1000)}s…  [#${restarts}]\n`);
+    console.error(`\n  booth server stopped (${signal || 'exit ' + code}). Restarting in ${Math.round(delay / 1000)}s…  [#${restarts}]\n`);
     setTimeout(() => { if (!stopping) start(); }, delay);
   });
 
   child.on('error', (err) => {
-    console.error('  ⚠ could not launch the booth server:', err.message);
+    console.error('  could not launch the booth server:', err.message);
   });
 }
 
