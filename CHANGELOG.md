@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.6 — 2026-09-04
+
+**Fix commercial deploy on Render.** The repo's root `Dockerfile` is the booth relay, so
+Render (which auto-detects a Dockerfile) was building/running the booth on the default
+branch — it crashes without `BOOTH_TOKEN`. Added **`Dockerfile.saas`** that runs the
+commercial app (`node server/saas.js`, health-checks `/`), and updated `render-saas.yaml`
+to pin `runtime: docker`, `dockerfilePath: ./Dockerfile.saas`, and
+`branch: claude/photo-booth-commercial`. `docs/DEPLOY-COMMERCIAL.md` now spells out setting
+the branch + Dockerfile path (and how to fix an already-failed service in place).
+
 ## 1.74.5 — 2026-09-04
 
 **"Temporary name" is now a caution-tape badge.** Next to the brand on the landing page and

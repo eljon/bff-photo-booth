@@ -20,15 +20,38 @@ subdomain. Deploy it as its **own** service, separate from the single-tenant boo
 
 ## Stage 1 — the web service (Render)
 
-Do **not** use Blueprint (the repo's `render.yaml` is the *booth* config). Create it by hand:
+The repo has **two** Dockerfiles: `./Dockerfile` (the booth relay) and `./Dockerfile.saas`
+(this commercial app). Render auto-detects a Dockerfile, so the two things that MUST be set
+correctly are the **branch** and the **Dockerfile path** — Render's create flow defaults the
+branch to the repo's default (which is the booth) and won't always prompt you.
 
-1. Render → **New ▸ Web Service** → repo `eljon/bff-photo-booth`, **branch
-   `claude/photo-booth-commercial`**.
-2. **Runtime** Node · **Build Command** blank · **Start Command** `npm run saas` · **Plan** Starter.
-3. **Advanced ▸ Add Disk:** name `saas-data`, mount `/data`, 1 GB.
-4. **Environment:** `SAAS_DATA=/data`.
-5. Create. You'll get `https://hawak-mo-ang-booth.onrender.com` — the landing page works now
-   (email login + dev purchase). Everything except *opening* a session's host works already.
+Create it by hand:
+
+1. Render → **New ▸ Web Service** → repo `eljon/bff-photo-booth`.
+2. **Branch:** `claude/photo-booth-commercial`  ← change it from the default; this is the fix
+   for "it deployed the wrong thing."
+3. **Language/Runtime:** Docker. **Dockerfile Path:** `./Dockerfile.saas`.
+4. **Plan:** Starter.
+5. **Advanced ▸ Add Disk:** name `saas-data`, mount `/data`, 1 GB.
+6. **Environment:** `SAAS_DATA=/data`.
+7. Create. You'll get `https://hawak-mo-ang-booth.onrender.com` — landing + email login + dev
+   purchase work now. (Opening a session's host needs Stage 2.)
+
+### Already created a service that failed?
+
+If you have the `hawak-mo-ang-booth` service that failed (it built the booth relay from the
+default branch and crashed — the relay exits without `BOOTH_TOKEN`), just fix it in place:
+
+1. **Settings ▸ Build & Deploy ▸ Branch** → `claude/photo-booth-commercial`.
+2. **Settings ▸ Build & Deploy ▸ Dockerfile Path** → `./Dockerfile.saas`
+   (or, if you can't change the Dockerfile path, set **Docker Command** to `node server/saas.js`).
+3. **Settings ▸ Disks** → add a 1 GB disk mounted at `/data` (if not already).
+4. **Environment** → `SAAS_DATA=/data`.
+5. **Manual Deploy ▸ Deploy latest commit.**
+
+> Blueprint alternative: `render-saas.yaml` now pins both the branch and `Dockerfile.saas`.
+> Rename it to `render.yaml` on the commercial branch and apply it as a Blueprint if you
+> prefer that over the manual service.
 
 ---
 

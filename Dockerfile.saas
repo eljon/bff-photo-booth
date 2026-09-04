@@ -1,0 +1,24 @@
+# The COMMERCIAL app: landing, accounts, dashboard, payments, and per-session booths.
+# Separate from the booth relay's Dockerfile so Render (which auto-detects a Dockerfile)
+# runs the right thing. No npm dependencies.
+FROM node:22-alpine
+
+ENV NODE_ENV=production \
+    SAAS_DATA=/data
+
+WORKDIR /app
+COPY package.json ./
+COPY server ./server
+COPY public ./public
+
+# /data holds accounts and each session's booth data. Mount a volume to keep them across
+# deploys. Left root-owned like the booth image so the mounted volume is always writable.
+RUN mkdir -p /data
+VOLUME ["/data"]
+EXPOSE 8090
+
+# Render injects PORT; saas.js binds it. Health check hits the landing page.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8090)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "server/saas.js"]

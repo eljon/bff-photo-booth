@@ -11,9 +11,13 @@
 services:
   - type: web
     name: hawak-mo-ang-booth
-    runtime: node
+    # The repo has TWO Dockerfiles: ./Dockerfile is the booth relay, ./Dockerfile.saas is
+    # THIS commercial app. Pin the commercial one, and pin the commercial branch (Render
+    # otherwise defaults to the repo's default branch, which is the booth).
+    runtime: docker
+    dockerfilePath: ./Dockerfile.saas
+    branch: claude/photo-booth-commercial
     plan: starter            # stays awake; spawns a booth process per active session
-    startCommand: npm run saas
     healthCheckPath: /
     autoDeploy: true
     envVars:
