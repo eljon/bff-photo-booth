@@ -15,6 +15,16 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.75.1 - 2026-09-04
+
+**Replaced the spaced-hyphen "dashes" in user-facing text with real punctuation.** The earlier
+em-dash removal swapped "—" for a spaced hyphen " - ", which reads exactly like the em dash it
+replaced (e.g. "No app for guests - just their phone camera"). Those now use a comma, a colon,
+or two sentences across the landing, host, dashboard and gallery UI plus the operator console
+banners. Genuine compound hyphens (per-print, Guest-only) are unchanged, and page titles use a
+middot separator. The CLAUDE.md rule is updated: a spaced hyphen is not an acceptable stand-in
+for a dash.
+
 ## 1.75.0 - 2026-09-04
 
 **App-wide light mode.** Every interactive surface (guest app, host screen, all-photos gallery,

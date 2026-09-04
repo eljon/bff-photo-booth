@@ -71,7 +71,7 @@ async function openHost(s, btn) {
   btn.disabled = false; btn.textContent = label;
   if (status === 200 && data.ok) {
     window.open(data.hostUrl, '_blank', 'noopener');
-    toast('Booth ready - the host screen has this session’s QR.');
+    toast('Booth ready. The host screen has this session’s QR.');
   } else {
     toast(data.error || 'Could not start the booth.');
   }
@@ -121,7 +121,7 @@ $('logout').addEventListener('click', async () => { await api('/api/auth/logout'
 
 // Returning from Stripe checkout.
 const params = new URLSearchParams(location.search);
-if (params.get('paid')) { toast('Payment received - your session is active!'); history.replaceState({}, '', '/dashboard'); }
+if (params.get('paid')) { toast('Payment received. Your session is active!'); history.replaceState({}, '', '/dashboard'); }
 if (params.get('cancelled')) { toast('Checkout cancelled.'); history.replaceState({}, '', '/dashboard'); }
 
 (async () => { if (await guard()) load(); })();

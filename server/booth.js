@@ -51,5 +51,5 @@ function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-console.log('  Booth supervisor - keeps the server up. Control-C to stop.');
+console.log('  Booth supervisor keeps the server up. Control-C to stop.');
 start();

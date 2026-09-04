@@ -39,11 +39,11 @@ function inGitRepo() {
 /** Fast-forward to origin's latest. Best-effort — never fatal. */
 function updateToLatest() {
   if (process.env.GUEST_NO_UPDATE === '1') {
-    console.log('  GUEST_NO_UPDATE=1 - skipping the update, starting what is on disk.');
+    console.log('  GUEST_NO_UPDATE=1: skipping the update, starting what is on disk.');
     return;
   }
   if (!inGitRepo()) {
-    console.log('  Not a git checkout - skipping the update, starting what is on disk.');
+    console.log('  Not a git checkout, skipping the update, starting what is on disk.');
     return;
   }
   console.log('  Fetching the latest guest app…');

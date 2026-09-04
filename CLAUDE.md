@@ -23,12 +23,16 @@ so the optimizer chooses the sheet orientation (4×6 portrait vs 6×4 landscape)
 maximizes space — it does not assume portrait.
 
 ## Writing style (hard rule)
-Never use an em dash (the "—" character) in any user-facing text: HTML page content,
-button labels, on-screen microcopy, error/status messages shown to a person, console
-banners the operator reads, and titles. Use a spaced hyphen " - ", a comma, a colon, or
-two sentences instead. This applies to every new string you add and to any string you
-touch. Code comments are not user-facing, but prefer avoiding em dashes there too so none
-ever leak into the product.
+Never use a dash as sentence punctuation in any user-facing text: not an em dash ("—"), an
+en dash ("–"), or a spaced hyphen (" - ") standing in for one. A spaced hyphen is NOT an
+acceptable replacement for an em dash: it reads exactly the same and is just as wrong. Use
+a comma, a colon, or two sentences instead. A hyphen INSIDE a compound word (per-print,
+self-shoot, Guest-only) is fine and should stay. This applies to HTML page content, button
+labels, on-screen microcopy, error/status messages shown to a person, console banners the
+operator reads, and titles (use a middot "·", not a dash, to separate a title from the
+brand). It applies to every new string you add and to any string you touch. Code comments
+are not user-facing, but prefer avoiding these dashes there too so none ever leak into the
+product.
 
 ## Shipping a change
 Every change ships as a version bump: update `package.json` version, add a `CHANGELOG.md`

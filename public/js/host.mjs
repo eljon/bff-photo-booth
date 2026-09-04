@@ -321,7 +321,7 @@ function renderPrinterSummary() {
   const sel = selectedPrinters();
   box.innerHTML = '';
   if (!sel.length) {
-    box.innerHTML = '<p class="hint">No printers chosen - the booth uses whatever printer is available. Tap “Choose printers” to pick and name them.</p>';
+    box.innerHTML = '<p class="hint">No printers chosen. The booth uses whatever printer is available. Tap “Choose printers” to pick and name them.</p>';
     return;
   }
   for (const p of sel) {
@@ -388,7 +388,7 @@ function renderPrinterList(data) {
   }
   $('printerHint').textContent = data.dryRun
     ? 'Dry run: prints are saved but never handed to a printer.'
-    : `${selectedPrinters().length || 'No'} printer${selectedPrinters().length === 1 ? '' : 's'} selected - prints go to whichever is free first.`;
+    : `${selectedPrinters().length || 'No'} printer${selectedPrinters().length === 1 ? '' : 's'} selected. Prints go to whichever is free first.`;
 }
 
 /** Populate the Paper dropdown with the page sizes the selected printer actually
