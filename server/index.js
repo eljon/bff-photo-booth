@@ -1364,15 +1364,141 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, job: publicJob(job), agentOnline: MODE === 'relay' ? agentOnline() : true });
   }
 
+  // Every saved photo (host only) — the gallery lists these; each is fetched from
+  // /prints/<name>?token=… and can be downloaded one by one or all at once.
+  if (url.pathname === '/api/prints' && req.method === 'GET') {
+    if (!hostAuthorised(req)) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const files = await listPrintFiles();
+    return sendJson(res, 200, {
+      ok: true,
+      count: files.length,
+      totalBytes: files.reduce((n, f) => n + f.size, 0),
+      prints: files.map((f) => ({ name: f.name, size: f.size, mtime: f.mtime })),
+    });
+  }
+
+  // All photos as one ZIP. Token rides in the query so a plain browser download is authorised.
+  if (url.pathname === '/api/prints/download.zip' && req.method === 'GET') {
+    const authed = hostAuthorised(req) || (BOOTH_TOKEN && secretsMatch(url.searchParams.get('token'), BOOTH_TOKEN));
+    if (!authed) return sendJson(res, 401, { ok: false, error: 'Host token required.' });
+    const files = await listPrintFiles();
+    res.writeHead(200, {
+      'content-type': 'application/zip',
+      'content-disposition': 'attachment; filename="booth-photos.zip"',
+      'cache-control': 'no-store',
+    });
+    await streamZip(res, files);
+    return undefined;
+  }
+
   return sendJson(res, 404, { ok: false, error: 'No such endpoint.' });
 }
 
 // ---------------------------------------------------------------- static
 
-/** A print is visible to its own guest (via the job token) and to the host. */
+// ---------------------------------------------------------------- gallery / export
+
+const GALLERY_EXT = new Set(['.png', '.jpg', '.jpeg']);
+
+/** Every saved photo on disk (the source of truth, not the in-memory queue), newest first. */
+async function listPrintFiles() {
+  let names = [];
+  try { names = await fsp.readdir(PRINTS_DIR); } catch { return []; }
+  const out = [];
+  for (const name of names) {
+    if (!GALLERY_EXT.has(path.extname(name).toLowerCase())) continue;
+    try {
+      const st = await fsp.stat(path.join(PRINTS_DIR, name));
+      if (st.isFile()) out.push({ name, size: st.size, mtime: st.mtimeMs });
+    } catch { /* vanished between readdir and stat — skip */ }
+  }
+  out.sort((a, b) => b.mtime - a.mtime);
+  return out;
+}
+
+function crc32(buf) {
+  let c = ~0;
+  for (let i = 0; i < buf.length; i += 1) {
+    c ^= buf[i];
+    for (let k = 0; k < 8; k += 1) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
+  }
+  return (~c) >>> 0;
+}
+
+function dosDateTime(d) {
+  const time = ((d.getHours() & 0x1f) << 11) | ((d.getMinutes() & 0x3f) << 5) | ((d.getSeconds() >> 1) & 0x1f);
+  const date = (((d.getFullYear() - 1980) & 0x7f) << 9) | (((d.getMonth() + 1) & 0x0f) << 5) | (d.getDate() & 0x1f);
+  return { time, date };
+}
+
+/** Stream a store-only (uncompressed) ZIP of the given files to res. Photos are already
+ *  compressed, so storing is both fast and small enough, and needs no zip library. One file
+ *  is read into memory at a time. */
+async function streamZip(res, files) {
+  const write = (buf) => new Promise((resolve, reject) => res.write(buf, (err) => (err ? reject(err) : resolve())));
+  const central = [];
+  let offset = 0;
+  for (const f of files) {
+    let data;
+    try { data = await fsp.readFile(path.join(PRINTS_DIR, f.name)); } catch { continue; }
+    const nameBuf = Buffer.from(f.name, 'utf8');
+    const crc = crc32(data);
+    const { time, date } = dosDateTime(new Date(f.mtime));
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);       // version needed
+    local.writeUInt16LE(0x0800, 6);   // flags: UTF-8 filename
+    local.writeUInt16LE(0, 8);        // method: store
+    local.writeUInt16LE(time, 10);
+    local.writeUInt16LE(date, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBuf.length, 26);
+    local.writeUInt16LE(0, 28);
+    await write(Buffer.concat([local, nameBuf]));
+    await write(data);
+    const cd = Buffer.alloc(46);
+    cd.writeUInt32LE(0x02014b50, 0);
+    cd.writeUInt16LE(20, 4);
+    cd.writeUInt16LE(20, 6);
+    cd.writeUInt16LE(0x0800, 8);
+    cd.writeUInt16LE(0, 10);
+    cd.writeUInt16LE(time, 12);
+    cd.writeUInt16LE(date, 14);
+    cd.writeUInt32LE(crc, 16);
+    cd.writeUInt32LE(data.length, 20);
+    cd.writeUInt32LE(data.length, 24);
+    cd.writeUInt16LE(nameBuf.length, 28);
+    cd.writeUInt32LE(0, 30);          // extra + comment len (both 0)
+    cd.writeUInt16LE(0, 34);          // disk number start
+    cd.writeUInt16LE(0, 36);          // internal attrs
+    cd.writeUInt32LE(0, 38);          // external attrs
+    cd.writeUInt32LE(offset, 42);
+    central.push(Buffer.concat([cd, nameBuf]));
+    offset += 30 + nameBuf.length + data.length;
+  }
+  const centralBuf = Buffer.concat(central);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(central.length, 8);
+  eocd.writeUInt16LE(central.length, 10);
+  eocd.writeUInt32LE(centralBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(0, 20);
+  await write(Buffer.concat([centralBuf, eocd]));
+  res.end();
+}
+
+/** A print is visible to its own guest (via the job token) and to the host. The host token
+ *  is also accepted in the query (?token=) so the gallery's <img>/download links work — a
+ *  browser can't set a header on those. */
 function mayReadPrint(req, url, filename) {
   if (!isExposed()) return true;
   if (hostAuthorised(req)) return true;
+  if (BOOTH_TOKEN && secretsMatch(url.searchParams.get('token'), BOOTH_TOKEN)) return true;
   const token = url.searchParams.get('t');
   if (!token) return false;
   for (const job of jobs.values()) {
@@ -1385,6 +1511,7 @@ async function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === '/') rel = '/index.html';
   if (rel === '/host') rel = '/host.html';
+  if (rel === '/gallery') rel = '/gallery.html'; // host-only: all photos + download
   if (rel === '/view') rel = '/view.html';   // the big-screen queue board
 
   // A guest-only booth has no host screen, and its prints live on the upstream

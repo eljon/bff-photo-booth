@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photo Booth · All photos</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body class="host">
+<header class="host-top">
+  <h1>All photos</h1>
+  <div class="host-pills">
+    <a class="pill" href="/host">← Host</a>
+    <span class="pill quiet" id="count">…</span>
+  </div>
+</header>
+
+<main class="host-grid">
+  <section class="panel">
+    <div class="gallery-actions">
+      <button class="btn btn-primary" id="downloadAll" type="button">Download all (.zip)</button>
+      <button class="btn btn-ghost" id="refresh" type="button">Refresh</button>
+    </div>
+    <p class="hint" id="summary">Loading…</p>
+
+    <div class="signin hidden" id="signin">
+      <p class="hint">Enter the booth token to see the photos.</p>
+      <input class="text-input" id="tokenInput" type="password" placeholder="Booth token" autocomplete="off">
+      <button class="btn btn-primary" id="signinBtn" type="button">Show photos</button>
+    </div>
+
+    <div class="gallery gallery-lg" id="grid"></div>
+  </section>
+</main>
+
+<div class="toast hidden" id="toast"></div>
+<script type="module" src="/js/gallery.mjs"></script>
+</body>
+</html>

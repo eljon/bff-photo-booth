@@ -119,6 +119,34 @@ test('/print is gone — the browser-printer path was removed', async (t) => {
   assert.equal((await fetch(`${booth.base}/print`)).status, 404, '/print no longer serves a page');
 });
 
+test('the host can list every saved photo and download them all as a valid zip', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  await printAsGuest(booth);
+  await printAsGuest(booth);
+
+  // Listing needs the host token.
+  assert.equal((await fetch(`${booth.base}/api/prints`)).status, 401);
+  const list = await (await fetch(`${booth.base}/api/prints`, { headers: host })).json();
+  assert.equal(list.count, 2, 'both photos are on disk');
+  assert.ok(list.prints.every((p) => /\.(png|jpe?g)$/i.test(p.name)), 'only image files are listed');
+
+  // The zip download authorises via the query token (a browser download sets no headers).
+  assert.equal((await fetch(`${booth.base}/api/prints/download.zip`)).status, 401);
+  const zipRes = await fetch(`${booth.base}/api/prints/download.zip?token=${encodeURIComponent(TOKEN)}`);
+  assert.equal(zipRes.status, 200);
+  assert.equal(zipRes.headers.get('content-type'), 'application/zip');
+  const zip = Buffer.from(await zipRes.arrayBuffer());
+
+  // Structurally valid: local-file signature at the front, end-of-central-directory at the
+  // back, and its entry count matches the number of photos.
+  assert.deepEqual([...zip.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04], 'starts with a PK local header');
+  const eocd = zip.subarray(zip.length - 22);
+  assert.deepEqual([...eocd.subarray(0, 4)], [0x50, 0x4b, 0x05, 0x06], 'ends with the EOCD record');
+  assert.equal(eocd.readUInt16LE(10), 2, 'the zip contains both photos');
+});
+
 test('pairing: minting needs the host token; claiming needs a valid code', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());

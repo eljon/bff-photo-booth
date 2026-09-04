@@ -15,6 +15,19 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.50 — 2026-09-04
+
+**All-photos gallery with one-click download.** A new host-only page at **`/gallery`**
+(linked from the host screen under "Screens") shows *every* saved photo, with a
+**Download all (.zip)** button and per-photo download. The zip is built by the server
+with no dependencies (store-only, streamed) and validated to open in Finder/`unzip`.
+Individual photos download via `/prints/<name>?token=…`; the list comes from
+`/api/prints` (host token required).
+
+**Guests no longer see the computer's hostname.** The "printing now on …" message now
+shows only the host-set printer name/number — the machine name (e.g.
+"Eljons-MacBook-Pro.local (helper)") is gone from the guest view.
+
 ## 1.73.49 — 2026-09-04
 
 **Guests see the printer name you set — never the raw driver name.** The guest app now

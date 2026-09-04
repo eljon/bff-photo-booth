@@ -1380,12 +1380,11 @@ function uploadPrint(path, blob, onProgress) {
   });
 }
 
-/** How the guest is told which printer their copy is on — the host-set name/number, plus the
- *  computer when it's a separate one. Empty until the print reaches a printer. */
+/** How the guest is told which printer their copy is on — just the host-set name/number,
+ *  never the computer's hostname. Empty until the print reaches a printer. */
 function onPrinter(job) {
   if (!job || !job.printerLabel) return '';
-  const who = job.computer && job.computer !== 'This Mac' ? ` (${job.computer})` : '';
-  return ` on ${job.printerLabel}${who}`;
+  return ` on ${job.printerLabel}`;
 }
 
 /** Turn a job record into what the guest sees. */
