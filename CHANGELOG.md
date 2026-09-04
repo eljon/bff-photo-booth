@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.47 — 2026-09-04
+
+**Helper build can be kicked off by a branch push too.** The release workflow now
+also runs on a push to the `release-helper` branch (publishing `helper-v1.0.0`), so
+the build can be started through the API when neither a tag push nor a workflow
+dispatch is available. Tag pushes and manual dispatch still work.
+
 ## 1.73.46 — 2026-09-04
 
 **Helper build can be kicked off without pushing a tag.** The release workflow now
