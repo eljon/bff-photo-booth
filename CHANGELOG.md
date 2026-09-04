@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.48 — 2026-09-04
+
+**Fix: helper app was rejected by macOS as "malware."** The build skipped code-signing
+entirely, and an unsigned Apple-Silicon app gets macOS's harshest Gatekeeper verdict
+(damaged/malware, moved to Trash). The helper now **ad-hoc signs** the macOS app after
+packing (`helper/afterPack.js`) — free, no Apple account — which downgrades it to the
+normal "unidentified developer" prompt the operator can allow once. (Paid notarization
+later removes even that.)
+
 ## 1.73.47 — 2026-09-04
 
 **Helper build can be kicked off by a branch push too.** The release workflow now

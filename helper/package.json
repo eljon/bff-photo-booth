@@ -19,6 +19,7 @@
   "build": {
     "appId": "com.bffphotobooth.helper",
     "productName": "BFF Booth Helper",
+    "afterPack": "afterPack.js",
     "files": ["main.js", "preload.js", "renderer/**"],
     "extraResources": [
       { "from": "../server", "to": "server" },
