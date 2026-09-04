@@ -15,6 +15,20 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.41 — 2026-09-04
+
+**Groundwork for the paid, multi-tenant service (docs only — no app change).**
+Added `docs/ARCHITECTURE-SAAS.md`, the target design for turning the single
+booth into an account-based service where users sign in (Google / email /
+Facebook), buy a session, open the host from their account, and connect a
+printer with no per-event server to stand up. It spells out the one hard
+constraint (reaching a printer on a private network — the browser tab vs. a
+signed native helper vs. a cloud-print API), the recommended stack, and a
+migration path that evolves today's code instead of rewriting it. Added
+`db/schema.sql`, the first-draft Postgres schema (users, booths, printers,
+agents, sessions, entitlements, vouchers, jobs) that the migration builds on.
+The single-tenant booth is unchanged.
+
 ## 1.73.40 — 2026-09-02
 
 **The host can actually cancel a print now.** The Printer-queue panel only put a Cancel button
