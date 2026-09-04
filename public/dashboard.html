@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — BFF Photo Booth</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/saas.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <div class="brand"><span class="dot"></span> BFF Photo Booth</div>
+    <div>
+      <span id="who" class="meta"></span>
+      <button class="btn ghost" id="logout" type="button">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="dash-head">
+    <h1>Your sessions</h1>
+    <button class="btn primary" id="buy" type="button">+ New session</button>
+  </div>
+
+  <div class="sessions" id="sessions"></div>
+  <div class="empty hidden" id="empty">
+    <p>No sessions yet.</p>
+    <button class="btn primary" id="buyEmpty" type="button">Buy your first session</button>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+<script type="module" src="/js/dashboard.mjs"></script>
+</body>
+</html>

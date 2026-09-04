@@ -15,6 +15,27 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.0 — 2026-09-04
+
+**Commercial track begins (branch `claude/photo-booth-commercial`).** A new, self-contained
+multi-tenant web app — landing → sign up/in → dashboard → buy a session → open its host —
+that does **not** touch the single-tenant booth (that stays on its own branch). Run it with
+`npm run saas` (default port 8090).
+
+- **Accounts** (`server/commercial/`): email + password today (scrypt-hashed, HMAC-signed
+  session cookies); **Google / Apple / Facebook** buttons are shown and light up when their
+  OAuth keys are set (the redirect flow lands next increment).
+- **Dashboard**: lists the signed-in user's sessions (isolated per account) and buys new ones.
+- **Payments**: **Stripe Checkout** when `STRIPE_SECRET_KEY` is set (no SDK dependency — REST
+  + HMAC webhook verification); otherwise a dev "simulate purchase" grants a session so the
+  whole flow is demoable now. `POST /api/sessions/buy`, `POST /api/stripe/webhook`.
+- **Data**: a JSON-backed store (users / sessions / entitlements) behind an interface, ready
+  to swap for Postgres (see `docs/ARCHITECTURE-SAAS.md`).
+- A session's **Open host** links to `BOOTH_ORIGIN/host` when set; wiring each session to its
+  own isolated booth/queue is the next increment.
+
+Next: real OAuth redirects, live Stripe, and per-session booth isolation.
+
 ## 1.73.52 — 2026-09-04
 
 **Longer job history — 1,500 prints.** The in-memory queue/history cap

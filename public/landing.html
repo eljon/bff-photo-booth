@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BFF Photo Booth — run your own booth</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/saas.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <div class="brand"><span class="dot"></span> BFF Photo Booth</div>
+    <a class="btn ghost" href="#auth" id="navSignin">Sign in</a>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <h1>Your own photo booth, anywhere.</h1>
+      <p class="lead">Guests scan a QR on their phone, build a photo strip, and it prints on site. Buy a session, open your host screen, and you're running a booth in minutes.</p>
+      <ul class="points">
+        <li>No app for guests — just their phone camera</li>
+        <li>Prints from your own printer, no per-print fees</li>
+        <li>Multiple printers, print codes, and a live gallery</li>
+      </ul>
+    </div>
+
+    <div class="card auth" id="auth">
+      <h2 id="authTitle">Create your account</h2>
+      <p class="sub" id="authSub">Start your first booth session.</p>
+
+      <div class="socials" id="socials">
+        <button class="social" data-provider="google" type="button">Continue with Google <span class="soon hidden">soon</span></button>
+        <button class="social" data-provider="apple" type="button">Continue with Apple <span class="soon hidden">soon</span></button>
+        <button class="social" data-provider="facebook" type="button">Continue with Facebook <span class="soon hidden">soon</span></button>
+      </div>
+      <div class="divider">or with email</div>
+
+      <form id="authForm">
+        <label class="field" id="nameField"><span>Name</span><input id="name" type="text" autocomplete="name" placeholder="Your name"></label>
+        <label class="field"><span>Email</span><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label class="field"><span>Password</span><input id="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" required></label>
+        <p class="err" id="err"></p>
+        <button class="btn primary block" id="submit" type="submit">Create account</button>
+      </form>
+
+      <p class="toggle" id="toggle">Already have an account? <button type="button" id="toggleBtn">Sign in</button></p>
+    </div>
+  </section>
+</div>
+
+<script type="module" src="/js/landing.mjs"></script>
+</body>
+</html>
