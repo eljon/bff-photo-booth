@@ -126,3 +126,6 @@ a { color: var(--accent); }
   cursor: pointer; padding: 0; vertical-align: middle;
 }
 .theme-toggle:hover { border-color: var(--dim); }
+
+/* Inline SVG icons size to the surrounding text (guards against an unsized icon blowing up). */
+.icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; }

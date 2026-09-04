@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.76.1 - 2026-09-04
+
+**Fix: the "Temporary name" badge icon rendered huge and hid the text.** The `.icon` size rule
+was only in `style.css` (guest/host), but the landing and dashboard load `saas.css`, so the
+badge's inline SVG had no size and expanded to its default, burying the text. Removed the icon
+from the badge (it is back to plain "Temporary name"), and added the `.icon` sizing rule to
+`saas.css` so an unsized icon can never blow up there again.
+
 ## 1.76.0 - 2026-09-04
 
 **Emoji replaced with proper SVG icons app-wide, and the celebrate emoji is now a confetti
