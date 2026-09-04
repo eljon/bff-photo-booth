@@ -10,7 +10,7 @@
 # (e.g. *.booth.example.com) with wildcard TLS — see docs/DEPLOY-COMMERCIAL.md.
 services:
   - type: web
-    name: bff-booth-accounts
+    name: hawak-mo-ang-booth
     runtime: node
     plan: starter            # stays awake; spawns a booth process per active session
     startCommand: npm run saas

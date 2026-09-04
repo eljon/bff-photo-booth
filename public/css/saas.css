@@ -13,6 +13,7 @@ a { color: var(--accent); }
 .nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
 .brand { font-weight: 800; letter-spacing: 0.02em; font-size: 18px; display: flex; gap: 8px; align-items: center; }
 .brand .dot { width: 14px; height: 14px; border-radius: 4px; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+.brand-temp { font-size: 11px; font-weight: 500; color: var(--dim); letter-spacing: 0; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
 .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }

@@ -15,6 +15,15 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.4 — 2026-09-04
+
+**Renamed the commercial app to "Hawak Mo ang Booth (temporary name)."** Landing page,
+dashboard, and startup banner now show the new name (with the "(temporary name)" note).
+Tailored `docs/DEPLOY-COMMERCIAL.md` to the real target: app at
+`boothless.alphanauts.net`, session booths at `<slug>.boothless.alphanauts.net`, with
+HostGator DNS steps (and a Cloudflare fallback for wildcard TLS). Render service renamed
+`hawak-mo-ang-booth` in `render-saas.yaml`.
+
 ## 1.74.3 — 2026-09-04
 
 **Cloud routing + deploy for the commercial app.** Each session's booth is now reachable at
