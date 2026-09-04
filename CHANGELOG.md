@@ -15,6 +15,13 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.76.2 - 2026-09-04
+
+**Host "Screens" links are now app-style tiles.** The plain "Screens: Queue board · All photos"
+text on the host page is replaced by two side-by-side tiles, each a gradient rounded icon badge
+(a monitor for the queue board, a photo frame for all photos) over a bold label, so they read as
+tappable apps rather than fine print.
+
 ## 1.76.1 - 2026-09-04
 
 **Fix: the "Temporary name" badge icon rendered huge and hid the text.** The `.icon` size rule
