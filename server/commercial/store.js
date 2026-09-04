@@ -51,6 +51,26 @@ class Store {
     return Object.values(this.data.users).find((u) => u.email === key) || null;
   }
   userById(id) { return this.data.users[id] || null; }
+  userByProvider(provider, subject) {
+    if (!subject) return null;
+    return Object.values(this.data.users).find((u) => u.provider === provider && u.providerSubject === subject) || null;
+  }
+
+  /** Find or create the account behind a social login. Matches on (provider, subject) first;
+   *  if the verified email already has an account, links this provider to it. */
+  findOrCreateOAuth({ provider, subject, email, name }) {
+    const existing = this.userByProvider(provider, subject);
+    if (existing) return existing;
+    const byEmail = email ? this.userByEmail(email) : null;
+    if (byEmail) {
+      byEmail.provider = byEmail.provider === 'password' ? byEmail.provider : provider;
+      byEmail.providerSubject = subject;
+      if (!byEmail.name && name) byEmail.name = name;
+      this._save();
+      return byEmail;
+    }
+    return this.createUser({ email, name, provider, providerSubject: subject });
+  }
 
   createUser({ email, name, provider = 'password', passHash = null, providerSubject = null }) {
     const id = `usr_${crypto.randomBytes(9).toString('hex')}`;

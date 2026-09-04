@@ -11,6 +11,22 @@ const require = createRequire(import.meta.url);
 const { createApp, Store } = require('../server/commercial/app.js');
 const { BoothManager } = require('../server/commercial/booths.js');
 const auth = require('../server/commercial/auth.js');
+const oauth = require('../server/commercial/oauth.js');
+
+// A raw GET that does NOT follow redirects, so we can read Location + Set-Cookie.
+function rawGet(base, p, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(base + p);
+    const r = http.request({ hostname: u.hostname, port: u.port, path: u.pathname + u.search, method: 'GET', headers }, (res) => {
+      let body = '';
+      res.on('data', (d) => { body += d; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
+    });
+    r.on('error', reject);
+    r.end();
+  });
+}
+const fakeJwt = (claims) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
 
 async function startSaas() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'saas-'));
@@ -137,6 +153,70 @@ test('each session opens its own isolated booth (separate queues)', async (t) =>
   const galleryB = await j(await fetch(`${baseB}/api/prints`, { headers: { 'x-booth-token': tokenB } }));
   assert.equal(galleryA.data.count, 1, 'the print landed in booth A');
   assert.equal(galleryB.data.count, 0, 'booth B never saw it');
+});
+
+test('oauth: buildAuthUrl carries the standard params; unconfigured providers are off', () => {
+  const url = new URL(oauth.buildAuthUrl('google', 'https://x/cb', 'state123'));
+  assert.equal(url.origin + url.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
+  assert.equal(url.searchParams.get('redirect_uri'), 'https://x/cb');
+  assert.equal(url.searchParams.get('state'), 'state123');
+  assert.equal(url.searchParams.get('response_type'), 'code');
+  assert.match(url.searchParams.get('scope'), /email/);
+  assert.equal(new URL(oauth.buildAuthUrl('apple', 'https://x/cb', 's')).searchParams.get('response_mode'), 'form_post');
+});
+
+test('oauth: start redirects to the provider (configured) or 501 (not)', async (t) => {
+  const s = await startSaas();
+  t.after(() => s.close());
+
+  // Not configured → 501.
+  assert.equal((await rawGet(s.base, '/api/auth/oauth/google')).status, 501);
+
+  process.env.GOOGLE_CLIENT_ID = 'test-client';
+  process.env.GOOGLE_CLIENT_SECRET = 'test-secret';
+  t.after(() => { delete process.env.GOOGLE_CLIENT_ID; delete process.env.GOOGLE_CLIENT_SECRET; });
+
+  const start = await rawGet(s.base, '/api/auth/oauth/google');
+  assert.equal(start.status, 302);
+  assert.match(start.headers.location, /accounts\.google\.com/);
+  assert.match(start.headers['set-cookie'][0], /^oauth_state=google:/);
+});
+
+test('oauth: a full Google callback signs the user in (mocked token endpoint)', async (t) => {
+  const s = await startSaas();
+  t.after(() => s.close());
+  process.env.GOOGLE_CLIENT_ID = 'test-client';
+  process.env.GOOGLE_CLIENT_SECRET = 'test-secret';
+  t.after(() => { delete process.env.GOOGLE_CLIENT_ID; delete process.env.GOOGLE_CLIENT_SECRET; });
+
+  // Intercept only Google's token endpoint; everything else hits the real server.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, opts) => {
+    const s2 = typeof u === 'string' ? u : u.url;
+    if (s2.includes('oauth2.googleapis.com/token')) {
+      return new Response(JSON.stringify({ id_token: fakeJwt({ sub: 'g-123', email: 'gee@x.com', name: 'Gee' }) }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return realFetch(u, opts);
+  };
+  t.after(() => { globalThis.fetch = realFetch; });
+
+  const start = await rawGet(s.base, '/api/auth/oauth/google');
+  const stateCookie = start.headers['set-cookie'][0].split(';')[0]; // oauth_state=google:nonce
+  const nonce = stateCookie.split(':')[1];
+
+  const cb = await rawGet(s.base, `/api/auth/oauth/google/callback?code=abc&state=${nonce}`, { cookie: stateCookie });
+  assert.equal(cb.status, 302);
+  assert.equal(cb.headers.location, '/dashboard');
+  const session = (cb.headers['set-cookie'] || []).map((c) => c.split(';')[0]).find((c) => c.startsWith('saas_sid='));
+  assert.ok(session, 'a session cookie was set');
+
+  const me = await j(await fetch(`${s.base}/api/me`, { headers: { cookie: session } }));
+  assert.equal(me.data.user.email, 'gee@x.com');
+
+  // A tampered/mismatched state is rejected.
+  const bad = await rawGet(s.base, '/api/auth/oauth/google/callback?code=abc&state=wrong', { cookie: stateCookie });
+  assert.equal(bad.status, 302);
+  assert.match(bad.headers.location, /error=/);
 });
 
 test('logout clears the session', async (t) => {

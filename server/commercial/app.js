@@ -12,9 +12,11 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const { Store } = require('./store');
 const auth = require('./auth');
+const oauth = require('./oauth');
 const payments = require('./payments');
 const { BoothManager } = require('./booths');
 
@@ -42,7 +44,15 @@ function readJson(req) {
 }
 const safeParse = (s) => { try { return JSON.parse(s); } catch { return {}; } };
 const isHttps = (req) => (req.headers['x-forwarded-proto'] || '').includes('https') || Boolean(req.socket.encrypted);
+const originOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
 const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || ''));
+function cookieVal(req, name) {
+  for (const part of (req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return '';
+}
 
 function publicUser(u) {
   return u && { id: u.id, email: u.email, name: u.name, provider: u.provider };
@@ -80,7 +90,7 @@ function createApp(store = new Store(), booths = new BoothManager()) {
 
     // ── auth ───────────────────────────────────────────────────────────────
     if (url.pathname === '/api/me' && req.method === 'GET') {
-      return sendJson(res, 200, { ok: true, user: publicUser(me), providers: auth.socialProviders() });
+      return sendJson(res, 200, { ok: true, user: publicUser(me), providers: oauth.statusMap() });
     }
 
     if (url.pathname === '/api/auth/signup' && req.method === 'POST') {
@@ -109,13 +119,43 @@ function createApp(store = new Store(), booths = new BoothManager()) {
       return sendJson(res, 200, { ok: true });
     }
 
-    // Social sign-in — activates when the provider's keys are set. Until then, tell the UI.
-    if (url.pathname.startsWith('/api/auth/oauth/') && req.method === 'GET') {
-      const provider = url.pathname.split('/').pop();
-      const configured = auth.socialProviders()[provider];
-      if (!configured) return sendJson(res, 501, { ok: false, error: `${provider} sign-in isn't configured yet.` });
-      // Real OAuth redirect wiring lands with the provider keys (next increment).
-      return sendJson(res, 501, { ok: false, error: `${provider} sign-in is configured but the redirect flow is not wired yet.` });
+    // Start social sign-in: set a state cookie and redirect to the provider.
+    const startMatch = /^\/api\/auth\/oauth\/(google|facebook|apple)$/.exec(url.pathname);
+    if (startMatch && req.method === 'GET') {
+      const provider = startMatch[1];
+      if (!oauth.configured(provider)) return sendJson(res, 501, { ok: false, error: `${provider} sign-in isn't set up yet — use email for now.` });
+      const nonce = crypto.randomBytes(16).toString('hex');
+      res.setHeader('Set-Cookie', `oauth_state=${provider}:${nonce}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${isHttps(req) ? '; Secure' : ''}`);
+      const redirectUri = `${originOf(req)}/api/auth/oauth/${provider}/callback`;
+      res.writeHead(302, { location: oauth.buildAuthUrl(provider, redirectUri, nonce) });
+      res.end();
+      return undefined;
+    }
+
+    // Provider callback — Apple posts (form_post); Google/Facebook come back via GET.
+    const cbMatch = /^\/api\/auth\/oauth\/(google|facebook|apple)\/callback$/.exec(url.pathname);
+    if (cbMatch && (req.method === 'GET' || req.method === 'POST')) {
+      const provider = cbMatch[1];
+      const fail = (msg) => { res.writeHead(302, { location: `/?error=${encodeURIComponent(msg)}` }); res.end(); };
+      let code; let state;
+      if (req.method === 'POST') { const { raw } = await readJson(req); const f = new URLSearchParams(raw); code = f.get('code'); state = f.get('state'); }
+      else { code = url.searchParams.get('code'); state = url.searchParams.get('state'); }
+      if (!code || !state || cookieVal(req, 'oauth_state') !== `${provider}:${state}`) {
+        return fail('Sign-in was interrupted. Please try again.');
+      }
+      try {
+        const redirectUri = `${originOf(req)}/api/auth/oauth/${provider}/callback`;
+        const tokens = await oauth.exchangeCode(provider, code, redirectUri);
+        const profile = await oauth.fetchProfile(provider, tokens);
+        if (!profile.subject) throw new Error('no account id from provider');
+        const user = store.findOrCreateOAuth({ provider, subject: profile.subject, email: profile.email, name: profile.name });
+        auth.setSessionCookie(res, user.id, secret, { secure: isHttps(req) });
+        res.writeHead(302, { location: '/dashboard' });
+        res.end();
+        return undefined;
+      } catch (err) {
+        return fail(`Could not complete ${provider} sign-in: ${err.message}`);
+      }
     }
 
     // ── sessions ─────────────────────────────────────────────────────────────

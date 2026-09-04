@@ -15,6 +15,24 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.2 — 2026-09-04
+
+**Real social sign-in + live Stripe (commercial).** The Google / Facebook / Apple buttons
+now run the full OAuth2 authorization-code flow — redirect → callback → token exchange →
+profile → find-or-create account → signed-in session — with CSRF state protection and no
+SDK dependency (`server/commercial/oauth.js`). Apple's ES256 client secret is signed from
+its .p8 key; Apple's form-post callback is handled. Each provider lights up when its keys
+are set (`GET /api/me` reports which). Accounts link by verified email, so signing in with
+Google and email for the same address is one account.
+
+Stripe Checkout + webhook (from 1.74.0) is the live-payments path — set `STRIPE_SECRET_KEY`
+and `STRIPE_WEBHOOK_SECRET` to switch off the dev simulate-purchase.
+
+Added `docs/COMMERCIAL-SETUP.md` — exactly how to get and set the Stripe, Google, Facebook
+and Apple keys (redirect URIs, env vars).
+
+Next: cloud deployment of the commercial app + per-session cloud routing.
+
 ## 1.74.1 — 2026-09-04
 
 **Per-session booths — each session is its own isolated booth.** From the dashboard,

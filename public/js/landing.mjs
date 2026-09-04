@@ -1,5 +1,10 @@
 const $ = (id) => document.getElementById(id);
 let mode = 'signup'; // or 'signin'
+let providers = {}; // which social logins are configured
+
+// Show an error passed back from a failed social sign-in redirect (/?error=…).
+const errParam = new URLSearchParams(location.search).get('error');
+if (errParam) { history.replaceState({}, '', '/'); }
 
 async function api(path, body) {
   const res = await fetch(path, {
@@ -15,14 +20,15 @@ async function api(path, body) {
   try {
     const me = await (await fetch('/api/me')).json();
     if (me.user) { location.href = '/dashboard'; return; }
-    markProviders(me.providers || {});
+    providers = me.providers || {};
+    markProviders();
   } catch { /* offline — show the form */ }
+  if (errParam) $('err').textContent = errParam;
 })();
 
-function markProviders(providers) {
+function markProviders() {
   for (const btn of document.querySelectorAll('.social')) {
-    const p = btn.dataset.provider;
-    if (!providers[p]) btn.querySelector('.soon').classList.remove('hidden');
+    if (!providers[btn.dataset.provider]) btn.querySelector('.soon').classList.remove('hidden');
   }
 }
 
@@ -57,11 +63,9 @@ $('authForm').addEventListener('submit', async (e) => {
 });
 
 for (const btn of document.querySelectorAll('.social')) {
-  btn.addEventListener('click', async () => {
+  btn.addEventListener('click', () => {
     const provider = btn.dataset.provider;
-    const res = await fetch(`/api/auth/oauth/${provider}`);
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 200 && data.redirect) { location.href = data.redirect; return; }
-    $('err').textContent = data.error || `${provider} sign-in isn't available yet — use email for now.`;
+    if (providers[provider]) { location.href = `/api/auth/oauth/${provider}`; return; } // real redirect flow
+    $('err').textContent = `${provider[0].toUpperCase() + provider.slice(1)} sign-in isn't set up yet — use email for now.`;
   });
 }
