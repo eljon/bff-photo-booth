@@ -192,6 +192,14 @@ function createApp(store = new Store(), booths = new BoothManager()) {
       const session = store.sessionById(openMatch[1]);
       if (!session || session.userId !== me.id) return sendJson(res, 404, { ok: false, error: 'Session not found.' });
       if (session.status !== 'active') return sendJson(res, 402, { ok: false, error: 'This session is not active yet.' });
+      // In the cloud, booths are only reachable via <slug>.<SAAS_BASE_DOMAIN>. Without that
+      // configured, the only URL we could give is a loopback address the browser can't reach —
+      // so say so clearly instead of sending the operator to 127.0.0.1.
+      const reqHost = (req.headers.host || '').split(':')[0].toLowerCase();
+      const local = reqHost === 'localhost' || reqHost === '127.0.0.1';
+      if (!baseDomain() && !local) {
+        return sendJson(res, 409, { ok: false, error: 'Booth hosting isn’t finished setting up yet (needs a booth domain). Try again shortly.' });
+      }
       try {
         const info = await booths.ensure(session);
         const boothBase = baseDomain()

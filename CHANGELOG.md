@@ -15,6 +15,14 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.8 — 2026-09-04
+
+**Clearer message when opening a host before the booth domain is set.** In the cloud, a
+session's booth is only reachable at `<slug>.<SAAS_BASE_DOMAIN>`; until that (and the wildcard
+domain) is configured, **Open host** was sending the operator to an unreachable `127.0.0.1`
+URL. It now returns a clear "hosting isn't finished setting up" message for remote requests
+with no `SAAS_BASE_DOMAIN` (local `npm run saas` still links to the loopback booth as before).
+
 ## 1.74.7 — 2026-09-04
 
 **Fix: a guest's photo URL could 404 once the print reached a printer.** Tagging the saved
