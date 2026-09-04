@@ -154,6 +154,53 @@ test('pairing: minting needs the host token; claiming needs a valid code', async
   assert.equal(reuse.status, 404, 'a code is single-use');
 });
 
+async function saveConfig(booth, patch) {
+  return fetch(`${booth.base}/api/config`, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...host },
+    body: JSON.stringify(patch),
+  });
+}
+const jobState = async (booth, id) => (await (await fetch(`${booth.base}/api/job?id=${id}`)).json()).job;
+
+test('guests see the host printer name (never the raw CUPS name), and the file records the printer', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  // Host picked a printer but left the name blank — the host UI stores that as the raw
+  // printer name. Guests should still see a clean "#1", and the saved file should be tagged.
+  // (The dry-run agent reports its printer as "Dry-Run-Printer", so name it that here.)
+  await saveConfig(booth, { printers: [{ agentId: 'test-mac', name: 'Dry-Run-Printer', label: 'Dry-Run-Printer' }] });
+
+  const { data } = await printAsGuest(booth);
+  const agent = await startAgent(booth.base, TOKEN, { AGENT_ID: 'test-mac' });
+  t.after(() => agent.close());
+
+  const done = await until(async () => {
+    const j = await jobState(booth, data.job.id);
+    return j && j.printerLabel ? j : null;
+  });
+  assert.equal(done.printerLabel, '#1', 'the guest is shown a clean number, not the raw printer name');
+  assert.match(done.image, /__1\./, 'the saved file records which printer produced it');
+});
+
+test('a host-typed printer name is shown to the guest and folded into the filename', async (t) => {
+  const booth = await startRelay();
+  t.after(() => booth.close());
+
+  await saveConfig(booth, { printers: [{ agentId: 'test-mac', name: 'Dry-Run-Printer', label: 'Front Desk' }] });
+
+  const { data } = await printAsGuest(booth);
+  const agent = await startAgent(booth.base, TOKEN, { AGENT_ID: 'test-mac' });
+  t.after(() => agent.close());
+
+  const done = await until(async () => {
+    const j = await jobState(booth, data.job.id);
+    return j && j.printerLabel ? j : null;
+  });
+  assert.equal(done.printerLabel, 'Front Desk');
+  assert.match(done.image, /__Front-Desk\./, 'the printer name is sanitised into the filename');
+});
+
 test('pairing: an agent started with only a code connects and reports its printers', async (t) => {
   const booth = await startRelay();
   t.after(() => booth.close());

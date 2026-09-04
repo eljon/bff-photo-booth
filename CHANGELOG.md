@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.73.49 — 2026-09-04
+
+**Guests see the printer name you set — never the raw driver name.** The guest app now
+shows the host-typed name/number (e.g. "Front Desk" or "#1"); if a printer was chosen
+but left unnamed, it shows a clean "#1" instead of a long CUPS string like
+"CANON_G4010_series". The raw driver name is never shown to guests or on the queue board.
+
+**Saved photos are tagged with the printer.** When a print lands on a printer, its stored
+filename gets the printer's label folded in (e.g. `…_grid_ab12cd34__Front-Desk.png`), so
+you can tell from the file which printer produced each photo.
+
+**Where photos live (relay/cloud):** on the relay's persistent disk at `/data/prints`
+(set by `PRINTS_DIR=/data/prints` in the Dockerfile; Render/Fly mount the volume at
+`/data`). The durable queue (`queue.json`), print codes (`vouchers.json`), and settings
+sit beside them under `/data`, so they survive redeploys.
+
 ## 1.73.48 — 2026-09-04
 
 **Fix: helper app was rejected by macOS as "malware."** The build skipped code-signing

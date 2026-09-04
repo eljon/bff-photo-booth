@@ -512,17 +512,20 @@ const agentOnline = () => onlineAgents().length > 0;
 /** The printers the host selected to run, or [] when none are chosen. */
 function enabledSlots(cfg) {
   if (Array.isArray(cfg.printers) && cfg.printers.length) {
+    // Guests see the host's typed name/number. When the host left the name blank it was
+    // stored as the raw CUPS name — treat that as "unnamed" and show a clean "#N" instead,
+    // so a guest never sees a long driver string like "CANON_G4010_series".
     return cfg.printers.map((p, i) => ({
       agentId: p.agentId || 'local',
       name: p.name,
-      label: p.label || p.name || `Printer ${i + 1}`,
+      label: (p.label && p.label !== p.name) ? p.label : `#${i + 1}`,
     }));
   }
   // Nothing chosen: in relay mode spread across every printer the connected computers
   // report; in booth mode use the single default destination (one serial slot).
   if (MODE === 'relay') {
     const out = [];
-    for (const a of onlineAgents()) for (const pr of a.printers) out.push({ agentId: a.id, name: pr.name, label: pr.name });
+    for (const a of onlineAgents()) for (const pr of a.printers) out.push({ agentId: a.id, name: pr.name, label: `#${out.length + 1}` });
     return out;
   }
   return [];
@@ -546,7 +549,34 @@ function busyPrinterKeys() {
 function printerLabelFor(cfg, job) {
   if (!job.printer) return null;
   const hit = enabledSlots(cfg).find((s) => s.agentId === (job.agentId || 'local') && s.name === job.printer);
-  return (hit && hit.label) || job.printer;
+  // Only ever the host-set name/number — never the raw CUPS name (null if we can't map it).
+  return (hit && hit.label) || null;
+}
+
+/** A printer label safe to drop into a filename (and a URL path). */
+function fileSafeLabel(label) {
+  return String(label || '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+}
+
+/** Once a job lands on a printer, fold that printer's label into the saved filename so the
+ *  stored photo records which printer produced it (e.g. …_grid_ab12cd34__1.png). Best-effort:
+ *  on any fs error, keep the original name — never let a rename break a print. */
+function tagFileWithPrinter(job) {
+  try {
+    if (!job.file || job.printerTagged) return;
+    const tag = fileSafeLabel(printerLabelFor(config.load(), job));
+    if (!tag) return;
+    const dir = path.dirname(job.file);
+    const ext = path.extname(job.file);
+    const stem = path.basename(job.file, ext);
+    if (stem.endsWith(`__${tag}`)) { job.printerTagged = true; return; }
+    const next = path.join(dir, `${stem}__${tag}${ext}`);
+    fs.renameSync(job.file, next);
+    job.file = next;
+    job.printerTagged = true;
+  } catch (err) {
+    console.error(`  (could not tag print file with printer: ${err.message})`);
+  }
 }
 
 /** The sticker to actually stamp: the configured one if it's still on disk, else the
@@ -664,6 +694,7 @@ async function dispatchToPrinter(job, assigned = null) {
   }
   job.status = 'printing';
   job.printer = name;
+  tagFileWithPrinter(job); // record the printer in the stored filename
   job.cupsJobId = result.jobId;
   job.printedAt = Date.now();
   job.seenActive = false;
@@ -897,6 +928,7 @@ async function handleAgentApi(req, res, url) {
       job.claimedAt = Date.now();
       job.agentId = agentId;
       job.printer = printer || cfg.printer || null;
+      tagFileWithPrinter(job); // record the printer in the stored filename before the agent fetches it
       persist();
       return {
         id: job.id,
