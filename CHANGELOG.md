@@ -15,6 +15,22 @@ Then start the booth again. Your settings, the guest key and everything in
 
 ---
 
+## 1.74.14 — 2026-09-04
+
+**Branded social sign-in buttons.** The Google / Facebook / Apple buttons on the landing page
+now use each provider's official logo and colors instead of plain text rows:
+
+- **Google** — white button, `#dadce0` border, the official four-color "G" mark.
+- **Facebook** — `#1877F2` blue, white "f" mark, white text.
+- **Apple** — black button, white Apple mark (styled and ready, but see below).
+
+Logos are inline SVG (no external assets, CSP-safe, crisp on any display), with per-provider
+hover states and "soon" badges that stay readable on the colored buttons.
+
+**Apple button hidden for now** — it carries a `hidden` attribute until the Apple Developer
+Program is enrolled; re-enabling it later is just removing that attribute. Google and Facebook
+show; the display order is Google, then Facebook.
+
 ## 1.74.13 — 2026-09-04
 
 **`docs/COMMERCIAL-SETUP.md` rewritten as a do-it-once production guide.** Instead of test/dev
